@@ -3,7 +3,7 @@ import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
-import { X, Plus, Trash2, Store, Check, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash2, Store, Check, ExternalLink, Wifi } from 'lucide-react';
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -11,6 +11,26 @@ interface RestaurantFormModalProps {
   onSaved: () => void;
   restaurant?: Restaurant | null;
   organizations: Organization[];
+}
+
+function parseWifiString(url: string): { ssid: string; pass: string } {
+  if (!url) return { ssid: '', pass: '' };
+  const ssidMatch = url.match(/S:([^;]+)/i);
+  const passMatch = url.match(/P:([^;]*)/i);
+  return {
+    ssid: ssidMatch ? ssidMatch[1] : '',
+    pass: passMatch ? passMatch[1] : (url.startsWith('WIFI:') ? '' : url),
+  };
+}
+
+function buildWifiString(ssid: string, pass: string): string {
+  const cleanSsid = ssid.trim();
+  const cleanPass = pass.trim();
+  if (!cleanSsid && !cleanPass) return '';
+  if (cleanSsid && !cleanPass) {
+    return `WIFI:S:${cleanSsid};T:nopass;P:;;`;
+  }
+  return `WIFI:S:${cleanSsid};T:WPA;P:${cleanPass};;`;
 }
 
 export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
@@ -117,7 +137,32 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
   const updateLink = (index: number, field: keyof LinkItem, value: string) => {
     const updated = [...links];
-    updated[index] = { ...updated[index], [field]: value };
+    const current = updated[index];
+
+    if (field === 'icon') {
+      const newIcon = value as LinkType;
+      let newTitle = current.title;
+      let newUrl = current.url;
+
+      if (newIcon === 'wifi') {
+        if (!newTitle || newTitle === 'Nuevo Acceso') newTitle = 'Conectar a Wi-Fi Clientes';
+        if (newUrl.startsWith('http')) newUrl = '';
+      } else {
+        if (newUrl.startsWith('WIFI:')) newUrl = 'https://';
+        if (newIcon === 'instagram') {
+          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Síguenos en Instagram';
+        } else if (newIcon === 'whatsapp') {
+          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Reservaciones por WhatsApp';
+        } else if (newIcon === 'menu') {
+          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Menú Digital & Carta';
+        }
+      }
+
+      updated[index] = { ...current, icon: newIcon, title: newTitle, url: newUrl };
+    } else {
+      updated[index] = { ...current, [field]: value };
+    }
+
     setLinks(updated);
   };
 
@@ -404,52 +449,111 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-2.5">
-                {links.map((link, idx) => (
-                  <div
-                    key={link.id || idx}
-                    className="flex flex-col sm:flex-row items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200"
-                  >
-                    <select
-                      value={link.icon}
-                      onChange={(e) => updateLink(idx, 'icon', e.target.value as LinkType)}
-                      className="p-2 text-xs rounded-lg border border-slate-200 bg-white"
+              <div className="space-y-3">
+                {links.map((link, idx) => {
+                  const isWifi = link.icon === 'wifi';
+                  const wifiData = isWifi ? parseWifiString(link.url) : { ssid: '', pass: '' };
+
+                  return (
+                    <div
+                      key={link.id || idx}
+                      className={`p-3 rounded-xl border transition-all ${
+                        isWifi
+                          ? 'bg-blue-50/50 border-blue-200'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
                     >
-                      <option value="menu">Menú Digital</option>
-                      <option value="instagram">Instagram</option>
-                      <option value="facebook">Facebook</option>
-                      <option value="tiktok">TikTok</option>
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="wifi">Wi-Fi Clientes</option>
-                      <option value="website">Sitio Web</option>
-                      <option value="other">Otro</option>
-                    </select>
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <select
+                          value={link.icon}
+                          onChange={(e) => updateLink(idx, 'icon', e.target.value as LinkType)}
+                          className="w-full sm:w-auto p-2 text-xs rounded-lg border border-slate-200 bg-white font-medium"
+                        >
+                          <option value="wifi">📶 Wi-Fi Clientes</option>
+                          <option value="menu">🍽️ Menú Digital</option>
+                          <option value="instagram">📸 Instagram</option>
+                          <option value="facebook">👍 Facebook</option>
+                          <option value="tiktok">🎵 TikTok</option>
+                          <option value="whatsapp">💬 WhatsApp</option>
+                          <option value="website">🌐 Sitio Web</option>
+                          <option value="other">🔗 Otro</option>
+                        </select>
 
-                    <input
-                      type="text"
-                      placeholder="Título del botón"
-                      value={link.title}
-                      onChange={(e) => updateLink(idx, 'title', e.target.value)}
-                      className="flex-1 p-2 text-xs rounded-lg border border-slate-200 bg-white"
-                    />
+                        <input
+                          type="text"
+                          placeholder="Texto del botón (ej. Conectar a Wi-Fi Clientes)"
+                          value={link.title}
+                          onChange={(e) => updateLink(idx, 'title', e.target.value)}
+                          className="flex-1 w-full p-2 text-xs rounded-lg border border-slate-200 bg-white"
+                        />
 
-                    <input
-                      type="text"
-                      placeholder="URL o texto de Wi-Fi"
-                      value={link.url}
-                      onChange={(e) => updateLink(idx, 'url', e.target.value)}
-                      className="flex-1 p-2 text-xs rounded-lg border border-slate-200 bg-white"
-                    />
+                        {!isWifi && (
+                          <input
+                            type="text"
+                            placeholder="URL destino (ej. https://instagram.com/...)"
+                            value={link.url}
+                            onChange={(e) => updateLink(idx, 'url', e.target.value)}
+                            className="flex-1 w-full p-2 text-xs rounded-lg border border-slate-200 bg-white"
+                          />
+                        )}
 
-                    <button
-                      type="button"
-                      onClick={() => removeLink(idx)}
-                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                        <button
+                          type="button"
+                          onClick={() => removeLink(idx)}
+                          className="p-2 text-rose-500 hover:bg-rose-100/70 rounded-lg self-end sm:self-center transition-colors"
+                          title="Eliminar botón"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Si es Wi-Fi, mostrar inputs sencillos de Red y Contraseña */}
+                      {isWifi && (
+                        <div className="mt-2.5 pt-2.5 border-t border-blue-100 space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Nombre de la Red (SSID)
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej: CafeClientes o TacosMike_WiFi"
+                                value={wifiData.ssid}
+                                onChange={(e) => {
+                                  const newWifiStr = buildWifiString(e.target.value, wifiData.pass);
+                                  updateLink(idx, 'url', newWifiStr);
+                                }}
+                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white focus:border-blue-500"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                Contraseña de Wi-Fi
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ej: cafe1234 (o dejar vacío si es abierta)"
+                                value={wifiData.pass}
+                                onChange={(e) => {
+                                  const newWifiStr = buildWifiString(wifiData.ssid, e.target.value);
+                                  updateLink(idx, 'url', newWifiStr);
+                                }}
+                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-blue-700 flex items-center gap-1.5">
+                            <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>
+                              El sistema genera automáticamente el código para que los comensales copien la clave con un toque o se conecten al escanear.
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
