@@ -60,3 +60,4 @@ El diseño del flujo de cliente **no es un clon genérico de SaaS**; está dise�
 - [x] **Ajuste de animación:** Reemplazo de easing rebotante por desaceleración exponencial fluida.
 - [x] **Touch Targets mínimos:** Botones de estrellas ampliados a `w-12 h-12` (48px) para cumplimiento de accesibilidad WCAG 2.1 AA en pantallas móviles.
 - [x] **Limpieza del detector:** Código 100% limpio sin antipatrones detectados por el CLI de Impeccable.
+
