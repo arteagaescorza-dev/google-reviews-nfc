@@ -68,3 +68,4 @@ Lograr que cada `git push origin main` ejecute un flujo unificado de CI/CD en Gi
 ## 5. Fuera de Alcance (Out of Scope)
 
 - Rollbacks destructivos automáticos (borrado de columnas existentes con `DROP COLUMN` sin confirmación): por seguridad, nunca se eliminarán columnas en caliente en producción; las migraciones siempre deben ser aditivas.
+
