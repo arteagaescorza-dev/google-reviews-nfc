@@ -3,7 +3,7 @@ import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
-import { X, Plus, Trash2, Store, Check } from 'lucide-react';
+import { X, Plus, Trash2, Store, Check, ExternalLink } from 'lucide-react';
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -335,9 +335,23 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Dirección Física
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Dirección Física
+                </label>
+                {googleReviewUrl && (
+                  <a
+                    href={googleReviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-medium"
+                    title="Abrir ficha en Google Maps para copiar la dirección exacta"
+                  >
+                    <span>Ver en Google Maps</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
               <input
                 type="text"
                 value={address}
@@ -345,6 +359,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 placeholder="Av. Hidalgo #120, Col. Centro"
                 className="w-full p-3 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Copia la dirección que figura en la tarjeta de Google Maps de tu cliente para que coincida exactamente con su GPS.
+              </p>
             </div>
           </div>
 

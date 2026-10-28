@@ -14,6 +14,7 @@ import {
   Check,
   X,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 
 export const AdminTagsPage: React.FC = () => {
@@ -60,6 +61,17 @@ export const AdminTagsPage: React.FC = () => {
     });
     setEditingTagId(null);
     loadData();
+  };
+
+  const handleDeleteTag = async (tag: Tag) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar el tag ${tag.tag_code}?`)) {
+      const res = await api.deleteTag(tag.id);
+      if (res.success) {
+        loadData();
+      } else {
+        alert(res.error || 'Error al eliminar el tag');
+      }
+    }
   };
 
   const filteredTags = tags.filter((t) => {
@@ -273,6 +285,14 @@ export const AdminTagsPage: React.FC = () => {
                             >
                               <ExternalLink className="w-4 h-4" />
                             </a>
+
+                            <button
+                              onClick={() => handleDeleteTag(tag)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Eliminar Tag"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </>
                         )}
                       </td>

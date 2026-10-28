@@ -151,10 +151,16 @@ export const AdminRestaurantsPage: React.FC = () => {
                   {/* Detalles adicionales */}
                   <div className="space-y-1.5 text-xs text-slate-500 mb-4">
                     {res.address && (
-                      <div className="flex items-center gap-2 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        <span className="truncate">{res.address}</span>
-                      </div>
+                      <a
+                        href={res.google_review_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(res.name + ' ' + res.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 truncate hover:text-blue-600 transition-colors group"
+                        title="Ver ubicación en Google Maps"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 flex-shrink-0" />
+                        <span className="truncate group-hover:underline">{res.address}</span>
+                      </a>
                     )}
                     {res.manager_phone && (
                       <div className="flex items-center gap-2">

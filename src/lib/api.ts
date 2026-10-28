@@ -559,6 +559,22 @@ export const api = {
     }
   },
 
+  async deleteTag(id: string): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('tags').delete().eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    const current = getLocalItem<Tag[]>(STORAGE_KEYS.TAGS, INITIAL_DEMO_DATA.tags);
+    setLocalItem(STORAGE_KEYS.TAGS, current.filter((t) => t.id !== id));
+    return { success: true };
+  },
+
   async createBatchTags(
     prefix: string,
     start: number,
