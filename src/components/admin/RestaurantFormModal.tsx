@@ -3,7 +3,7 @@ import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
-import { X, Plus, Trash2, Store, Check, ExternalLink } from 'lucide-react';
+import { X, Plus, Trash2, Store, Check, ExternalLink, Sparkles, Search } from 'lucide-react';
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -34,6 +34,80 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const googleApiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !googleApiKey) return;
+
+    const initAutocomplete = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g = (window as any).google;
+      if (!searchInputRef.current || !g?.maps?.places) return;
+
+      const autocomplete = new g.maps.places.Autocomplete(searchInputRef.current, {
+        types: ['establishment'],
+        fields: ['place_id', 'name', 'formatted_address', 'formatted_phone_number', 'photos'],
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place || !place.place_id) return;
+
+        setGoogleReviewUrl(`https://search.google.com/local/writereview?placeid=${place.place_id}`);
+        if (place.name) {
+          setBrandName(place.name);
+          const generated = `${place.name} ${branchName}`
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+          setSlug(generated);
+        }
+        if (place.formatted_address) {
+          setAddress(place.formatted_address);
+        }
+        if (place.formatted_phone_number) {
+          setManagerPhone(place.formatted_phone_number);
+        }
+        if (place.photos && place.photos.length > 0) {
+          const photoUrl = place.photos[0].getUrl({ maxWidth: 400 });
+          if (photoUrl) setLogoUrl(photoUrl);
+        }
+      });
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).google?.maps?.places) {
+      initAutocomplete();
+    } else {
+      const existingScript = document.getElementById('google-maps-places-script');
+      if (!existingScript) {
+        const script = document.createElement('script');
+        script.id = 'google-maps-places-script';
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=places`;
+        script.async = true;
+        script.onload = () => initAutocomplete();
+        document.head.appendChild(script);
+      }
+    }
+  }, [isOpen, googleApiKey, branchName]);
+
+  const handleReviewUrlChange = (val: string) => {
+    const trimmed = val.trim();
+    // Si pega un Place ID directamente (ej. ChIJ...)
+    if (/^ChIJ[a-zA-Z0-9_-]+$/i.test(trimmed)) {
+      setGoogleReviewUrl(`https://search.google.com/local/writereview?placeid=${trimmed}`);
+      return;
+    }
+    // Si pega una URL que contiene query_place_id o placeid
+    const placeIdMatch = trimmed.match(/[?&](?:query_place_id|placeid)=([a-zA-Z0-9_-]+)/i);
+    if (placeIdMatch && placeIdMatch[1]) {
+      setGoogleReviewUrl(`https://search.google.com/local/writereview?placeid=${placeIdMatch[1]}`);
+      return;
+    }
+    setGoogleReviewUrl(val);
+  };
 
   useEffect(() => {
     if (restaurant) {
@@ -184,6 +258,52 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Asistente Rápido de Google Maps / Place ID */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-blue-50/90 border border-blue-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 rounded-xl bg-white shadow-sm text-blue-600 flex-shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>Detector Automático de Place ID (Google)</span>
+                    <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-blue-100 text-blue-700 font-bold">5 Estrellas Directo</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Halla el código <strong className="font-mono text-blue-700">ChIJ...</strong> de cualquier negocio para abrir la ventana de reseña de inmediato.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all flex-shrink-0"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Buscar Place ID en el Mapa</span>
+                <ExternalLink className="w-3 h-3 opacity-70" />
+              </a>
+            </div>
+
+            {/* Si tiene Google Places API Key, mostramos el Autocomplete en vivo */}
+            {googleApiKey && (
+              <div className="mt-3 pt-3 border-t border-blue-100/80">
+                <label className="block text-[11px] font-bold text-blue-900 mb-1">
+                  🔍 Búsqueda en vivo (Google Places Autocomplete activo):
+                </label>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Escribe el nombre del negocio para autorrellenar todo..."
+                  className="w-full p-2.5 text-xs rounded-xl border border-blue-200 bg-white focus:ring-2 focus:ring-blue-500 shadow-inner"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Datos de marca y sucursal */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -231,17 +351,27 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Enlace de Google Reseñas *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Enlace de Google Reseñas *
+                </label>
+                {googleReviewUrl.includes('placeid=') && (
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    ✓ Place ID Activo
+                  </span>
+                )}
+              </div>
               <input
-                type="url"
+                type="text"
                 required
                 value={googleReviewUrl}
-                onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                placeholder="https://search.google.com/local/writereview?placeid=..."
+                onChange={(e) => handleReviewUrlChange(e.target.value)}
+                placeholder="Pega el enlace o el Place ID (ChIJ...)"
                 className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
               />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Si pegas un código que empiece con <code className="text-blue-600 font-mono font-bold">ChIJ...</code>, el sistema lo convierte al enlace de 5 estrellas en automático.
+              </p>
             </div>
           </div>
 
