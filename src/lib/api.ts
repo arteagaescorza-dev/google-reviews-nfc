@@ -559,19 +559,30 @@ export const api = {
     }
   },
 
-  async createBatchTags(prefix: string, start: number, end: number): Promise<{ count: number }> {
+  async createBatchTags(
+    prefix: string,
+    start: number,
+    end: number,
+    restaurantId?: string | null
+  ): Promise<{ count: number }> {
     const newTags: Partial<Tag>[] = [];
     for (let i = start; i <= end; i++) {
       const padded = String(i).padStart(3, '0');
       newTags.push({
         tag_code: `${prefix.trim().toUpperCase()}${padded}`,
+        restaurant_id: restaurantId || null,
         is_active: true,
       });
     }
 
     if (isSupabaseConfigured) {
-      await supabase.from('tags').insert(newTags);
-      return { count: newTags.length };
+      const { data, error } = await supabase
+        .from('tags')
+        .upsert(newTags, { onConflict: 'tag_code', ignoreDuplicates: true })
+        .select();
+
+      if (error) throw error;
+      return { count: data?.length || 0 };
     }
 
     const current = getLocalItem<Tag[]>(STORAGE_KEYS.TAGS, INITIAL_DEMO_DATA.tags);
@@ -581,6 +592,7 @@ export const api = {
       .map((t) => ({
         id: 'tag-' + Math.random().toString(36).substr(2, 9),
         tag_code: t.tag_code!,
+        restaurant_id: restaurantId || null,
         scan_count: 0,
         is_active: true,
         created_at: new Date().toISOString(),

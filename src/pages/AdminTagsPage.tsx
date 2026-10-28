@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Tag, Restaurant } from '../types';
 import { TagBatchModal } from '../components/admin/TagBatchModal';
+import { TagSingleModal } from '../components/admin/TagSingleModal';
 import { TagQRModal } from '../components/admin/TagQRModal';
 import {
   QrCode,
@@ -24,6 +25,7 @@ export const AdminTagsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Modales
+  const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [selectedTagForQr, setSelectedTagForQr] = useState<Tag | null>(null);
 
@@ -77,13 +79,20 @@ export const AdminTagsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={() => setIsBatchModalOpen(true)}
+            onClick={() => setIsSingleModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Generar Lote en Masa</span>
+            <span>Nuevo Tag</span>
+          </button>
+          <button
+            onClick={() => setIsBatchModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+          >
+            <QrCode className="w-4 h-4 text-slate-500" />
+            <span>Lote en Masa</span>
           </button>
         </div>
       </div>
@@ -121,14 +130,24 @@ export const AdminTagsPage: React.FC = () => {
       ) : filteredTags.length === 0 ? (
         <div className="p-12 bg-white rounded-3xl border border-slate-200 text-center">
           <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">No hay tags que coincidan con el filtro</h3>
-          <p className="text-xs text-slate-500 mt-1 mb-4">Genera un nuevo lote para abastecer tus stickers NFC.</p>
-          <button
-            onClick={() => setIsBatchModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold"
-          >
-            Generar Tags
-          </button>
+          <h3 className="text-base font-bold text-slate-800">No hay tags asignados a este local</h3>
+          <p className="text-xs text-slate-500 mt-1 mb-5">
+            Crea un tag individual para una mesa específica o genera un lote para tus stickers NFC.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => setIsSingleModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              + Crear Tag para este Local
+            </button>
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors"
+            >
+              Generar Lote en Masa
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
@@ -267,10 +286,22 @@ export const AdminTagsPage: React.FC = () => {
       )}
 
       {/* Modales */}
+      <TagSingleModal
+        isOpen={isSingleModalOpen}
+        onClose={() => setIsSingleModalOpen(false)}
+        onCreated={loadData}
+        restaurants={restaurants}
+        defaultRestaurantId={restaurantFilterParam !== 'all' && restaurantFilterParam !== 'unassigned' ? restaurantFilterParam : undefined}
+        existingTags={tags}
+      />
+
       <TagBatchModal
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         onGenerated={loadData}
+        restaurants={restaurants}
+        defaultRestaurantId={restaurantFilterParam !== 'all' && restaurantFilterParam !== 'unassigned' ? restaurantFilterParam : undefined}
+        existingTags={tags}
       />
 
       <TagQRModal

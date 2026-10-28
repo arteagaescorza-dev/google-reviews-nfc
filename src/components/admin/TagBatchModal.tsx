@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { Restaurant, Tag } from '../../types';
 import { api } from '../../lib/api';
 import { X, QrCode, Sparkles } from 'lucide-react';
 
@@ -6,18 +7,45 @@ interface TagBatchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGenerated: () => void;
+  restaurants?: Restaurant[];
+  defaultRestaurantId?: string;
+  existingTags?: Tag[];
 }
 
 export const TagBatchModal: React.FC<TagBatchModalProps> = ({
   isOpen,
   onClose,
   onGenerated,
+  restaurants = [],
+  defaultRestaurantId = '',
+  existingTags = [],
 }) => {
   const [prefix, setPrefix] = useState('NFC-');
   const [startNum, setStartNum] = useState(1);
   const [endNum, setEndNum] = useState(25);
+  const [restaurantId, setRestaurantId] = useState(defaultRestaurantId);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setRestaurantId(defaultRestaurantId || '');
+      setErrorMsg('');
+
+      // Auto-calcular el siguiente número libre para evitar colisiones con tags existentes
+      const nfcNumbers = existingTags
+        .map((t) => {
+          const match = t.tag_code.match(/NFC-(\d+)/i);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => !isNaN(n) && n > 0);
+
+      const maxNum = nfcNumbers.length > 0 ? Math.max(...nfcNumbers) : 0;
+      const nextStart = maxNum + 1;
+      setStartNum(nextStart);
+      setEndNum(nextStart + 24);
+    }
+  }, [isOpen, defaultRestaurantId, existingTags]);
 
   if (!isOpen) return null;
 
@@ -36,7 +64,7 @@ export const TagBatchModal: React.FC<TagBatchModalProps> = ({
     setErrorMsg('');
 
     try {
-      await api.createBatchTags(prefix, startNum, endNum);
+      await api.createBatchTags(prefix, startNum, endNum, restaurantId || null);
       setIsGenerating(false);
       onGenerated();
       onClose();
@@ -84,6 +112,26 @@ export const TagBatchModal: React.FC<TagBatchModalProps> = ({
               className="w-full p-3 text-sm font-mono rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
             />
           </div>
+
+          {restaurants.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Asignar al Local (Opcional)
+              </label>
+              <select
+                value={restaurantId}
+                onChange={(e) => setRestaurantId(e.target.value)}
+                className="w-full p-3 text-xs font-medium rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+              >
+                <option value="">-- Sin Asignar (Stock Disponible para Cualquier Local) --</option>
+                {restaurants.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -144,4 +192,3 @@ export const TagBatchModal: React.FC<TagBatchModalProps> = ({
     </div>
   );
 };
-
