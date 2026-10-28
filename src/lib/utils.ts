@@ -6,6 +6,28 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Normaliza enlaces de imágenes, convirtiendo enlaces compartidos de Google Drive o Dropbox
+ * a enlaces de imagen directa que el navegador puede renderizar.
+ */
+export function normalizeImageUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+
+  // Google Drive: https://drive.google.com/file/d/FILE_ID/view... o ?id=FILE_ID
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+
+  // Dropbox: https://www.dropbox.com/s/.../foto.png?dl=0 -> raw=1
+  if (trimmed.includes('dropbox.com')) {
+    return trimmed.replace('dl=0', 'raw=1');
+  }
+
+  return trimmed;
+}
+
+/**
  * Normaliza y valida una URL asegurando que tenga protocolo http/https
  */
 export function ensureAbsoluteUrl(url: string): string {

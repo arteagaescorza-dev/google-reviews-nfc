@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
+import { normalizeImageUrl } from '../../lib/utils';
 import { X, Plus, Trash2, Store, Check } from 'lucide-react';
 
 interface RestaurantFormModalProps {
@@ -119,15 +120,15 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
     setErrorMsg('');
 
     const fullName = branchName ? `${brandName.trim()} - ${branchName.trim()}` : brandName.trim();
+    const cleanLogo = normalizeImageUrl(logoUrl);
 
-    const res = await api.saveRestaurant({
-      id: restaurant?.id,
+    const payload: Partial<Restaurant> = {
       brand_name: brandName.trim(),
       branch_name: branchName.trim() || 'Principal',
       name: fullName,
       slug: slug.trim() || `sucursal-${Date.now()}`,
       google_review_url: googleReviewUrl.trim(),
-      logo_url: logoUrl.trim() || null,
+      logo_url: cleanLogo || null,
       tier,
       is_ad_free: isAdFree,
       brand_color: brandColor,
@@ -136,7 +137,13 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       organization_id: organizationId || null,
       links,
       is_active: true,
-    });
+    };
+
+    if (restaurant?.id) {
+      payload.id = restaurant.id;
+    }
+
+    const res = await api.saveRestaurant(payload);
 
     setIsSaving(false);
     if (res.success) {

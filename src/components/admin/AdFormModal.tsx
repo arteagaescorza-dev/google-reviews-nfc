@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Ad, Restaurant } from '../../types';
 import { api } from '../../lib/api';
+import { normalizeImageUrl } from '../../lib/utils';
 import { X, Megaphone } from 'lucide-react';
 
 interface AdFormModalProps {
@@ -77,18 +78,23 @@ export const AdFormModal: React.FC<AdFormModalProps> = ({
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
 
-    const res = await api.saveAd({
-      id: ad?.id,
+    const payload: Partial<Ad> = {
       title: title.trim(),
       advertiser_name: advertiserName.trim(),
-      banner_url: bannerUrl.trim(),
+      banner_url: normalizeImageUrl(bannerUrl),
       destination_url: destinationUrl.trim(),
       placement_type: 'bottom_banner',
       target_type: targetType,
       target_restaurant_ids: targetType === 'specific_restaurants' ? targetRestaurantIds : [],
       target_tag_codes: targetType === 'specific_tags' ? tagCodes : [],
       is_active: isActive,
-    });
+    };
+
+    if (ad?.id) {
+      payload.id = ad.id;
+    }
+
+    const res = await api.saveAd(payload);
 
     setIsSaving(false);
     if (res.success) {

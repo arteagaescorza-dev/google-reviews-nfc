@@ -207,6 +207,25 @@ function setLocalItem<T>(key: string, value: T): void {
   }
 }
 
+/**
+ * Limpia payloads para Supabase PostgREST:
+ * Remueve la propiedad 'id' en inserciones o si es falsy (para que PostgreSQL genere el UUID con default),
+ * y descarta claves con valor undefined para evitar que PostgREST las incluya en ?columns= con valor NULL.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeSupabasePayload(obj: Record<string, any>, isInsert = false): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  if (isInsert || !clean.id) {
+    delete clean.id;
+  }
+  return clean;
+}
+
 // ==============================================================================
 // CAPA DE SERVICIO API UNIFICADA (SUPABASE O LOCAL FALLBACK)
 // ==============================================================================
@@ -436,18 +455,20 @@ export const api = {
     if (isSupabaseConfigured) {
       try {
         if (restaurant.id) {
+          const clean = sanitizeSupabasePayload(restaurant, false);
           const { data, error } = await supabase
             .from('restaurants')
-            .update({ ...restaurant, updated_at: new Date().toISOString() })
+            .update({ ...clean, updated_at: new Date().toISOString() })
             .eq('id', restaurant.id)
             .select()
             .single();
           if (error) throw error;
           return { success: true, data };
         } else {
+          const clean = sanitizeSupabasePayload(restaurant, true);
           const { data, error } = await supabase
             .from('restaurants')
-            .insert([restaurant])
+            .insert([clean])
             .select()
             .single();
           if (error) throw error;
@@ -503,11 +524,13 @@ export const api = {
     if (isSupabaseConfigured) {
       try {
         if (tag.id) {
-          const { data, error } = await supabase.from('tags').update(tag).eq('id', tag.id).select().single();
+          const clean = sanitizeSupabasePayload(tag, false);
+          const { data, error } = await supabase.from('tags').update(clean).eq('id', tag.id).select().single();
           if (error) throw error;
           return { success: true, data };
         } else {
-          const { data, error } = await supabase.from('tags').insert([tag]).select().single();
+          const clean = sanitizeSupabasePayload(tag, true);
+          const { data, error } = await supabase.from('tags').insert([clean]).select().single();
           if (error) throw error;
           return { success: true, data };
         }
@@ -579,11 +602,13 @@ export const api = {
     if (isSupabaseConfigured) {
       try {
         if (ad.id) {
-          const { data, error } = await supabase.from('ads').update(ad).eq('id', ad.id).select().single();
+          const clean = sanitizeSupabasePayload(ad, false);
+          const { data, error } = await supabase.from('ads').update(clean).eq('id', ad.id).select().single();
           if (error) throw error;
           return { success: true, data };
         } else {
-          const { data, error } = await supabase.from('ads').insert([ad]).select().single();
+          const clean = sanitizeSupabasePayload(ad, true);
+          const { data, error } = await supabase.from('ads').insert([clean]).select().single();
           if (error) throw error;
           return { success: true, data };
         }
