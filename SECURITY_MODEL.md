@@ -80,3 +80,4 @@
    Un competidor o vándalo podría despegar un sticker NFC de una mesa o sustituirlo físicamente por otro sticker. Este riesgo es intrínseco al hardware físico en mesas de restaurantes y se mitiga operativamente mediante revisiones periódicas del personal del local.
 2. **Modo Demo Local sin Supabase:**  
    Cuando la app corre sin variables de entorno de Supabase configuradas, los datos residen en `localStorage`. Este modo es únicamente para previsualización y pruebas de interfaz; en producción, la persistencia en la nube PostgreSQL es mandatoria.
+

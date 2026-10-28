@@ -21,7 +21,17 @@ El sistema ya funciona de forma autónoma en **Modo Demo Local** en tu navegador
    VITE_SUPABASE_URL=https://tu-id-de-proyecto.supabase.co
    VITE_SUPABASE_ANON_KEY=tu-anon-key-publica
    ```
-8. En tu repositorio de GitHub, ve a **Settings** → **Secrets and variables** → **Actions**, y agrega ambos secretos con los mismos nombres para el despliegue automático.
+8. **Sincronización Automática de Base de Datos vía GitHub Actions:**
+   Para que cada `git push` actualice tus tablas en Supabase sin que tengas que abrir el SQL Editor:
+   - En Supabase, ve a **Project Settings** → **Database** → **Connection String** → pestaña **URI**.
+   - Copia la URI (ej. `postgresql://postgres.[ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres`).
+   - Sustituye `[PASSWORD]` por la contraseña de tu base de datos de Supabase.
+   - En tu repositorio de GitHub, ve a **Settings** → **Secrets and variables** → **Actions**, y agrega los siguientes 3 secretos:
+     - `VITE_SUPABASE_URL`
+     - `VITE_SUPABASE_ANON_KEY`
+     - `SUPABASE_DB_URL`
+   
+   ¡Listo! Con esos 3 secretos, cada vez que hagas `git push`, GitHub Actions actualizará tus tablas en Supabase y desplegará tu web en GitHub Pages al mismo tiempo.
 
 ---
 

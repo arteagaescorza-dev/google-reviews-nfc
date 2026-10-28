@@ -1,4 +1,4 @@
-name: Despliegue Automático en GitHub Pages
+name: Despliegue Automático (GitHub Pages & Supabase)
 
 on:
   push:
@@ -12,11 +12,40 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'pages'
+  group: 'deploy-pipeline'
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # ==============================================================================
+  # 1. SINCRONIZACIÓN AUTOMÁTICA DE BASE DE DATOS EN SUPABASE (POSTGRESQL)
+  # ==============================================================================
+  sync-database:
+    name: Sincronizar Tablas Supabase
+    runs-on: ubuntu-latest
+    # Se ejecuta únicamente si el secreto SUPABASE_DB_URL está configurado
+    if: ${{ secrets.SUPABASE_DB_URL != '' }}
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar cliente PostgreSQL y aplicar schema.sql
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGCONNECT_TIMEOUT: 15
+        run: |
+          echo "Conectando a Supabase PostgreSQL y aplicando cambios de schema.sql..."
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DB_URL" -f supabase/schema.sql
+          echo "¡Base de datos en Supabase actualizada con éxito!"
+
+  # ==============================================================================
+  # 2. COMPILACIÓN Y DESPLIEGUE EN GITHUB PAGES
+  # ==============================================================================
+  deploy-pages:
+    name: Desplegar en GitHub Pages
+    needs: [sync-database]
+    # Se ejecuta siempre (incluso si sync-database fue omitido por no tener BD)
+    if: always() && !cancelled()
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,18 +63,17 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Compilar proyecto
+      - name: Compilar proyecto frontend
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
-      - name: Subir artefacto de GitHub Pages
+      - name: Subir artefacto para GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
 
-      - name: Desplegar en GitHub Pages
+      - name: Desplegar sitio web
         id: deployment
         uses: actions/deploy-pages@v4
-
