@@ -12,40 +12,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'deploy-pipeline'
+  group: 'pages'
   cancel-in-progress: true
 
 jobs:
-  # ==============================================================================
-  # 1. SINCRONIZACIÓN AUTOMÁTICA DE BASE DE DATOS EN SUPABASE (POSTGRESQL)
-  # ==============================================================================
-  sync-database:
-    name: Sincronizar Tablas Supabase
-    runs-on: ubuntu-latest
-    # Se ejecuta únicamente si el secreto SUPABASE_DB_URL está configurado
-    if: ${{ secrets.SUPABASE_DB_URL != '' }}
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Instalar cliente PostgreSQL y aplicar schema.sql
-        env:
-          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          PGCONNECT_TIMEOUT: 15
-        run: |
-          echo "Conectando a Supabase PostgreSQL y aplicando cambios de schema.sql..."
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-          psql "$DB_URL" -f supabase/schema.sql
-          echo "¡Base de datos en Supabase actualizada con éxito!"
-
-  # ==============================================================================
-  # 2. COMPILACIÓN Y DESPLIEGUE EN GITHUB PAGES
-  # ==============================================================================
-  deploy-pages:
-    name: Desplegar en GitHub Pages
-    needs: [sync-database]
-    # Se ejecuta siempre (incluso si sync-database fue omitido por no tener BD)
-    if: always() && !cancelled()
+  deploy:
+    name: Despliegue de Aplicación Web
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -54,6 +26,25 @@ jobs:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
+      # ------------------------------------------------------------------------
+      # 1. Sincronización de Base de Datos en Supabase (Opcional si existe secreto)
+      # ------------------------------------------------------------------------
+      - name: Sincronizar Esquema en Supabase
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "Secreto SUPABASE_DB_URL no configurado todavía. Omitiendo sincronización de base de datos."
+            exit 0
+          fi
+          echo "Conectando a Supabase PostgreSQL y aplicando schema.sql..."
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$DB_URL" -f supabase/schema.sql
+          echo "¡Base de datos en Supabase sincronizada con éxito!"
+
+      # ------------------------------------------------------------------------
+      # 2. Compilación del Frontend (React + Vite)
+      # ------------------------------------------------------------------------
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
@@ -69,6 +60,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
+      # ------------------------------------------------------------------------
+      # 3. Publicación en GitHub Pages
+      # ------------------------------------------------------------------------
       - name: Subir artefacto para GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
