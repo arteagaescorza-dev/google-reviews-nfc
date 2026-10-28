@@ -40,3 +40,4 @@ export function extractTagCodeFromUrl(): string | null {
 
   return null;
 }
+

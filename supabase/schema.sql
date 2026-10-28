@@ -121,16 +121,23 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_restaurant_id UUID;
+    v_last_scan TIMESTAMPTZ;
 BEGIN
-    SELECT restaurant_id INTO v_restaurant_id FROM tags WHERE tag_code = p_tag_code AND is_active = true;
+    SELECT restaurant_id, last_scanned_at 
+    INTO v_restaurant_id, v_last_scan 
+    FROM tags 
+    WHERE tag_code = p_tag_code AND is_active = true;
     
-    UPDATE tags 
-    SET scan_count = scan_count + 1,
-        last_scanned_at = now()
-    WHERE tag_code = p_tag_code;
-
     IF v_restaurant_id IS NOT NULL THEN
-        INSERT INTO tag_scans(tag_code, restaurant_id) VALUES (p_tag_code, v_restaurant_id);
+        -- Protección contra bucles de escaneo (Rate Limit mínimo de 2 segundos por tag)
+        IF v_last_scan IS NULL OR (now() - v_last_scan) > interval '2 seconds' THEN
+            UPDATE tags 
+            SET scan_count = scan_count + 1,
+                last_scanned_at = now()
+            WHERE tag_code = p_tag_code;
+
+            INSERT INTO tag_scans(tag_code, restaurant_id) VALUES (p_tag_code, v_restaurant_id);
+        END IF;
     END IF;
 END;
 $$;
@@ -202,11 +209,17 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
--- 5. Feedback: Inserción pública para quejas legítimas, lectura y edición solo admin
+-- 5. Feedback: Inserción pública validada para evitar Mass Assignment y DoS
 CREATE POLICY "Public insert feedback"
 ON feedback FOR INSERT
 TO anon, authenticated
-WITH CHECK (true);
+WITH CHECK (
+    status = 'new'
+    AND notified_to_owner = false
+    AND length(comments) >= 3
+    AND length(comments) <= 2000
+    AND rating IN (1, 2, 3)
+);
 
 CREATE POLICY "Admin full access to feedback"
 ON feedback FOR ALL
@@ -220,3 +233,4 @@ ON tag_scans FOR ALL
 TO authenticated
 USING (true)
 WITH CHECK (true);
+

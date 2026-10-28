@@ -61,3 +61,4 @@ npm run preview
 - 📄 [plan.md](tasks/plan.md): Plan técnico de implementación.
 - 📄 [todo.md](tasks/todo.md): Lista de tareas y verificación.
 - 📄 [GUIA_OPERATIVA.md](docs/GUIA_OPERATIVA.md): Manual operativo paso a paso (grabación física de chips NFC con NFC Tools, configuración de Supabase y venta a clientes).
+

@@ -83,3 +83,4 @@ Cuando un comensal califica con 1, 2 o 3 estrellas:
 1. El comensal ve una pantalla amigable pidiendo detalles para la gerencia, protegiendo al restaurante de una mala calificación pública en Google Maps.
 2. La queja entra de inmediato a tu sección **Buzón de Quejas**.
 3. Si el comensal dejó su teléfono, pulsa el botón **Contactar por WhatsApp** para que el gerente pueda enviarle un mensaje en 1 clic ofreciéndole una disculpa o cortesía antes de que el malentendido escale.
+

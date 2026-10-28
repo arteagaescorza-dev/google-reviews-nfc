@@ -70,3 +70,4 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ad, className = '' }) => {
     </div>
   );
 };
+

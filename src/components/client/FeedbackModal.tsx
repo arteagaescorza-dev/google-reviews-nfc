@@ -25,6 +25,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   const [comments, setComments] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [honeypot, setHoneypot] = useState(''); // Anti-bot honeypot
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -33,8 +34,20 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Detección de bots: si el campo invisible viene lleno, abortar sin llamar a la base de datos
+    if (honeypot) {
+      setIsSubmitted(true);
+      return;
+    }
+
     if (!comments.trim()) {
       setErrorMsg('Por favor escribe tu comentario para ayudarnos a mejorar.');
+      return;
+    }
+
+    if (comments.trim().length < 3) {
+      setErrorMsg('Por favor escribe un comentario de al menos 3 caracteres.');
       return;
     }
 
@@ -126,6 +139,18 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 {errorMsg}
               </div>
             )}
+
+            {/* Campo Trampa Anti-Spam (Honeypot invisible para humanos) */}
+            <input
+              type="text"
+              name="company_tax_id"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              className="hidden pointer-events-none"
+              aria-hidden="true"
+            />
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">

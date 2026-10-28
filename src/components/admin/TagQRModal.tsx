@@ -114,3 +114,4 @@ export const TagQRModal: React.FC<TagQRModalProps> = ({ isOpen, onClose, tag }) 
     </div>
   );
 };
+

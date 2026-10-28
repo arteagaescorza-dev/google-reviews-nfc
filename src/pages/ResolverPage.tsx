@@ -123,3 +123,4 @@ export const ResolverPage: React.FC = () => {
     </div>
   );
 };
+

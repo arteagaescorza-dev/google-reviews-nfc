@@ -91,3 +91,4 @@ export interface Feedback {
   // Relación opcional
   restaurant?: Restaurant;
 }
+

@@ -112,3 +112,4 @@ export const DirectRedirect: React.FC<DirectRedirectProps> = ({
     </div>
   );
 };
+

@@ -38,3 +38,4 @@ export const AdminAuthGuard: React.FC = () => {
 
   return <Outlet />;
 };
+
