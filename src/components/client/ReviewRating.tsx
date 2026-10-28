@@ -95,7 +95,7 @@ export const ReviewRating: React.FC<ReviewRatingProps> = ({
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-center gap-2 sm:gap-3 py-2">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 py-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -103,14 +103,14 @@ export const ReviewRating: React.FC<ReviewRatingProps> = ({
                 onMouseEnter={() => setHoveredStar(star)}
                 onMouseLeave={() => setHoveredStar(null)}
                 onClick={() => handleStarClick(star)}
-                className="p-1 rounded-xl transition-all duration-150 transform active:scale-125 focus:outline-none"
+                className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl star-touch focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 aria-label={`Calificar con ${star} estrellas`}
               >
                 <Star
-                  className={`w-10 h-10 sm:w-11 sm:h-11 transition-colors duration-150 ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 transition-colors duration-150 ${
                     activeStar && star <= activeStar
                       ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
-                      : 'text-slate-200 fill-slate-50'
+                      : 'text-slate-200 fill-slate-50 hover:text-slate-300'
                   }`}
                 />
               </button>
