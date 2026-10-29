@@ -104,11 +104,16 @@ GitHub Pages es la plataforma ideal para validar el MVP a costo \$0. La migraci�
 
 ## 6. Roadmap de Expansión Futura
 
-1. **Fase 2 - Alertas y Analíticas Automatizadas:**
+Para el desglose arquitectónico y especificaciones completas de cada iniciativa, consultar [`docs/ROADMAP.md`](../ROADMAP.md).
+
+1. **Fase 2 - Alertas, Analíticas y Portal de Suscriptor:**
    - Envío automático de notificaciones a WhatsApp o email del gerente cuando un comensal deja 1-3 estrellas en menos de 1 minuto.
-   - Resumen mensual automático de rendimiento (escaneos, % de 5 estrellas, quejas atendidas) enviado al dueño.
-2. **Fase 3 - Fidelización Digital (Apple Wallet & Google Wallet):**
-   - Emisión de tarjetas digitales de cliente frecuente directamente desde la pantalla del tag.
-   - Acumulación de sellos/puntos por visita.
-   - Campañas de WhatsApp segmentadas (promociones por cumpleaños, clientes inactivos, recompensas por puntos).
+   - Portal dedicado para el Dueño del Local (gestión de quejas privadas, métricas de retención y administración de anuncios propios).
+   - Mapa de calor de escaneos en tiempo real para el Superadmin.
+2. **Fase 3 - Operación Gastronómica (Menú Digital & Comandas):**
+   - Menú digital con precios, fotografías y modificadores.
+   - Generación de comanda desde la mesa y nuevo Rol de Mesero para validar las órdenes antes de enviar a cocina.
+3. **Fase 4 - Segmentación Publicitaria Inteligente & Fidelización:**
+   - Algoritmo de distribución de anuncios por franja horaria (dayparting), cercanía geográfica y tipo de negocio.
+   - Fidelización Digital con pases en Apple Wallet & Google Wallet (sellos/puntos por visita).
 
