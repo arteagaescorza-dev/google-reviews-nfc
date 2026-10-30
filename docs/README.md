@@ -35,6 +35,7 @@ graph LR
 * [**`SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md`**](./SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md): `[PREAPROBADO]` Mesa de ayuda B2B, veto autónomo del locatario y 6 nuevas herramientas para el módulo de anuncios Superadmin.
 * [**`SPEC_ARQUITECTURA_FINANCIERA.md`**](./SPEC_ARQUITECTURA_FINANCIERA.md): `[PREAPROBADO]` Arquitectura financiera, MRR, cobranza autónoma, EBITDA y facturación fiscal CFDI.
 * [**`SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md`**](./SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md): `[PREAPROBADO]` Esquema de oferta comercial, venta de placas NFC en frío a $100 MXN, 3 niveles de software con pauta incluida, comandas futuras y Ad-Free.
+* [**`SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md`**](./SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md): `[PREAPROBADO]` Estrategia de despliegue GTM en 3 etapas: siembra física de 100 locales con anuncios dormidos, activación de app con filtro gratis y monetización in-app autónoma.
 
 ---
 
