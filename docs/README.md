@@ -33,6 +33,7 @@ graph LR
 * [**`SPEC_INFRAESTRUCTURA_CUPONES.md`**](./SPEC_INFRAESTRUCTURA_CUPONES.md): `[PREAPROBADO]` Motor de cupones digitales de un solo uso, entrega al comensal, validación QR en mostrador y control de privacidad de ingresos (ROI).
 * [**`SPEC_UTILIDAD_MULTIGIRO.md`**](./SPEC_UTILIDAD_MULTIGIRO.md): `[PREAPROBADO]` Anclas de utilidad multi-giro (WiFi zero-password, pre-orden, rachas) y modelo self-service sin creación de contenido por la plataforma.
 * [**`SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md`**](./SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md): `[PREAPROBADO]` Mesa de ayuda B2B, veto autónomo del locatario y 6 nuevas herramientas para el módulo de anuncios Superadmin.
+* [**`SPEC_ARQUITECTURA_FINANCIERA.md`**](./SPEC_ARQUITECTURA_FINANCIERA.md): `[PREAPROBADO]` Arquitectura financiera, MRR, cobranza autónoma, EBITDA y facturación fiscal CFDI.
 
 ---
 
