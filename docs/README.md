@@ -29,7 +29,8 @@ graph LR
 * [**`SPEC.md`**](./SPEC.md): Especificación integral de la plataforma (Arquitectura general, Tiers 1-4, flujo de comensal en mesa, panel de control).
 * [**`SPEC_PORTAL_SUSCRIPTOR.md`**](./SPEC_PORTAL_SUSCRIPTOR.md): Especificación funcional del Portal del Dueño/Gerente (`/portal`), gestión de quejas en Inbox Zero, Linktree y datos de negocio.
 * [**`SPEC_GESTION_ORGANIZACIONES.md`**](./SPEC_GESTION_ORGANIZACIONES.md): `[PREAPROBADO]` Onboarding y gestión de organizaciones/clientes en Superadmin, creación al vuelo de empresas y asignación de credenciales.
-* [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): Arquitectura de la red local de anuncios, segmentación no competidora, especificaciones técnicas de banners (1200x628 px) y métricas de ROI.
+* [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): `[PREAPROBADO]` Arquitectura de red publicitaria, política de veto manual de 1 anunciante/mes y atribución closed-loop.
+* [**`SPEC_INFRAESTRUCTURA_CUPONES.md`**](./SPEC_INFRAESTRUCTURA_CUPONES.md): `[PREAPROBADO]` Motor de cupones digitales de un solo uso, entrega al comensal, validación QR en mostrador y control de privacidad de ingresos (ROI).
 
 ---
 
