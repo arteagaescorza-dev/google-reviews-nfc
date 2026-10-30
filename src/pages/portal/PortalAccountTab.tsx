@@ -17,6 +17,7 @@ import {
   Phone,
   Mail,
   X,
+  Store,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -25,6 +26,7 @@ interface PortalAccountTabProps {
   member: OrganizationMember;
   onRefreshOrg: () => Promise<void>;
   onRefreshRestaurants: () => Promise<void>;
+  onAddBranch?: () => void;
 }
 
 export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
@@ -33,6 +35,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   member,
   onRefreshOrg,
   onRefreshRestaurants,
+  onAddBranch,
 }) => {
   const isOwner = member?.role === 'owner';
 
@@ -525,9 +528,78 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             </button>
           </div>
         </div>
+
+        {/* BLOQUE 5: Sucursales de la Cadena */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Store className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Sucursales de la Cadena ({restaurants.length})</h3>
+                <p className="text-[11px] text-slate-400">Puntos de venta vinculados a tu grupo gastronómico</p>
+              </div>
+            </div>
+
+            {onAddBranch && isOwner && (
+              <button
+                type="button"
+                onClick={onAddBranch}
+                className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold flex items-center gap-1 transition-colors"
+              >
+                <span>+ Nueva Sucursal</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {restaurants.map((r) => (
+              <div
+                key={r.id}
+                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between space-y-2 hover:border-slate-300 transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="font-bold text-slate-900 text-xs truncate">
+                      {r.branch_name || r.name}
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        r.is_active
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-rose-100 text-rose-800'
+                      }`}
+                    >
+                      {r.is_active ? 'Activa' : 'Pausada'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 line-clamp-2">
+                    {r.address || 'Sin dirección registrada'}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                  <a
+                    href={r.google_review_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Ficha Google</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <span className="text-slate-400 font-mono text-[10px]">
+                    Tier {r.tier || 2}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* BLOQUE 5: Zona de Peligro / Pausa de Servicio */}
+      {/* BLOQUE 6: Zona de Peligro / Pausa de Servicio */}
       <div className="bg-rose-50/60 rounded-3xl p-5 border border-rose-200 shadow-sm space-y-3">
         <div className="flex items-center gap-2 text-rose-700">
           <AlertTriangle className="w-5 h-5 flex-shrink-0" />

@@ -73,6 +73,26 @@ export const ResolverPage: React.FC = () => {
   }
 
   // ============================================================================
+  // REGLA OPERATIVA DE CANCELACIÓN / PAUSA:
+  // Si la sucursal o el tag están pausados o inactivos:
+  // Redirigir INMEDIATAMENTE a Google Reviews oficial sin filtro de quejas ni linktree.
+  // ============================================================================
+  if (restaurant.is_active === false || tag.is_active === false) {
+    if (restaurant.google_review_url) {
+      window.location.replace(restaurant.google_review_url);
+    }
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-3" />
+        <h2 className="text-base font-bold text-slate-800 mb-1">Redirigiendo a Google Reviews...</h2>
+        <p className="text-xs text-slate-500 max-w-xs">
+          Serás transferido directamente a la ficha oficial para dejar tu opinión.
+        </p>
+      </div>
+    );
+  }
+
+  // ============================================================================
   // TIER 1: ENLACE DIRECTO (Con o sin transición de anuncio)
   // ============================================================================
   if (restaurant.tier === 1) {

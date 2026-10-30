@@ -10,6 +10,7 @@ import { PortalFeedbackTab } from './PortalFeedbackTab';
 import { PortalLinksTab } from './PortalLinksTab';
 import { PortalMetricsTab } from './PortalMetricsTab';
 import { PortalAccountTab } from './PortalAccountTab';
+import { NewBranchModal } from '../../components/portal/NewBranchModal';
 import { Loader2 } from 'lucide-react';
 
 export const PortalDashboardPage: React.FC = () => {
@@ -19,6 +20,7 @@ export const PortalDashboardPage: React.FC = () => {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<PortalTab>('quejas');
   const [loading, setLoading] = useState(true);
+  const [showNewBranchModal, setShowNewBranchModal] = useState(false);
 
   const loadData = async () => {
     try {
@@ -64,6 +66,7 @@ export const PortalDashboardPage: React.FC = () => {
         activeTab={activeTab}
         onChangeTab={setActiveTab}
         pendingFeedbackCount={pendingFeedbackCount}
+        onAddBranch={() => setShowNewBranchModal(true)}
       />
 
       {/* Contenido Principal Adaptable a Pantallas Grandes */}
@@ -99,9 +102,18 @@ export const PortalDashboardPage: React.FC = () => {
             member={member}
             onRefreshOrg={refreshMembership}
             onRefreshRestaurants={loadData}
+            onAddBranch={() => setShowNewBranchModal(true)}
           />
         )}
       </main>
+
+      {/* Modal para solicitar / registrar nueva sucursal */}
+      <NewBranchModal
+        isOpen={showNewBranchModal}
+        onClose={() => setShowNewBranchModal(false)}
+        organization={organization}
+        onSuccess={loadData}
+      />
 
       {/* Barra de Navegación Inferior Fija (Solo en móviles/tablets) */}
       <div className="md:hidden">

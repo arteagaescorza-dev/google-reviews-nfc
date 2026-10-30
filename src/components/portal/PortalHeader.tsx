@@ -14,6 +14,7 @@ interface PortalHeaderProps {
   activeTab: PortalTab;
   onChangeTab: (tab: PortalTab) => void;
   pendingFeedbackCount: number;
+  onAddBranch?: () => void;
 }
 
 export const PortalHeader: React.FC<PortalHeaderProps> = ({
@@ -24,6 +25,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   activeTab,
   onChangeTab,
   pendingFeedbackCount,
+  onAddBranch,
 }) => {
   const navigate = useNavigate();
 
@@ -63,28 +65,41 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               {currentRestaurant?.brand_name || organization.name}
             </h1>
 
-            {/* Selector de sucursal si tiene 2 o más */}
-            {restaurants.length > 1 ? (
-              <div className="relative inline-flex items-center mt-0.5">
-                <select
-                  value={selectedRestaurantId}
-                  onChange={(e) => onSelectRestaurant(e.target.value)}
-                  className="appearance-none bg-slate-800/90 text-blue-400 font-semibold text-[11px] py-0.5 pl-2 pr-5 rounded-md border border-slate-700/80 focus:outline-none cursor-pointer"
+            {/* Selector de sucursal */}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {restaurants.length > 1 ? (
+                <div className="relative inline-flex items-center">
+                  <select
+                    value={selectedRestaurantId}
+                    onChange={(e) => onSelectRestaurant(e.target.value)}
+                    className="appearance-none bg-slate-800/90 text-blue-400 font-semibold text-[11px] py-0.5 pl-2 pr-5 rounded-md border border-slate-700/80 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">Todas ({restaurants.length})</option>
+                    {restaurants.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.branch_name || r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3 h-3 text-blue-400 absolute right-1.5 pointer-events-none" />
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 truncate">
+                  {currentRestaurant?.branch_name || 'Sucursal Principal'}
+                </p>
+              )}
+
+              {onAddBranch && (
+                <button
+                  type="button"
+                  onClick={onAddBranch}
+                  title="Dar de alta o solicitar nueva sucursal"
+                  className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded border border-blue-500/30 flex items-center gap-0.5 transition-colors"
                 >
-                  <option value="all">Todas las sucursales ({restaurants.length})</option>
-                  {restaurants.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.branch_name || r.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3 h-3 text-blue-400 absolute right-1.5 pointer-events-none" />
-              </div>
-            ) : (
-              <p className="text-[11px] text-slate-400 truncate">
-                {currentRestaurant?.branch_name || 'Sucursal Principal'}
-              </p>
-            )}
+                  <span>+ Sucursal</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

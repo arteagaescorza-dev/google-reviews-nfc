@@ -7,6 +7,8 @@ import {
   QrCode,
   Award,
   Sparkles,
+  Building2,
+  TrendingUp,
 } from 'lucide-react';
 
 interface PortalMetricsTabProps {
@@ -42,7 +44,7 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
   const relevantTags = tags.filter((t) => t.restaurant_id && targetRestaurantIds.has(t.restaurant_id));
   const relevantFeedbacks = feedbacks.filter((f) => targetRestaurantIds.has(f.restaurant_id));
 
-  // Cálculos de métricas clave
+  // Cálculos de métricas clave para la selección actual
   const totalScans = relevantTags.reduce((acc, t) => acc + (t.scan_count || 0), 0);
   const badReviewsPrevented = relevantFeedbacks.length;
   // Clientes felices estimados: escaneos totales que no generaron queja privada
@@ -53,6 +55,35 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
   // Mesa más activa
   const sortedTags = [...relevantTags].sort((a, b) => (b.scan_count || 0) - (a.scan_count || 0));
   const topTag = sortedTags[0];
+
+  // ============================================================================
+  // CÁLCULOS PONDERADOS PARA COMPARATIVA DE CADENA (Múltiples Sucursales)
+  // ============================================================================
+  const allChainRestaurantIds = new Set(restaurants.map((r) => r.id));
+  const chainTags = tags.filter((t) => t.restaurant_id && allChainRestaurantIds.has(t.restaurant_id));
+  const chainFeedbacks = feedbacks.filter((f) => allChainRestaurantIds.has(f.restaurant_id));
+
+  const chainTotalScans = chainTags.reduce((acc, t) => acc + (t.scan_count || 0), 0);
+  const chainTotalBad = chainFeedbacks.length;
+  const chainTotalToGoogle = Math.max(0, chainTotalScans - chainTotalBad);
+  const chainWeightedSat =
+    chainTotalScans > 0 ? Math.round((chainTotalToGoogle / chainTotalScans) * 100) : 100;
+
+  const branchStats = restaurants.map((rest) => {
+    const branchTags = tags.filter((t) => t.restaurant_id === rest.id);
+    const branchFbs = feedbacks.filter((f) => f.restaurant_id === rest.id);
+    const scans = branchTags.reduce((acc, t) => acc + (t.scan_count || 0), 0);
+    const bad = branchFbs.length;
+    const toGoogle = Math.max(0, scans - bad);
+    const satRate = scans > 0 ? Math.round((toGoogle / scans) * 100) : 100;
+    return {
+      restaurant: rest,
+      scans,
+      bad,
+      toGoogle,
+      satRate,
+    };
+  }).sort((a, b) => b.scans - a.scans);
 
   return (
     <div className="space-y-4">
@@ -179,6 +210,131 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================================
+          COMPARATIVA DE CADENA Y PONDERADOS (Visible si tiene 2 o más sucursales)
+      ============================================================================ */}
+      {restaurants.length > 1 && (
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Comparativa de Cadena (Ponderado vs. Sucursales)
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Desempeño relativo entre sucursales y tasa de retención de quejas
+                </p>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 text-xs">
+              <span className="text-slate-400">Ponderado Cadena:</span>
+              <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-black inline-flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>{chainWeightedSat}% Satisfacción</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Tarjeta de Resumen Ponderado */}
+          <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-center">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Escaneos Totales Cadena
+              </span>
+              <span className="text-lg font-black text-slate-800">{chainTotalScans}</span>
+            </div>
+
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Quejas Contenidas (Cadena)
+              </span>
+              <span className="text-lg font-black text-rose-600">{chainTotalBad}</span>
+            </div>
+
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                Enviados a Google
+              </span>
+              <span className="text-lg font-black text-emerald-600">{chainTotalToGoogle}</span>
+            </div>
+          </div>
+
+          {/* Tabla Comparativa de Sucursales */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] tracking-wider">
+                  <th className="py-2.5 px-3">Sucursal</th>
+                  <th className="py-2.5 px-3 text-center">Escaneos</th>
+                  <th className="py-2.5 px-3 text-center">Quejas Privadas</th>
+                  <th className="py-2.5 px-3 text-center">A Google (4-5 ⭐)</th>
+                  <th className="py-2.5 px-3 text-center">Índice Satisfacción</th>
+                  <th className="py-2.5 px-3 text-right">Diagnóstico</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {branchStats.map((b) => (
+                  <tr key={b.restaurant.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-800">
+                        {b.restaurant.branch_name || b.restaurant.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
+                        {b.restaurant.address || 'Ubicación registrada'}
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3 text-center font-bold text-slate-700">
+                      {b.scans}
+                    </td>
+
+                    <td className="py-3 px-3 text-center font-bold text-rose-600">
+                      {b.bad}
+                    </td>
+
+                    <td className="py-3 px-3 text-center font-bold text-emerald-600">
+                      {b.toGoogle}
+                    </td>
+
+                    <td className="py-3 px-3">
+                      <div className="w-32 mx-auto">
+                        <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                          <span className="text-slate-600">{b.satRate}%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden flex">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full"
+                            style={{ width: `${b.satRate}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3 text-right">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                          b.satRate >= 90
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : b.satRate >= 75
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {b.satRate >= 90 ? '🟢 Óptimo' : b.satRate >= 75 ? '🟡 Estable' : '🔴 Atención'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
