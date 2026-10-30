@@ -18,6 +18,10 @@ import {
   Mail,
   X,
   Store,
+  Pause,
+  Play,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -78,6 +82,14 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   // Modales Checkout / Upgrades
   const [showAdFreeModal, setShowAdFreeModal] = useState(false);
   const [showAdsPromoModal, setShowAdsPromoModal] = useState(false);
+
+  // Estado Gestión de Sucursales (Pausar / Reactivar / Eliminar)
+  const [togglingBranchId, setTogglingBranchId] = useState<string | null>(null);
+  const [showDeleteBranchModal, setShowDeleteBranchModal] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState<Restaurant | null>(null);
+  const [confirmBranchWord, setConfirmBranchWord] = useState('');
+  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
+  const [branchActionToast, setBranchActionToast] = useState<string | null>(null);
 
   const loadMembers = async () => {
     setLoadingMembers(true);
@@ -184,6 +196,57 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     setShowCancelModal(false);
     await onRefreshRestaurants();
     alert('Tu servicio ha sido pausado. Tus tags físicos en las mesas ahora redirigen directamente a tu ficha de Google Maps oficial sin filtro de quejas.');
+  };
+
+  // Pausar o Reactivar Sucursal Individual
+  const handleToggleBranch = async (r: Restaurant) => {
+    setTogglingBranchId(r.id);
+    const newStatus = !r.is_active;
+    const res = await api.toggleRestaurantActive(r.id, newStatus);
+    setTogglingBranchId(null);
+    if (res.success) {
+      await onRefreshRestaurants();
+      setBranchActionToast(
+        newStatus
+          ? `¡Sucursal "${r.branch_name || r.name}" reactivada!`
+          : `Sucursal "${r.branch_name || r.name}" pausada. Sus tags ahora van directo a Google Maps.`
+      );
+      setTimeout(() => setBranchActionToast(null), 4000);
+    }
+  };
+
+  // Solicitar eliminación de sucursal
+  const handleOpenDeleteBranch = (r: Restaurant) => {
+    if (restaurants.length <= 1) {
+      alert(
+        'No puedes eliminar tu única sucursal registrada. Si deseas pausar o dar de baja el servicio completo de tu negocio, utiliza la Zona de Peligro al final de esta página.'
+      );
+      return;
+    }
+    setBranchToDelete(r);
+    setConfirmBranchWord('');
+    setShowDeleteBranchModal(true);
+  };
+
+  // Confirmar eliminación de sucursal (Baja permanente / Opción 2: Desvincular + Fallback directo)
+  const handleConfirmDeleteBranch = async () => {
+    if (!branchToDelete) return;
+    const targetWord = (branchToDelete.branch_name || branchToDelete.name).trim().toUpperCase();
+    if (confirmBranchWord.trim().toUpperCase() !== targetWord) return;
+
+    setIsDeletingBranch(true);
+    const res = await api.deleteRestaurant(branchToDelete.id);
+    setIsDeletingBranch(false);
+
+    if (res.success) {
+      setShowDeleteBranchModal(false);
+      setBranchToDelete(null);
+      await onRefreshRestaurants();
+      setBranchActionToast(
+        'Sucursal dada de baja. Sus tags físicos en las mesas continuarán funcionando redirigiendo directamente a su ficha de Google Maps.'
+      );
+      setTimeout(() => setBranchActionToast(null), 5000);
+    }
   };
 
   // Restaurante activo representativo
@@ -553,6 +616,13 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             )}
           </div>
 
+          {branchActionToast && (
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 text-xs rounded-2xl flex items-center gap-2 animate-fadeIn">
+              <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+              <span>{branchActionToast}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {restaurants.map((r) => (
               <div
@@ -579,19 +649,66 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                  <a
-                    href={r.google_review_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Ficha Google</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <span className="text-slate-400 font-mono text-[10px]">
-                    Tier {r.tier || 2}
-                  </span>
+                <div className="space-y-2 pt-2 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <a
+                      href={r.google_review_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Ficha Google</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <span className="text-slate-400 font-mono text-[10px]">
+                      Tier {r.tier || 2}
+                    </span>
+                  </div>
+
+                  {/* Acciones de Gestión de Sucursal */}
+                  {isOwner && (
+                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-1.5 text-[11px]">
+                      <button
+                        type="button"
+                        disabled={togglingBranchId === r.id}
+                        onClick={() => handleToggleBranch(r)}
+                        className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all ${
+                          r.is_active
+                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                        }`}
+                        title={
+                          r.is_active
+                            ? 'Pausar temporalmente el servicio interactivo en esta sucursal'
+                            : 'Reactivar servicio interactivo en esta sucursal'
+                        }
+                      >
+                        {togglingBranchId === r.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : r.is_active ? (
+                          <>
+                            <Pause className="w-3 h-3" />
+                            <span>Pausar</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3" />
+                            <span>Reactivar</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDeleteBranch(r)}
+                        className="px-2 py-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-semibold flex items-center gap-1 transition-colors"
+                        title="Dar de baja definitiva esta sucursal"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -898,6 +1015,78 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             >
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Eliminar Sucursal (Baja Definitiva / Opción 2) */}
+      {showDeleteBranchModal && branchToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-base font-bold text-slate-900">
+                ¿Dar de baja {branchToDelete.branch_name || branchToDelete.name}?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Esta acción desvinculará esta sucursal de tu panel de control y de los reportes de métricas.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs space-y-2 text-amber-900 leading-relaxed">
+              <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Efecto en los Tags NFC de las mesas:</span>
+              </div>
+              <p className="text-[11px] text-amber-800">
+                Tus tags físicos instalados en las mesas <strong>no se romperán</strong>: continuarán funcionando redirigiendo directamente a su ficha de <strong>Google Maps oficial</strong> sin escalas.
+              </p>
+              <p className="text-[11px] text-amber-700 italic">
+                * Se desactivará el filtro de contención de malas opiniones de 1 a 3 estrellas y el Linktree.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1.5">
+              <span>Para confirmar la baja definitiva, escribe el nombre de la sucursal:</span>
+              <div className="font-mono font-bold text-slate-900 bg-white p-1.5 rounded-lg border border-slate-200 text-center select-all">
+                {(branchToDelete.branch_name || branchToDelete.name).trim().toUpperCase()}
+              </div>
+              <input
+                type="text"
+                value={confirmBranchWord}
+                onChange={(e) => setConfirmBranchWord(e.target.value.toUpperCase())}
+                placeholder="Escribe el nombre aquí"
+                className="w-full mt-1 p-2 text-center font-bold tracking-wider text-xs rounded-lg border border-slate-300 uppercase bg-white focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteBranchModal(false);
+                  setBranchToDelete(null);
+                }}
+                className="flex-1 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={
+                  confirmBranchWord.trim().toUpperCase() !==
+                    (branchToDelete.branch_name || branchToDelete.name).trim().toUpperCase() ||
+                  isDeletingBranch
+                }
+                onClick={handleConfirmDeleteBranch}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+              >
+                {isDeletingBranch ? 'Eliminando...' : 'Confirmar Baja'}
+              </button>
+            </div>
           </div>
         </div>
       )}

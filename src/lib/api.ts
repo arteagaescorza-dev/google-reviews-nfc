@@ -479,6 +479,34 @@ export const api = {
     return { success: true };
   },
 
+  /**
+   * Da de baja definitiva una sucursal del grupo gastronómico.
+   * Por Opción 2: Desvincula la sucursal (organization_id = null) y la desactiva (is_active = false)
+   * para que los tags físicos continúen funcionando redirigiendo directamente a su Google Maps,
+   * manteniendo la información para futuras campañas de recaptura y win-back por e-mail.
+   */
+  async deleteRestaurant(id: string): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from('restaurants')
+          .update({ organization_id: null, is_active: false })
+          .eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) =>
+      r.id === id ? { ...r, organization_id: null, is_active: false } : r
+    );
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+    return { success: true };
+  },
+
   async getRestaurants(): Promise<Restaurant[]> {
     if (isSupabaseConfigured) {
       const { data } = await supabase.from('restaurants').select('*, organization:organizations(*)').order('created_at', { ascending: false });
