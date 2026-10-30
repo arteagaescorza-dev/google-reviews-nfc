@@ -84,3 +84,4 @@ Motor de recomendación y subasta de banners publicitarios que optimiza qué anu
 
 ### Componentes Técnicos Previstos
 - Función de base de datos PostgreSQL (`fn_select_target_ad`) o Edge Function que evalúe las reglas de contexto al momento de procesar `GET /api/resolve`.
+

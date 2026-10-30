@@ -73,3 +73,4 @@ Las campañas se gestionan bajo un modelo híbrido:
   - CTR (*Click-Through Rate* = Clics / Impresiones).
   - Locales con mayor volumen de interacción.
 - No requiere que el anunciante cree contraseñas ni descargue aplicaciones.
+

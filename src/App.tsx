@@ -9,6 +9,9 @@ import { AdminRestaurantsPage } from './pages/AdminRestaurantsPage';
 import { AdminTagsPage } from './pages/AdminTagsPage';
 import { AdminAdsPage } from './pages/AdminAdsPage';
 import { AdminFeedbackPage } from './pages/AdminFeedbackPage';
+import { PortalLoginPage } from './pages/portal/PortalLoginPage';
+import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
+import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
 
 export const App: React.FC = () => {
   return (
@@ -17,6 +20,12 @@ export const App: React.FC = () => {
         {/* Rutas Públicas de Comensal / NFC Tag */}
         <Route path="/" element={<ResolverPage />} />
         <Route path="/t/:tagCode" element={<ResolverPage />} />
+
+        {/* Portal Móvil del Suscriptor / Dueño del Local */}
+        <Route path="/portal/login" element={<PortalLoginPage />} />
+        <Route path="/portal" element={<PortalAuthGuard />}>
+          <Route index element={<PortalDashboardPage />} />
+        </Route>
 
         {/* Autenticación Administrativa */}
         <Route path="/admin/login" element={<AdminLoginPage />} />

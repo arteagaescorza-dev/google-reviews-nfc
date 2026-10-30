@@ -87,10 +87,26 @@ CREATE TABLE IF NOT EXISTS feedback (
     customer_phone TEXT,
     customer_email TEXT,
     comments TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'contacted')),
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'contacted', 'resolved')),
+    internal_notes TEXT DEFAULT NULL,
     notified_to_owner BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ------------------------------------------------------------------------------
+-- 5B. TABLA: ORGANIZATION_MEMBERS (USUARIOS SUSCRIPTORES Y GERENTES)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS organization_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'owner' CHECK (role IN ('owner', 'manager')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(organization_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
 
 -- ------------------------------------------------------------------------------
 -- 6. TABLA: TAG_SCANS (HISTORIAL DE ESCANEOS - ARQUITECTURA TIER 4)
@@ -156,60 +172,117 @@ BEGIN
 END;
 $$;
 
+-- ==============================================================================
+-- FUNCIONES AUXILIARES PARA ROLES Y RLS MULTI-TENANT
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION is_superadmin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users 
+    WHERE id = auth.uid() 
+    AND (
+      email = 'arteagaescorza@gmail.com'
+      OR (raw_user_meta_data->>'role') = 'superadmin'
+    )
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION get_user_organization_ids()
+RETURNS SETOF UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  SELECT organization_id FROM organization_members WHERE user_id = auth.uid();
+$$;
+
 -- ------------------------------------------------------------------------------
 -- POLÍTICAS DE SEGURIDAD (ROW LEVEL SECURITY - RLS)
 -- ------------------------------------------------------------------------------
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tag_scans ENABLE ROW LEVEL SECURITY;
 
--- 1. Organizations: Lectura y gestión solo para admins autenticados
-CREATE POLICY "Admin full access to organizations"
+-- 1. Organizations: Superadmin total, miembros solo su organización
+CREATE POLICY "Superadmin full access to organizations"
 ON organizations FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
 
--- 2. Restaurants: Lectura pública si is_active = true, escritura solo admin
+CREATE POLICY "Members view their organizations"
+ON organizations FOR SELECT
+TO authenticated
+USING (id IN (SELECT get_user_organization_ids()));
+
+-- 1B. Organization Members: Superadmin total, miembros ven su membresía
+CREATE POLICY "Superadmin full access to org_members"
+ON organization_members FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members can view their own membership"
+ON organization_members FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+
+-- 2. Restaurants: Lectura pública si is_active = true, escritura superadmin o miembros
 CREATE POLICY "Public read active restaurants"
 ON restaurants FOR SELECT
 TO anon, authenticated
 USING (is_active = true);
 
-CREATE POLICY "Admin full access to restaurants"
+CREATE POLICY "Superadmin full access to restaurants"
 ON restaurants FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
 
--- 3. Tags: Lectura pública de tags activos, escritura solo admin
+CREATE POLICY "Members view their restaurants"
+ON restaurants FOR SELECT
+TO authenticated
+USING (organization_id IN (SELECT get_user_organization_ids()));
+
+CREATE POLICY "Members update their restaurants"
+ON restaurants FOR UPDATE
+TO authenticated
+USING (organization_id IN (SELECT get_user_organization_ids()))
+WITH CHECK (organization_id IN (SELECT get_user_organization_ids()));
+
+-- 3. Tags: Lectura pública de tags activos, escritura superadmin
 CREATE POLICY "Public read active tags"
 ON tags FOR SELECT
 TO anon, authenticated
 USING (is_active = true);
 
-CREATE POLICY "Admin full access to tags"
+CREATE POLICY "Superadmin full access to tags"
 ON tags FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
 
--- 4. Ads: Lectura pública de anuncios activos, escritura solo admin
+-- 4. Ads: Lectura pública de anuncios activos, gestión superadmin
 CREATE POLICY "Public read active ads"
 ON ads FOR SELECT
 TO anon, authenticated
 USING (is_active = true);
 
-CREATE POLICY "Admin full access to ads"
+CREATE POLICY "Superadmin full access to ads"
 ON ads FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
 
--- 5. Feedback: Inserción pública validada para evitar Mass Assignment y DoS
+-- 5. Feedback: Inserción pública comensal, lectura/gestión superadmin y miembros del local
 CREATE POLICY "Public insert feedback"
 ON feedback FOR INSERT
 TO anon, authenticated
@@ -221,11 +294,28 @@ WITH CHECK (
     AND rating IN (1, 2, 3)
 );
 
-CREATE POLICY "Admin full access to feedback"
+CREATE POLICY "Superadmin full access to feedback"
 ON feedback FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members view their feedback"
+ON feedback FOR SELECT
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
+
+CREATE POLICY "Members update their feedback"
+ON feedback FOR UPDATE
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+))
+WITH CHECK (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
 
 -- 6. Tag Scans: Admin full access
 CREATE POLICY "Admin full access to tag_scans"

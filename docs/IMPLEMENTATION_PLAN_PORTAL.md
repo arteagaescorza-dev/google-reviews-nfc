@@ -82,3 +82,4 @@ src/
    - `background_color`: "#ffffff"
 2. **Detección de evento `beforeinstallprompt`:**
    - Banner en la parte superior que ofrece instalar la app con 1 toque.
+

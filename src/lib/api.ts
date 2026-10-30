@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { Restaurant, Tag, Ad, Feedback, Organization } from '../types';
+import type { Restaurant, Tag, Ad, Feedback, Organization, LinkItem, OrganizationMember, MemberRole, FeedbackStatus } from '../types';
 
 // ==============================================================================
 // DATOS EN MEMORIA / LOCALSTORAGE PARA MODO DEMO CUANDO SUPABASE AÚN NO ESTÁ VINCULADO
@@ -7,6 +7,7 @@ import type { Restaurant, Tag, Ad, Feedback, Organization } from '../types';
 
 const STORAGE_KEYS = {
   ORGANIZATIONS: 'nfc_demo_organizations',
+  ORGANIZATION_MEMBERS: 'nfc_demo_organization_members',
   RESTAURANTS: 'nfc_demo_restaurants',
   TAGS: 'nfc_demo_tags',
   ADS: 'nfc_demo_ads',
@@ -684,7 +685,7 @@ export const api = {
     }));
   },
 
-  async updateFeedbackStatus(id: string, status: 'new' | 'reviewed' | 'contacted'): Promise<void> {
+  async updateFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
     if (isSupabaseConfigured) {
       await supabase.from('feedback').update({ status }).eq('id', id);
       return;
@@ -693,6 +694,223 @@ export const api = {
     const current = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, INITIAL_DEMO_DATA.feedback);
     const updated = current.map((f) => (f.id === id ? { ...f, status } : f));
     setLocalItem(STORAGE_KEYS.FEEDBACK, updated);
+  },
+
+  async updateFeedbackStatusAndNotes(id: string, status: FeedbackStatus, internal_notes?: string): Promise<void> {
+    if (isSupabaseConfigured) {
+      const payload: any = { status };
+      if (internal_notes !== undefined) payload.internal_notes = internal_notes;
+      await supabase.from('feedback').update(payload).eq('id', id);
+      return;
+    }
+
+    const current = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, INITIAL_DEMO_DATA.feedback);
+    const updated = current.map((f) => (f.id === id ? { ...f, status, internal_notes } : f));
+    setLocalItem(STORAGE_KEYS.FEEDBACK, updated);
+  },
+
+  // ==============================================================================
+  // MÉTODOS DEL PORTAL DEL SUSCRIPTOR (/portal)
+  // ==============================================================================
+
+  async getMyMembership(): Promise<{ organization: Organization; member: OrganizationMember } | null> {
+    if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Buscar membresía
+      const { data: member } = await supabase
+        .from('organization_members')
+        .select('*, organization:organizations(*)')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (member && member.organization) {
+        return {
+          organization: member.organization as Organization,
+          member: {
+            id: member.id,
+            organization_id: member.organization_id,
+            user_id: member.user_id,
+            role: member.role,
+            created_at: member.created_at,
+            user_email: user.email,
+          },
+        };
+      }
+
+      // Si es el Superadmin (arteagaescorza@gmail.com) navegando al portal para probar:
+      if (user.email === 'arteagaescorza@gmail.com') {
+        const { data: orgs } = await supabase.from('organizations').select('*').limit(1);
+        if (orgs && orgs.length > 0) {
+          return {
+            organization: orgs[0] as Organization,
+            member: {
+              id: 'superadmin-membership',
+              organization_id: orgs[0].id,
+              user_id: user.id,
+              role: 'owner',
+              created_at: new Date().toISOString(),
+              user_email: user.email,
+            },
+          };
+        }
+      }
+
+      return null;
+    }
+
+    // Modo Demo
+    const orgs = getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+    if (orgs.length > 0) {
+      return {
+        organization: orgs[0],
+        member: {
+          id: 'demo-member-1',
+          organization_id: orgs[0].id,
+          user_id: 'demo-user-1',
+          role: 'owner',
+          created_at: new Date().toISOString(),
+          user_email: orgs[0].owner_email || 'demo@restaurante.com',
+        },
+      };
+    }
+    return null;
+  },
+
+  async getMyRestaurants(): Promise<Restaurant[]> {
+    if (isSupabaseConfigured) {
+      const membership = await this.getMyMembership();
+      if (!membership) return [];
+
+      const { data } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('organization_id', membership.organization.id)
+        .order('name');
+      return data || [];
+    }
+
+    const orgs = getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    if (orgs.length === 0) return [];
+    return rests.filter((r) => r.organization_id === orgs[0].id);
+  },
+
+  async getMyFeedbacks(restaurantId?: string): Promise<Feedback[]> {
+    if (isSupabaseConfigured) {
+      let query = supabase
+        .from('feedback')
+        .select('*, restaurant:restaurants(*)')
+        .order('created_at', { ascending: false });
+
+      if (restaurantId && restaurantId !== 'all') {
+        query = query.eq('restaurant_id', restaurantId);
+      } else {
+        const myRestaurants = await this.getMyRestaurants();
+        const ids = myRestaurants.map((r) => r.id);
+        if (ids.length === 0) return [];
+        query = query.in('restaurant_id', ids);
+      }
+
+      const { data } = await query;
+      return data || [];
+    }
+
+    const myRests = await this.getMyRestaurants();
+    const ids = new Set(myRests.map((r) => r.id));
+    const all = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, INITIAL_DEMO_DATA.feedback);
+    const filtered = all.filter((f) => ids.has(f.restaurant_id));
+    if (restaurantId && restaurantId !== 'all') {
+      return filtered.filter((f) => f.restaurant_id === restaurantId);
+    }
+    return filtered;
+  },
+
+  async updateMyRestaurantLinks(restaurantId: string, links: LinkItem[]): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ links, updated_at: new Date().toISOString() })
+        .eq('id', restaurantId);
+      return !error;
+    }
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) => (r.id === restaurantId ? { ...r, links } : r));
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+    return true;
+  },
+
+  async getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+    if (isSupabaseConfigured) {
+      const { data } = await supabase
+        .from('organization_members')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+
+    const all = getLocalItem<OrganizationMember[]>(STORAGE_KEYS.ORGANIZATION_MEMBERS, []);
+    return all.filter((m) => m.organization_id === organizationId);
+  },
+
+  async createOrganizationMember(
+    organizationId: string,
+    email: string,
+    password: string,
+    role: MemberRole = 'owner'
+  ): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        // Registro estándar en Supabase Auth con confirmación por correo
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              organization_id: organizationId,
+              role,
+            },
+          },
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error('No se pudo crear el usuario');
+
+        // Insertar en organization_members
+        const { error: memberErr } = await supabase.from('organization_members').insert([
+          {
+            organization_id: organizationId,
+            user_id: data.user.id,
+            role,
+          },
+        ]);
+
+        if (memberErr) {
+          // Si ya existía la membresía
+          if (!memberErr.message.includes('unique')) throw memberErr;
+        }
+
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    // Modo Demo
+    const all = getLocalItem<OrganizationMember[]>(STORAGE_KEYS.ORGANIZATION_MEMBERS, []);
+    const newMember: OrganizationMember = {
+      id: 'member-' + Date.now(),
+      organization_id: organizationId,
+      user_id: 'user-' + Date.now(),
+      role,
+      created_at: new Date().toISOString(),
+      user_email: email,
+    };
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_MEMBERS, [newMember, ...all]);
+    return { success: true };
   },
 };
 

@@ -62,3 +62,4 @@ Tarjetas KPI prominentes en la parte superior:
 - **Protección de negocio:**
   - El enlace oficial de Google Reviews queda bloqueado para el dueño (solo editable por el Superadmin).
   - La selección de paquete (Tier 1, 2 o 3) y el estado Ad-Free quedan restringidos a Superadmin.
+

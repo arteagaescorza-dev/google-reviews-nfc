@@ -74,7 +74,7 @@ export interface Ad {
   created_at: string;
 }
 
-export type FeedbackStatus = 'new' | 'reviewed' | 'contacted';
+export type FeedbackStatus = 'new' | 'reviewed' | 'contacted' | 'resolved';
 
 export interface Feedback {
   id: string;
@@ -86,9 +86,21 @@ export interface Feedback {
   customer_email?: string | null;
   comments: string;
   status: FeedbackStatus;
+  internal_notes?: string | null;
   notified_to_owner: boolean;
   created_at: string;
   // Relación opcional
   restaurant?: Restaurant;
+}
+
+export type MemberRole = 'owner' | 'manager';
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: MemberRole;
+  created_at: string;
+  user_email?: string | null;
 }
 

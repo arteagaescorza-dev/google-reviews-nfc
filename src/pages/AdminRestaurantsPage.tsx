@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Restaurant, Organization } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
+import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { TIERS } from '../lib/constants';
 import {
   Store,
@@ -12,6 +13,7 @@ import {
   QrCode,
   MapPin,
   Phone,
+  KeyRound,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,6 +23,8 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [selectedOrgForUserModal, setSelectedOrgForUserModal] = useState<string | undefined>(undefined);
 
   const loadData = async () => {
     setLoading(true);
@@ -58,13 +62,26 @@ export const AdminRestaurantsPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handleCreateNew}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Dar de Alta Sucursal</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setSelectedOrgForUserModal(undefined);
+              setIsUserModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+          >
+            <KeyRound className="w-4 h-4 text-blue-600" />
+            <span>Accesos al Portal</span>
+          </button>
+
+          <button
+            onClick={handleCreateNew}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Dar de Alta Sucursal</span>
+          </button>
+        </div>
       </div>
 
       {/* Lista de restaurantes */}
@@ -172,7 +189,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
 
                 {/* Acciones del pie de la tarjeta */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5 flex-wrap">
                   <a
                     href={res.google_review_url}
                     target="_blank"
@@ -183,13 +200,28 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <ExternalLink className="w-3 h-3" />
                   </a>
 
-                  <Link
-                    to={`/admin/tags?restaurant=${res.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>Ver Tags</span>
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedOrgForUserModal(res.organization_id || undefined);
+                        setIsUserModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-colors"
+                      title="Gestionar usuarios del portal para esta organización"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Acceso Portal</span>
+                    </button>
+
+                    <Link
+                      to={`/admin/tags?restaurant=${res.id}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Ver Tags</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
@@ -197,13 +229,21 @@ export const AdminRestaurantsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de Alta / Edición */}
+      {/* Modal de Alta / Edición de Restaurante */}
       <RestaurantFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSaved={loadData}
         restaurant={editingRestaurant}
         organizations={organizations}
+      />
+
+      {/* Modal de Accesos al Portal de Suscriptores */}
+      <OrganizationUserModal
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
+        organizations={organizations}
+        preselectedOrgId={selectedOrgForUserModal}
       />
     </div>
   );
