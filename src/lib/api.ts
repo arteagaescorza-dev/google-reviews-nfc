@@ -444,6 +444,41 @@ export const api = {
     return getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
   },
 
+  async updateOrganization(id: string, updates: Partial<Organization>): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const clean = sanitizeSupabasePayload(updates, false);
+        const { error } = await supabase.from('organizations').update(clean).eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    const orgs = getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+    const updated = orgs.map((o) => (o.id === id ? { ...o, ...updates } : o));
+    setLocalItem(STORAGE_KEYS.ORGANIZATIONS, updated);
+    return { success: true };
+  },
+
+  async toggleRestaurantActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('restaurants').update({ is_active: isActive }).eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) => (r.id === id ? { ...r, is_active: isActive } : r));
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+    return { success: true };
+  },
+
   async getRestaurants(): Promise<Restaurant[]> {
     if (isSupabaseConfigured) {
       const { data } = await supabase.from('restaurants').select('*, organization:organizations(*)').order('created_at', { ascending: false });

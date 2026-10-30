@@ -9,6 +9,14 @@ export interface LinkItem {
   icon: LinkType;
 }
 
+export interface BillingInfo {
+  tax_name?: string;
+  tax_id?: string;
+  tax_regime?: string;
+  tax_zip?: string;
+  billing_email?: string;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -16,6 +24,7 @@ export interface Organization {
   owner_email?: string | null;
   owner_phone?: string | null;
   notify_negative_feedback: boolean;
+  billing_info?: BillingInfo | null;
   created_at: string;
 }
 

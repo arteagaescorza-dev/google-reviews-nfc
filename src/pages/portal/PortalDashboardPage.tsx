@@ -9,10 +9,11 @@ import { PwaInstallBanner } from '../../components/portal/PwaInstallBanner';
 import { PortalFeedbackTab } from './PortalFeedbackTab';
 import { PortalLinksTab } from './PortalLinksTab';
 import { PortalMetricsTab } from './PortalMetricsTab';
+import { PortalAccountTab } from './PortalAccountTab';
 import { Loader2 } from 'lucide-react';
 
 export const PortalDashboardPage: React.FC = () => {
-  const { organization } = useOutletContext<PortalContextType>();
+  const { organization, member, refreshMembership } = useOutletContext<PortalContextType>();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('all');
@@ -88,6 +89,16 @@ export const PortalDashboardPage: React.FC = () => {
             restaurants={restaurants}
             feedbacks={feedbacks}
             selectedRestaurantId={selectedRestaurantId}
+          />
+        )}
+
+        {activeTab === 'cuenta' && (
+          <PortalAccountTab
+            organization={organization}
+            restaurants={restaurants}
+            member={member}
+            onRefreshOrg={refreshMembership}
+            onRefreshRestaurants={loadData}
           />
         )}
       </main>

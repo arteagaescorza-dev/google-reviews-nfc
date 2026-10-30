@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import type { Restaurant, Organization } from '../../types';
 import type { PortalTab } from './PortalBottomNav';
-import { Store, LogOut, ChevronDown, ShieldAlert, Link2, BarChart3 } from 'lucide-react';
+import { Store, LogOut, ChevronDown, ShieldAlert, Link2, BarChart3, Settings } from 'lucide-react';
 import { normalizeImageUrl } from '../../lib/utils';
 
 interface PortalHeaderProps {
@@ -129,6 +129,18 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
           >
             <BarChart3 className="w-4 h-4" />
             <span>Métricas & ROI</span>
+          </button>
+
+          <button
+            onClick={() => onChangeTab('cuenta')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'cuenta'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Mi Cuenta & Equipo</span>
           </button>
         </div>
 

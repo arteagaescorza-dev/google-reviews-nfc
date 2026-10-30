@@ -98,3 +98,4 @@ La pestaña de **Métricas** se expande para soportar análisis gerencial multi-
      - **Card / Banner Inferior (`bottom_banner`):** 16:9 o 3:1 (1200 × 628 px o 600 × 200 px, máx. 500 KB, formato WebP/JPG).
      - **Interstitial / Bienvenida (`interstitial`):** 9:16 vertical (1080 × 1920 px, máx. 1 MB, formato WebP/JPG).
    - **Paso 3: Checkout de Pauta:** Selección de paquete de impresiones y pago con tarjeta, enviando la campaña a `/admin/ads` con estado `Pendiente de Aprobación`.
+

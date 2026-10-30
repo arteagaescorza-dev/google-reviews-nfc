@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     owner_email TEXT,
     owner_phone TEXT,
     notify_negative_feedback BOOLEAN NOT NULL DEFAULT true,
+    billing_info JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
