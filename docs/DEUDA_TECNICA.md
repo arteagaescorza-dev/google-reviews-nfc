@@ -1,7 +1,7 @@
 # 📋 Registro Formal de Deuda Técnica (Technical Debt Inventory)
 
 **Proyecto:** Plataforma NFC Google Reseñas & Red Publicitaria Local  
-**Última Actualización:** 29 de Octubre, 2026  
+**Última Actualización:** 30 de Octubre, 2026  
 **Responsable:** Arquitectura de Software & Equipo de Desarrollo  
 
 Este documento centraliza, clasifica y prioriza la deuda técnica acumulada durante el rápido desarrollo de las fases MVP y la expansión del **Portal del Suscriptor** (`/portal`). Su objetivo es servir como bitácora viva para planificar sprints de refactorización y estabilización sin frenar la velocidad comercial.
@@ -19,6 +19,7 @@ graph TD
         D6["🛡️ 6. Seguridad & API Hardening<br/>Rate Limiting y Ocultamiento de Columnas"]
         D7["📬 7. Marketing & Retención<br/>Secuencias Automatizadas de Win-back"]
         D8["📊 8. Exportación de Leads & CRM<br/>Descarga CSV/Excel y Webhooks para Anunciantes"]
+        D9["🎟️ 9. Billeteras Nativas (Wallet)<br/>Apple Wallet .pkpass y Google Wallet API"]
     end
 ```
 
@@ -36,6 +37,7 @@ graph TD
 | **DT-06** | Seguridad | Rate Limiting y Honeypot en Buzón de Quejas | Exposición a spam o saturación de registros en BD | 🔴 ALTA | 1 día |
 | **DT-07** | Marketing | Pipeline Automatizado de E-mailing de Recaptura (Win-back) | Pérdida de oportunidad de reactivación tras baja de sucursal | 🟢 BAJA | 1.5 días |
 | **DT-08** | Anunciantes | Exportación Masiva CSV/Excel y Webhooks CRM (Zapier/HubSpot) | Anunciantes medianos deben consultar prospectos manualmente en portal | 🟢 BAJA | 1 día |
+| **DT-09** | Billeteras | Integración Nativa Apple Wallet (`.pkpass`) y Google Wallet API | Operación temporal mediante Pasaporte Web PWA y WhatsApp | 🟢 BAJA | 2 días |
 
 ---
 
@@ -111,11 +113,21 @@ graph TD
 ---
 
 ### 📊 DT-08: Exportación Masiva CSV/Excel y Webhooks CRM para Anunciantes
-* **Estado Actual:** Los prospectos y cupones se gestionan exclusivamente en tiempo real dentro del portal del anunciante (`/#/portal-anunciante/leads`) y vía alertas directas a WhatsApp.
+* **Estado Actual:** Los prospectos y cupones se gestionan en tiempo real dentro del portal del anunciante (`/#/portal-anunciante/leads`) y vía alertas directas a WhatsApp.
 * **Problema:** Si un anunciante corporativo maneja un call center o un CRM externo (HubSpot, Salesforce, Zoho, Monday), requiere copiar los datos manualmente.
 * **Solución Técnica:**
-  1. Agregar endpoint o función de descarga para exportar prospectos a formato CSV/Excel con filtros por periodo.
+  1. Agregar función de descarga para exportar prospectos a formato CSV/Excel con filtros por periodo.
   2. Configurar un despachador de webhooks salientes (`webhook_url`) para sincronización automática con Zapier y CRMs externos.
+
+---
+
+### 🎟️ DT-09: Integración Nativa de Apple Wallet (`.pkpass`) y Google Wallet API
+* **Estado Actual:** La Fase 1 opera al 100% mediante **Pasaporte Web PWA** (`/#/pasaporte`), descargas locales PNG en Canvas y notificaciones automatizadas vía WhatsApp.
+* **Problema:** La integración nativa con Apple Wallet requiere cuenta de desarrollador Apple (\$99 USD/año), certificado Pass Type ID firmado y servidor APNs; Google Wallet requiere Issuer Account en Google Pay Console.
+* **Solución Técnica:**
+  1. Desplegar un microservicio Node.js / Supabase Edge Function con la librería `passkit-generator` firmado con certificados Apple.
+  2. Configurar la API de Google Wallet con autenticación OAuth2 Service Account.
+  3. Habilitar la actualización remota de tarjetas (Push Updates) y geocercas GPS de proximidad en pantalla de bloqueo.
 
 ---
 
@@ -128,6 +140,7 @@ timeline
     Sprint 2 (Experiencia en Sala) : DT-03 WebSockets Realtime en Quejas : DT-01 Tokens CSS Semánticos
     Sprint 3 (Monetización Autónoma) : DT-04 Checkout Stripe / Mercado Pago : DT-05 Pruebas Unitarias Vitest
     Sprint 4 (Growth & Retención) : DT-07 Automatización Win-back Email : DT-08 Exportación y Webhooks CRM
+    Sprint 5 (Innovación Billeteras) : DT-09 Apple Wallet y Google Wallet Nativos
 ```
 
 ---
