@@ -157,3 +157,4 @@ timeline
 
 > [!NOTE]
 > Este archivo debe actualizarse al inicio y cierre de cada ciclo de desarrollo. Cada ítem resuelto debe tacharse y moverse a la sección de histórico de deuda amortizada.
+

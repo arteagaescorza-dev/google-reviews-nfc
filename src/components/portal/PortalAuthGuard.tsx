@@ -23,6 +23,19 @@ export const PortalAuthGuard: React.FC = () => {
   const checkAuth = async () => {
     setLoading(true);
     try {
+      // 1. Si el usuario activó Modo Demo, dar acceso inmediato sin requerir Supabase session
+      const demoAuth = localStorage.getItem('nfc_portal_demo_auth');
+      if (demoAuth === 'true') {
+        const data = await api.getMyMembership();
+        if (data) {
+          setMembershipData(data);
+          setIsAuthenticated(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Si no es Demo y Supabase está configurado, verificar sesión real
       if (isSupabaseConfigured) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
@@ -40,15 +53,7 @@ export const PortalAuthGuard: React.FC = () => {
           setIsAuthenticated(false);
         }
       } else {
-        // Modo Demo
-        const demoAuth = localStorage.getItem('nfc_portal_demo_auth');
-        if (demoAuth === 'true') {
-          const data = await api.getMyMembership();
-          setMembershipData(data);
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-        }
+        setIsAuthenticated(false);
       }
     } catch (e) {
       console.error('Error comprobando sesión del portal:', e);

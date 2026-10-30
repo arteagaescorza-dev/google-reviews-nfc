@@ -777,7 +777,9 @@ export const api = {
   // ==============================================================================
 
   async getMyMembership(): Promise<{ organization: Organization; member: OrganizationMember } | null> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (isSupabaseConfigured && !isDemo) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
@@ -842,7 +844,9 @@ export const api = {
   },
 
   async getMyRestaurants(): Promise<Restaurant[]> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (isSupabaseConfigured && !isDemo) {
       const membership = await this.getMyMembership();
       if (!membership) return [];
 
@@ -861,7 +865,9 @@ export const api = {
   },
 
   async getMyFeedbacks(restaurantId?: string): Promise<Feedback[]> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (isSupabaseConfigured && !isDemo) {
       let query = supabase
         .from('feedback')
         .select('*, restaurant:restaurants(*)')
