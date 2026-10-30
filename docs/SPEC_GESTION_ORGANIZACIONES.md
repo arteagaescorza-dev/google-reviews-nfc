@@ -132,3 +132,4 @@ Para escalar la administración cuando existan más de 10 clientes registrados, 
 
 * **Estado:** `PREAPROBADO` (Aprobado formalmente por Mickey con retroalimentación continua abierta).
 * **Siguiente paso:** Proceder a la implementación en código una vez que el usuario dé luz verde para iniciar la codificación.
+
