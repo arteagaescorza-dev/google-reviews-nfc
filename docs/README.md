@@ -31,6 +31,7 @@ graph LR
 * [**`SPEC_GESTION_ORGANIZACIONES.md`**](./SPEC_GESTION_ORGANIZACIONES.md): `[PREAPROBADO]` Onboarding y gestión de organizaciones/clientes en Superadmin, creación al vuelo de empresas y asignación de credenciales.
 * [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): `[PREAPROBADO]` Arquitectura de red publicitaria, política de veto manual de 1 anunciante/mes y atribución closed-loop.
 * [**`SPEC_INFRAESTRUCTURA_CUPONES.md`**](./SPEC_INFRAESTRUCTURA_CUPONES.md): `[PREAPROBADO]` Motor de cupones digitales de un solo uso, entrega al comensal, validación QR en mostrador y control de privacidad de ingresos (ROI).
+* [**`SPEC_UTILIDAD_MULTIGIRO.md`**](./SPEC_UTILIDAD_MULTIGIRO.md): `[PREAPROBADO]` Anclas de utilidad multi-giro (WiFi zero-password, pre-orden, rachas) y modelo self-service sin creación de contenido por la plataforma.
 
 ---
 
@@ -52,7 +53,7 @@ graph LR
 ---
 
 ### 🗺️ 5. Deuda Técnica, Salud del Código & Roadmap (`ROADMAP / META`)
-* [**`DEUDA_TECNICA.md`**](./DEUDA_TECNICA.md): Inventario formalizado de deuda técnica en 6 dimensiones (Tokens CSS, WebSockets Realtime, Pasarela Stripe, Testing Vitest, Rate Limiting y Recaptura por email).
+* [**`DEUDA_TECNICA.md`**](./DEUDA_TECNICA.md): Inventario formalizado de deuda técnica en 9 dimensiones (Tokens CSS, WebSockets Realtime, Pasarela Stripe, Testing Vitest, Rate Limiting, Recaptura por email, CRM y Billeteras Nativas).
 * [**`ROADMAP.md`**](./ROADMAP.md): Hoja de ruta estratégica de producto con iniciativas futuras (Menú digital interactivo, rol de mesero validador, mapa de calor en tiempo real).
 
 ---
