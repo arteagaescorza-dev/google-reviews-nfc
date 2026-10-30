@@ -1,15 +1,15 @@
 ---
 id: SPEC-008
-titulo: Mesa de Ayuda B2B, Automatización de Pauta y Consola de Anuncios
+titulo: Mesa de Ayuda B2B, Automatización de Pauta y Consola de Anuncios Superadmin
 categoria: especificacion
 estado: preaprobado
 fecha_creacion: 2026-10-30
 fecha_actualizacion: 2026-10-30
 autores: [Mickey, Antigravity]
-tags: [admin, anuncios, soporte-b2b, checkout-automatico, resumen-kpis, validacion-creativos, portal-anunciante]
+tags: [admin, anuncios, soporte-b2b, checkout-automatico, resumen-kpis, validacion-creativos, portal-anunciante, wireframes]
 ---
 
-# 📢 SPEC-008: Mesa de Ayuda B2B, Automatización de Pauta y Consola de Anuncios
+# 📢 SPEC-008: Mesa de Ayuda B2B, Automatización de Pauta y Consola de Anuncios Superadmin
 
 ## 1. Separación de Quejas y Veto Autónomo
 
@@ -31,8 +31,6 @@ tags: [admin, anuncios, soporte-b2b, checkout-automatico, resumen-kpis, validaci
 ---
 
 ## 2. Automatización Total de la Red Publicitaria (Cero Operación Manual)
-
-Las 4 resoluciones clave para eliminar trabajo manual y maximizar la escala de la plataforma:
 
 ```mermaid
 flowchart TD
@@ -64,53 +62,94 @@ flowchart TD
 
 ---
 
-### 2.1. Renovación Autónoma al 80% con Checkout Instantáneo
-* **Mecanismo:** Cuando una campaña alcanza el 80% de su cuota de impresiones o faltan 3 días para su vigencia, el sistema **no requiere intervención de Mickey**.
-* **Flujo Automatizado:**
-  1. Un cron o webhook de Supabase detecta el umbral del 80%.
-  2. Genera una sesión de pago dinámico con **Stripe Checkout / Mercado Pago**.
-  3. Dispara un mensaje automático al WhatsApp/Email del anunciante:
-     > *"Tu campaña en la red de mesas lleva el 80% de vistas consumidas. Para evitar que tu anuncio se pause al llegar al 100%, renueva aquí tu siguiente paquete con 1 clic: `[Enlace de Pago Autónomo]`"*.
-  4. En cuanto el anunciante paga con su tarjeta, el webhook recibe la confirmación y suma automáticamente las nuevas impresiones a su campaña sin que nadie mueva un dedo.
+## 3. Especificación Visual y Wireframes de Pantallas
+
+### 3.1. Pantalla de Resumen Ejecutivo (`AdminDashboardPage.tsx` - `/admin`)
+El Centro de Mando consolida la salud del negocio en un solo panel de cuatro cuadrantes:
+
+```text
+========================================================================================
+🧭 PANEL GENERAL — RESUMEN EJECUTIVO (/admin)
+========================================================================================
+
+[ 💰 FACTURACIÓN DEL MES ]     [ 🏢 RED DE LOCALES ]       [ 🪑 OCUPACIÓN DE RED ]    [ 🛡️ QUEJAS BLINDADAS ]
+$34,800 MXN                  18 Locales Activos          79% Ocupada                142 Quejas Contenidas
+(Suscripciones + Pauta)      (12 Restaurantes, 4 Gyms)   (38 de 48 mesas con pauta) (Desviadas de Google)
+
+----------------------------------------------------------------------------------------
+📊 RENDIMIENTO DE LA RED PUBLICITARIA EN VIVO (ESTE MES)
+----------------------------------------------------------------------------------------
+• Impresiones Servidas en Sala: 28,450 vistas
+• Clics Generados:             1,140 clics (CTR Promedio: 4.0%)
+• Cupones & Leads Entregados:  312 clientes potenciales a patrocinadores
+• Facturación por Pauta:       $18,500 MXN
+
+----------------------------------------------------------------------------------------
+⚡ ALERTAS DE MANDO & AUTOMATIZACIONES RECIENTES
+----------------------------------------------------------------------------------------
+🟡 [RENOVACIÓN EN PROCESO] Smart Fit alcanzó 80% de vistas (4,000/5,000).
+   Checkout automático de renovación enviado por WhatsApp/Email.
+   
+🟢 [PAGO AUTÓNOMO RECIBIDO] Clínica DentalPro pagó renovación de $2,500 MXN vía Stripe.
+   Bolsa de impresiones ampliada automáticamente a 10,000 vistas.
+
+🎫 [MESA DE AYUDA B2B] 1 solicitud de locatario pendiente:
+   "Tacos El Pastorcito — Solicitud de reposición de tag NFC en Mesa 4".
+========================================================================================
+```
 
 ---
 
-### 2.2. Métricas de la Red Publicitaria Centralizadas en "Resumen" (`AdminDashboardPage.tsx`)
-La pantalla de inicio del Superadministrador (`/admin`) pasa a ser el **Centro Integral de Mando**, fusionando métricas de software y de publicidad:
-* **Bloque 1 (Suscripciones & Locales):** Total de locales, tags físicos activos, volumen de escaneos, quejas blindadas internamente.
-* **Bloque 2 (Red Publicitaria & Monetización):**
-  * 💰 **Ingresos del Mes:** Total facturado en suscripciones + pautas publicitarias.
-  * 🪑 **Tasa de Ocupación de Inventario:** % de mesas monetizables ocupadas con anuncios activos.
-  * 👁️ **Impresiones Servidas:** Vistas totales entregadas a los patrocinadores en el periodo.
-  * 🎟️ **Leads & Cupones Generados:** Comensales convertidos en prospectos comerciales.
+### 3.2. Pantalla de Red de Publicidad (`AdminAdsPage.tsx` - `/admin/ads`)
+La Consola de Pautas incorpora control presupuestal, estado de renovaciones y detección de vetos:
+
+```text
+========================================================================================
+📢 RED DE PUBLICIDAD LOCAL (/admin/ads)                        [ + Crear Nueva Campaña ]
+Monitorea inventario en mesas, consumo de pautas y renovaciones automáticas
+========================================================================================
+
+Filtros: [ Todas (6) ] [ Activas (4) ] [ Al 80% Renovando (1) ] [ Pausadas (1) ]
+----------------------------------------------------------------------------------------
+
+┌───────────────────────────────────────┐   ┌───────────────────────────────────────┐
+│ 🖼️ BANNER (1200x628 px)               │   │ 🖼️ BANNER (1200x628 px)               │
+│ [🟢 ACTIVA]                           │   │ [🟡 80% RENOVANDO]                   │
+├───────────────────────────────────────┤   ├───────────────────────────────────────┤
+│ SMART FIT — POLANCO                   │   │ CLÍNICA DENTALPRO                     │
+│ "1er Mes Gratis + Inscripción 0%"     │   │ "20% de Descuento en Blanqueamiento"  │
+│ 📍 Segmentación: 3 Restaurantes       │   │ 📍 Segmentación: Toda la Red (Multigiro)│
+│                                       │   │                                       │
+│ 📊 Consumo de Pauta Contratada:       │   │ 📊 Consumo de Pauta Contratada:       │
+│ [██████░░░░░░░░] 2,450 / 5,000 (49%)  │   │ [████████████░░] 4,120 / 5,000 (82%)  │
+│ Presupuesto: $1,500 MXN               │   │ ⚡ Checkout de renovación enviado     │
+│                                       │   │                                       │
+│ 📈 Métricas de Conversión:            │   │ 📈 Métricas de Conversión:            │
+│ Vistas: 2,450  |  Clics: 112 (4.5%)   │   │ Vistas: 4,120  |  Clics: 168 (4.1%)   │
+│ Cupones Emitidos: 48                  │   │ Cupones Emitidos: 74                  │
+│ Canjes en Mostrador: 14 ventas        │   │ Canjes en Mostrador: 22 ventas        │
+│                                       │   │                                       │
+│ 🛡️ Monitoreo de Fricción:             │   │ 🛡️ Monitoreo de Fricción:             │
+│ 🟢 0 vetos de locatarios              │   │ ⚠️ Vetado en: Taquería Los Güeros    │
+├───────────────────────────────────────┤   ├───────────────────────────────────────┤
+│ [Pausar]     [Editar]    [Previsualizar]│   │ [Pausar]     [Editar]    [Previsualizar]│
+└───────────────────────────────────────┘   └───────────────────────────────────────┘
+```
 
 ---
 
-### 2.3. Reporte Nativo en el Portal del Anunciante / Locatario
-Mickey **no** copia ni envía enlaces manualmente por WhatsApp:
-* Tanto el locatario que pauta en otros comercios como el anunciante externo cuentan con su propio acceso al portal.
-* En su panel tienen la pestaña **`Mis Campañas / Publicidad`**, donde consultan en tiempo real:
-  * Gráficas de impresiones por día y por local.
-  * Clics hacia su WhatsApp o sitio web.
-  * Cupones emitidos y canjeados en mostrador.
-  * Cálculo dinámico de Retorno de Inversión (ROI).
+### 3.3. Modal de Creación & Validador Automático (`AdFormModal.tsx`)
+1. **Filtro Técnico en el Formulario:**
+   * Dimensiones: `1200 x 628 píxeles` (proporción 1.91:1 obligatoria).
+   * Peso: `<= 2 MB`.
+   * Formatos: `WEBP`, `PNG`, `JPG`.
+   * Si no cumple: La interfaz lo descarta en el acto e impide guardar con advertencia en rojo.
+2. **Mockup Interactivo de iPhone en Vivo:**
+   * Al seleccionar una imagen válida, el formulario auto-renderiza un marco de iPhone a la derecha con el banner incrustado para que el locatario o anunciante auto-apruebe el resultado final sin intervención de Mickey.
 
 ---
 
-### 2.4. Validador Automático de Creativos (Formato y Calidad)
-Mickey **no** toma capturas de pantalla en marcos de iPhone para pedir aprobación:
-* **Filtro Técnico en el Formulario de Subida:**
-  * **Dimensiones requeridas:** Exactamente `1200 x 628 píxeles` (proporción 1.91:1 estándar publicitario).
-  * **Peso máximo:** `2 MB`.
-  * **Formatos aceptados:** `WEBP`, `PNG`, `JPG`.
-* **Comportamiento ante error:** Si el usuario intenta subir una foto cuadrada, vertical o pixelada, la interfaz la descarta de inmediato con una alerta:  
-  `⛔ Imagen inválida: Tu banner mide 800x800 px. Debe medir 1200x628 px para publicarse. Ajusta las dimensiones para continuar.`
-* **Previsualización Móvil Auto-Renderizada en su Propia Pantalla:**  
-  Al subir una imagen válida, el formulario del portal despliega automáticamente un mockup interactivo de iPhone frente a los ojos del locatario/anunciante, permitiéndole a él mismo auto-aprobar cómo lucirá su banner en la mesa antes de publicarlo.
+## 4. Estado de Aprobación & Registro
 
----
-
-## 3. Estado de Aprobación & Registro
-
-* **Estado:** `PREAPROBADO` (Aprobado formalmente por Mickey con automatización total de pauta y rechazo autónomo de creativos).
-* **Impacto en Arquitectura:** Cero fricción operativa para Mickey; la plataforma se autogestiona entre locatarios y anunciantes.
+* **Estado:** `PREAPROBADO` (Aprobado formalmente por Mickey).
+* **Invariante Operativa:** La plataforma opera de forma 100% autogestiva y automatizada.
