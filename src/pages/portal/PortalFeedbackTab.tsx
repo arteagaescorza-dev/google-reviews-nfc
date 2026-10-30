@@ -21,10 +21,12 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
   restaurants,
   onRefresh,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'new' | 'contacted' | 'resolved'>('all');
+  // Por defecto mostrar 'new' (Pendientes) para Inbox Zero
+  const [filter, setFilter] = useState<'all' | 'new' | 'contacted' | 'resolved'>('new');
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [resolvedToast, setResolvedToast] = useState<string | null>(null);
 
   const filtered = feedbacks.filter((f) => {
     if (filter === 'all') return true;
@@ -33,6 +35,10 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
 
   const handleStatusChange = async (id: string, newStatus: FeedbackStatus) => {
     await api.updateFeedbackStatusAndNotes(id, newStatus);
+    if (newStatus === 'resolved') {
+      setResolvedToast('¡Queja resuelta y archivada! La puedes consultar en el filtro de Resueltas.');
+      setTimeout(() => setResolvedToast(null), 4000);
+    }
     onRefresh();
   };
 
@@ -83,7 +89,18 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
         </p>
       </div>
 
-      {/* Píldoras de Filtro */}
+      {/* Mensaje de Toast al Resolver */}
+      {resolvedToast && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-2xl flex items-center justify-between shadow-sm animate-fadeIn">
+          <span>{resolvedToast}</span>
+          <button
+            onClick={() => setFilter('resolved')}
+            className="text-emerald-700 underline font-bold ml-2 hover:text-emerald-900"
+          >
+            Ver Resueltas
+          </button>
+        </div>
+      )}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
         <button
           onClick={() => setFilter('all')}
