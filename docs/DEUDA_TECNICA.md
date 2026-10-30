@@ -17,6 +17,8 @@ graph TD
         D4["💳 4. Pagos & Transacciones<br/>Checkout Autónomo Stripe / Mercado Pago"]
         D5["🧪 5. Calidad & Pruebas<br/>Tests Unitarios Vitest & E2E Playwright"]
         D6["🛡️ 6. Seguridad & API Hardening<br/>Rate Limiting y Ocultamiento de Columnas"]
+        D7["📬 7. Marketing & Retención<br/>Secuencias Automatizadas de Win-back"]
+        D8["📊 8. Exportación de Leads & CRM<br/>Descarga CSV/Excel y Webhooks para Anunciantes"]
     end
 ```
 
@@ -33,6 +35,7 @@ graph TD
 | **DT-05** | Testing | Suite de Pruebas Unitarias e Integración (Vitest) | Riesgo de regresión en cálculos ponderados y fallbacks | 🟡 MEDIA | 1.5 días |
 | **DT-06** | Seguridad | Rate Limiting y Honeypot en Buzón de Quejas | Exposición a spam o saturación de registros en BD | 🔴 ALTA | 1 día |
 | **DT-07** | Marketing | Pipeline Automatizado de E-mailing de Recaptura (Win-back) | Pérdida de oportunidad de reactivación tras baja de sucursal | 🟢 BAJA | 1.5 días |
+| **DT-08** | Anunciantes | Exportación Masiva CSV/Excel y Webhooks CRM (Zapier/HubSpot) | Anunciantes medianos deben consultar prospectos manualmente en portal | 🟢 BAJA | 1 día |
 
 ---
 
@@ -42,21 +45,7 @@ graph TD
 * **Estado Actual:** El código utiliza clases directas utilitarias de Tailwind (`bg-slate-900`, `text-blue-600`, `rounded-3xl`, `rounded-2xl`) de manera contextual e inline en cada componente JSX.
 * **Problema:** Si se desea permitir *White-label* por marca (que un grupo gastronómico aplique su paleta corporativa completa en el portal) o un modo oscuro consistente, se requeriría editar decenas de archivos.
 * **Solución Técnica:**
-  1. Definir variables CSS semánticas en `src/index.css`:
-     ```css
-     :root {
-       --color-surface-base: #f1f5f9;
-       --color-surface-card: #ffffff;
-       --color-surface-input: #f8fafc;
-       --color-primary: #2563eb;
-       --color-primary-hover: #1d4ed8;
-       --color-accent-wa: #059669;
-       --color-danger: #e11d48;
-       --radius-container: 1.5rem; /* rounded-3xl */
-       --radius-card: 1rem;       /* rounded-2xl */
-       --radius-control: 0.75rem; /* rounded-xl */
-     }
-     ```
+  1. Definir variables CSS semánticas en `src/index.css` (superficies, colores de marca, radios de borde).
   2. Mapear las variables dentro de `tailwind.config.js` bajo `theme.extend`.
 
 ---
@@ -66,7 +55,7 @@ graph TD
 * **Problema:** El despliegue de GitHub Actions corre automáticamente para el frontend estático, pero la base de datos de producción requiere que el secreto `SUPABASE_DB_URL` esté configurado en el repositorio para aplicar cambios vía `psql`, o bien ejecutarse manualmente desde el Supabase SQL Editor.
 * **Solución Técnica:**
   1. Verificar que el workflow `.github/workflows/deploy.yml` cuente con el secreto `SUPABASE_DB_URL`.
-  2. Mantener un directorio formal de migraciones versionadas (`supabase/migrations/001_initial.sql`, `supabase/migrations/002_portal_subscriber.sql`) en lugar de depender únicamente de un archivo monolítico `schema.sql`.
+  2. Mantener un directorio formal de migraciones versionadas (`supabase/migrations/`) en lugar de depender únicamente de un archivo monolítico `schema.sql`.
 
 ---
 
@@ -74,27 +63,8 @@ graph TD
 * **Estado Actual:** En [`PortalFeedbackTab.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Reseñas/src/pages/portal/PortalFeedbackTab.tsx), las quejas se cargan mediante polling al entrar a la pantalla o al pulsar manualmente botones de acción.
 * **Problema:** Cuando un comensal deja 1, 2 o 3 estrellas en la mesa, el gerente o dueño no se entera al instante a menos que recargue la página.
 * **Solución Técnica:**
-  1. Implementar `supabase.channel('public:feedback')`:
-     ```ts
-     useEffect(() => {
-       const channel = supabase
-         .channel('realtime_feedback')
-         .on('postgres_changes', {
-           event: 'INSERT',
-           schema: 'public',
-           table: 'feedback',
-           filter: `restaurant_id=in.(${myRestaurantIds.join(',')})`
-         }, (payload) => {
-           // Reproducir sonido sutil de alerta y agregar queja al estado
-           playNotificationSound();
-           setFeedbacks(prev => [payload.new as Feedback, ...prev]);
-         })
-         .subscribe();
-
-       return () => { supabase.removeChannel(channel); };
-     }, [myRestaurantIds]);
-     ```
-  2. Añadir sonido y badge pulsante en tiempo real en el encabezado.
+  1. Implementar `supabase.channel('public:feedback')` escuchando eventos `INSERT`.
+  2. Añadir sonido auditivo discreto y badge pulsante en tiempo real en la cabecera del portal.
 
 ---
 
@@ -104,19 +74,18 @@ graph TD
 * **Solución Técnica:**
   1. Integrar **Stripe Billing / Customer Portal** o **Mercado Pago Subscriptions**.
   2. Guardar `stripe_customer_id` y `stripe_subscription_id` en la tabla `organizations`.
-  3. Crear un Webhook Serverless (Edge Function en Supabase) para escuchar `invoice.payment_succeeded` y `customer.subscription.deleted`, alternando automáticamente `is_ad_free` y `is_active`.
+  3. Crear un Webhook Serverless (Edge Function en Supabase) para escuchar `invoice.payment_succeeded` y alternar automáticamente `is_ad_free`.
 
 ---
 
 ### 🧪 DT-05: Suite de Pruebas Unitarias e Integración (Vitest & Playwright)
-* **Estado Actual:** La validación actual se apoya exclusivamente en el tipado estricto de TypeScript (`tsc`) y la compilación de Vite (`vite build`).
-* **Problema:** Lógicas críticas de cálculo financiero y reputacional pueden romperse en futuros refactors sin detección previa:
+* **Estado Actual:** La suite E2E de Playwright cubre 8 flujos completos del portal, pero faltan pruebas unitarias puras para funciones aisladas.
+* **Problema:** Lógicas críticas de cálculo pueden romperse en futuros refactors sin detección previa:
   * Cálculo del ponderado global de satisfacción de la cadena (`chainWeightedSat`).
   * Regla de degradación inmediata a Google Maps cuando un tag o restaurante está inactivo (`ResolverPage.tsx`).
-  * Validación del filtro de quejas de 1 a 3 estrellas vs. 4 a 5 estrellas.
 * **Solución Técnica:**
   1. Instalar `vitest` y `@testing-library/react`.
-  2. Crear tests unitarios en `src/lib/__tests__/metrics.test.ts` y `src/pages/__tests__/ResolverPage.test.tsx`.
+  2. Crear tests unitarios en `src/lib/__tests__/metrics.test.ts`.
   3. Añadir el paso `npm test` en el workflow de GitHub Actions previo al build.
 
 ---
@@ -127,7 +96,6 @@ graph TD
 * **Solución Técnica:**
   1. Agregar un campo trampa (*honeypot*) invisible para bots en `FeedbackModal.tsx`.
   2. Implementar un rate-limit en Supabase a nivel de base de datos o validar Cloudflare Turnstile antes del `INSERT`.
-  3. Ocultar columnas sensibles de restaurantes (`manager_phone`, `billing_info`) a consultas anónimas mediante una vista pública SQL (`public_restaurants_view`).
 
 ---
 
@@ -142,6 +110,15 @@ graph TD
 
 ---
 
+### 📊 DT-08: Exportación Masiva CSV/Excel y Webhooks CRM para Anunciantes
+* **Estado Actual:** Los prospectos y cupones se gestionan exclusivamente en tiempo real dentro del portal del anunciante (`/#/portal-anunciante/leads`) y vía alertas directas a WhatsApp.
+* **Problema:** Si un anunciante corporativo maneja un call center o un CRM externo (HubSpot, Salesforce, Zoho, Monday), requiere copiar los datos manualmente.
+* **Solución Técnica:**
+  1. Agregar endpoint o función de descarga para exportar prospectos a formato CSV/Excel con filtros por periodo.
+  2. Configurar un despachador de webhooks salientes (`webhook_url`) para sincronización automática con Zapier y CRMs externos.
+
+---
+
 ## 3. Hoja de Ruta para Amortizar la Deuda Técnica
 
 ```mermaid
@@ -150,11 +127,10 @@ timeline
     Sprint 1 (Estabilidad Inmediata) : DT-02 Sincronización RLS Supabase : DT-06 Honeypot y Rate Limit
     Sprint 2 (Experiencia en Sala) : DT-03 WebSockets Realtime en Quejas : DT-01 Tokens CSS Semánticos
     Sprint 3 (Monetización Autónoma) : DT-04 Checkout Stripe / Mercado Pago : DT-05 Pruebas Unitarias Vitest
-    Sprint 4 (Growth & Retención) : DT-07 Automatización Win-back Email
+    Sprint 4 (Growth & Retención) : DT-07 Automatización Win-back Email : DT-08 Exportación y Webhooks CRM
 ```
 
 ---
 
 > [!NOTE]
 > Este archivo debe actualizarse al inicio y cierre de cada ciclo de desarrollo. Cada ítem resuelto debe tacharse y moverse a la sección de histórico de deuda amortizada.
-
