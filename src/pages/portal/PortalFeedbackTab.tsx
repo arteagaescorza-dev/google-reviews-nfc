@@ -128,7 +128,7 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
         </button>
       </div>
 
-      {/* Lista de Quejas */}
+      {/* Lista de Quejas (Responsive: 1 columna en móvil, 2 columnas en desktop) */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
@@ -144,7 +144,7 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((f) => {
             const waLink = getWhatsAppLink(f);
             const isEditingThisNote = editingNotesId === f.id;

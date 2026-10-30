@@ -50,20 +50,23 @@ export const PortalDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white pb-24">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white pb-20 md:pb-8">
       {/* Banner de Instalación PWA */}
       <PwaInstallBanner />
 
-      {/* Encabezado Móvil */}
+      {/* Encabezado Responsive (Móvil y Escritorio) */}
       <PortalHeader
         organization={organization}
         restaurants={restaurants}
         selectedRestaurantId={selectedRestaurantId}
         onSelectRestaurant={setSelectedRestaurantId}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        pendingFeedbackCount={pendingFeedbackCount}
       />
 
-      {/* Contenido Principal según la Pestaña Activa */}
-      <main className="flex-1 max-w-md w-full mx-auto p-4 animate-fadeIn">
+      {/* Contenido Principal Adaptable a Pantallas Grandes */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 lg:p-8 animate-fadeIn">
         {activeTab === 'quejas' && (
           <PortalFeedbackTab
             feedbacks={feedbacks}
@@ -89,12 +92,14 @@ export const PortalDashboardPage: React.FC = () => {
         )}
       </main>
 
-      {/* Barra de Navegación Inferior Fija (Bottom Navigation Bar) */}
-      <PortalBottomNav
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        pendingFeedbackCount={pendingFeedbackCount}
-      />
+      {/* Barra de Navegación Inferior Fija (Solo en móviles/tablets) */}
+      <div className="md:hidden">
+        <PortalBottomNav
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          pendingFeedbackCount={pendingFeedbackCount}
+        />
+      </div>
     </div>
   );
 };

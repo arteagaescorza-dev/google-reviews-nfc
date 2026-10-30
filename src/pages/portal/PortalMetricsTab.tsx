@@ -88,8 +88,8 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
         </div>
       </div>
 
-      {/* Grid de Métricas Principales */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Grid de Métricas Principales (Responsive: 2 columnas en móvil, 4 en desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Métrica 1: Enviados a Google */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-2">

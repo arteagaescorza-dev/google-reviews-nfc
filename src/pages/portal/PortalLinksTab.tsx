@@ -192,7 +192,7 @@ export const PortalLinksTab: React.FC<PortalLinksTabProps> = ({
         </div>
       )}
 
-      {/* Lista de Enlaces */}
+      {/* Lista de Enlaces (Responsive: 1 columna en móvil, 2 en desktop) */}
       {links.length === 0 ? (
         <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center">
           <p className="text-xs text-slate-500 mb-3">
@@ -207,7 +207,7 @@ export const PortalLinksTab: React.FC<PortalLinksTabProps> = ({
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {links.map((link, idx) => {
             const isWifi = link.icon === 'wifi';
             const wifiData = isWifi ? parseWifiString(link.url) : { ssid: '', pass: '' };
