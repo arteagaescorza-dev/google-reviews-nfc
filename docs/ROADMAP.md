@@ -1,87 +1,86 @@
-# Roadmap Estratégico y Futuras Funcionalidades
+# 🗺️ Hoja de Ruta Evolutiva de Producto (Master Roadmap)
 
-Este documento registra formalmente las iniciativas clave de expansión de la plataforma para su priorización e implementación técnica en fases posteriores.
+**Proyecto:** Plataforma NFC Google Reseñas & Red Publicitaria Local  
+**Última Actualización:** 30 de Octubre, 2026  
+**Responsable:** Arquitectura de Software & Mickey  
 
----
-
-## 1. Mapa de Calor e Interacciones en Tiempo Real (Superadmin)
-
-### Descripción
-Visualización gráfica e interactiva en el panel del Superadministrador que muestra la actividad de escaneo de los tags NFC y QR en tiempo real sobre un mapa geográfico o plano de sucursales.
-
-### Objetivos y Casos de Uso
-- **Monitoreo de horas pico:** Detectar a qué horas del día se producen la mayor cantidad de interacciones por zona o tipo de restaurante.
-- **Rendimiento por mesa/sucursal:** Identificar mesas frías (con pocos o nulos escaneos) frente a mesas de alto tráfico para asesorar al restaurantero en la reubicación de sus placas NFC.
-- **Detección de anomalías en vivo:** Alertas visuales si un local sufre un pico inusual de bajas calificaciones en un intervalo corto de tiempo.
-
-### Componentes Técnicos Previstos
-- Integración de capa de mapas ligeros (Leaflet / Mapbox GL) o visualización por densidad de burbujas en cuadrícula.
-- Supabase Realtime (suscripción por WebSockets a eventos `INSERT` en la tabla `tag_scans`).
+Este documento establece la secuencia cronológica de **5 Grandes Actualizaciones (Releases)** de la plataforma, desde la siembra territorial inicial en calle hasta las aplicaciones nativas en tiendas y billeteras digitales.
 
 ---
 
-## 2. Panel de Administración de Anuncios para el Suscriptor
-
-### Descripción
-Espacio dentro del portal del dueño del local donde puede crear, programar y medir sus propias campañas de anuncios internas y cruzadas.
-
-### Objetivos y Casos de Uso
-- **Promociones propias del negocio:** Anunciar el "2x1 de los jueves", postres de temporada o eventos especiales dentro de sus propios tags (reemplazando banners de terceros).
-- **Publicidad cruzada de pago:** Posibilidad de que un restaurante compre impresiones en otros comercios no competidores afiliados a la red local (ej. una cafetería anunciándose en un gimnasio o viceversa).
-- **Control de marcas patrocinadoras:** Visualizar ingresos o beneficios por permitir anuncios en sus mesas.
-
-### Componentes Técnicos Previstos
-- Filtro en la tabla `ads` por `organization_id`.
-- Métricas dedicadas de CTR (Click-Through Rate) e impresiones para el suscriptor.
+```mermaid
+timeline
+    title Hoja de Ruta Evolutiva de Versiones
+    Release 1 (Actual - Siembra) : Venta en frío placas $100 : Bucle viral propio : Onboarding en 60s : Mesa Ayuda B2B
+    Release 2 (Activación Visita 2) : Portal móvil locatarios : Filtro quejas 1-3 GRATIS : Escaparate de niveles
+    Release 3 (Monetización In-App) : Suscripción menú & wifi : Red de anuncios abierta : Pauta & Ad-Free : Finanzas EBITDA
+    Release 4 (Tiendas Oficiales) : App en Apple App Store (iOS) : App en Google Play (Android) : Notificaciones Push Nativas
+    Release 5 (Billeteras Nativas) : Apple Wallet .pkpass (APNs) : Google Wallet API : Geocercas GPS por proximidad
+```
 
 ---
 
-## 3. Menú Digital Interactivo con Generación de Comandas
+## 🚀 Fase 1 a 3: El Embudo de Adopción Progresiva (PWA Web)
 
-### Descripción
-Evolución del Menú Digital estático (actualmente en PDF o link externo) hacia un catálogo interactivo con carrito de compras donde el comensal arma su pedido directamente desde el celular en la mesa.
-
-### Objetivos y Casos de Uso
-- **Gestión de catálogo:** Alta de platillos, fotografías, descripciones, alérgenos, precios y modificadores (ej. término de carne, sin cebolla).
-- **Generación de comanda:** Al escanear el tag de la Mesa 4, el cliente selecciona sus platillos y pulsa "Enviar Orden", generando un ticket digital vinculado a la mesa física.
-- **Ahorro de tiempos:** Disminuir la espera del comensal y optimizar la rotación de mesas en horas pico.
-
-### Componentes Técnicos Previstos
-- Tablas nuevas en PostgreSQL: `menu_categories`, `menu_items`, `orders`, `order_items`.
-- Estado de comanda: `creada`, `validada_por_mesero`, `en_cocina`, `servida`, `cerrada`.
+### 📦 Release 1: MVP de Siembra Territorial & Bucle Viral (Actual)
+* **Objetivo:** Sembrar los primeros **100 locales** en la zona (foco inicial: restaurantes).
+* **Venta en Calle (Visita 1):** Placas físicas a **$100 MXN c/u** con enlace directo a Google Reviews. Sin suscripciones ni ataduras.
+* **Bucle de Auto-Promoción Viral:** Cero anuncios de terceros. Cada mesa sembrada promueve exclusivamente la compra de placas NFC de Mickey (*"¿Tienes negocio? Pide tus placas por $100"*), atrayendo clientes inbound por WhatsApp.
+* **Superadmin:** Onboarding express para dar de alta un local y sus tags en 60 segundos + Mesa de Ayuda B2B.
 
 ---
 
-## 4. Rol de Mesero (Validador de Comandas de Mesa)
-
-### Descripción
-Nuevo perfil de usuario y aplicación web móvil de interfaz ultrarrápida diseñada exclusivamente para el personal de servicio en sala.
-
-### Objetivos y Casos de Uso
-- **Validación humana antes de cocina:** El comensal envía su pedido desde el celular, y el mesero asignado recibe una notificación en su teléfono o tableta de servicio para confirmar que la mesa solicitó eso antes de pasarlo a producción (evitando pedidos falsos o errores).
-- **Modificación rápida de orden:** Posibilidad de agregar notas adicionales o corregir disponibilidad de insumos en la mesa.
-- **Atención de quejas al vuelo:** Alerta sonora inmediata cuando un comensal califica con 1-3 estrellas en esa mesa, permitiendo al mesero o capitán intervenir antes de que el cliente abandone el local insatisfecho.
-
-### Componentes Técnicos Previstos
-- Rol `waiter` con vista simplificada y botones grandes optimizados para uso móvil rápido con una sola mano.
-- Asignación de meseros por rango de mesas o zonas de la sucursal.
+### 📦 Release 2: Activación Digital con Filtro Gratuito (Visita 2)
+* **Objetivo:** Convertir el hardware físico en usuarios activos del portal móvil (`/#/portal`).
+* **La Oferta Fundador:** En la segunda visita, se le entrega su acceso al portal y se le activa el **Filtro Inteligente de Quejas (1-3 estrellas en privado) 100% GRATIS**.
+* **El Escaparate In-App:** El dueño ve sus quejas contenidas y descubre los siguientes niveles disponibles dentro de la aplicación.
 
 ---
 
-## 5. Algoritmo Inteligente y Segmentación de Audiencia Publicitaria
+### 📦 Release 3: Monetización Autónoma In-App (Cero Visita 3)
+* **Objetivo:** Cobro recurrente mensual y encendido de la Red de Publicidad de Patrocinadores.
+* **Sin Tercera Visita:** Todo ocurre de forma autogestiva dentro de la app:
+  * **Upgrades de Software:** Desbloqueo de **Menú Digital, Linktree y WiFi Zero-Password** por una micro-suscripción con tarjeta (Stripe / Mercado Pago).
+  * **Apertura de la Red Publicitaria:**  
+    * Patrocinadores locales (gimnasios, clínicas, marcas) pautan anuncios en las mesas.
+    * Los locatarios pueden contratar **Marca Blanca (Ad-Free)** o pautar su propio negocio en los otros 99 restaurantes.
+  * **Consola Financiera Superadmin:** Métricas de MRR, pauta facturada y cálculo en tiempo real de **EBITDA Operativo**.
 
-### Descripción
-Motor de recomendación y subasta de banners publicitarios que optimiza qué anuncio se le muestra a cada comensal en el momento exacto de interacción.
+---
 
-### Dimensiones de Segmentación
-1. **Temporal (Dayparting):**
-   - 08:00 - 12:00: Cafeterías, desayunos, servicios corporativos.
-   - 13:00 - 17:00: Comidas ejecutivas, servicios de paquetería, postres.
-   - 19:00 - 23:00: Cervecerías, vida nocturna, transporte/taxis privados.
-2. **Geográfica y Radio de Proximidad:** Negocios locales a menos de 2 km a la redonda del comensal.
-3. **Categoría y Contexto del Restaurante:** Exclusión de competidores directos (no anunciar tacos dentro de una taquería) y priorización de servicios complementarios (cine, entretenimiento, talleres, estética).
-4. **Frecuencia de Exposición:** Capping para no mostrar el mismo anuncio al mismo comensal más de 2 veces por semana.
+## 📱 Fase 4 y 5: Escala Nativa & Billeteras Digitales
 
-### Componentes Técnicos Previstos
-- Función de base de datos PostgreSQL (`fn_select_target_ad`) o Edge Function que evalúe las reglas de contexto al momento de procesar `GET /api/resolve`.
+### 📦 Release 4: Aplicaciones Nativas en App Store y Google Play
+* **Objetivo:** Presencia oficial en las dos tiendas de aplicaciones más importantes del mundo:
+  * 🍏 **Apple App Store (iOS)**
+  * 🤖 **Google Play Store (Android)**
+* **Beneficios Operativos:**
+  * Empaquetado nativo (mediante Capacitor / React Native) manteniendo la misma base de código React.
+  * **Notificaciones Push Nativas al Teléfono del Dueño:** Cuando un comensal deja 1-3 estrellas, el teléfono del gerente o dueño vibra y suena al instante, permitiéndole atender la mesa en segundos sin depender de WhatsApp.
+  * Mayor estatus corporativo y confianza de marca para negociar con cadenas grandes y franquicias.
 
+---
+
+### 📦 Release 5: Infraestructura de Billeteras Nativas (Apple & Google Wallet)
+* **Objetivo:** Convertir el Pasaporte Web PWA en una tarjeta nativa de billetera digital instalada en el sistema operativo del comensal.
+* **Capacidades Técnicas:**
+  * Generación y firmado de pases `.pkpass` para Apple Wallet con push updates silenciosos (APNs).
+  * Integración con Google Wallet API (JWT Service Account).
+  * **Geocercas GPS de Proximidad Física:** La tarjeta se enciende automáticamente en la pantalla de bloqueo del comensal cuando camina o maneja a menos de 200 metros de un restaurante o comercio patrocinador aliado.
+
+---
+
+## 🔮 Funcionalidades Futuras de Ecosistema
+
+1. **Gestión de Comandas Automatizadas en Mesa:**  
+   Evolución del Menú Digital hacia un sistema donde el comensal pide platillos desde el tag NFC y la comanda cae directamente a la impresora de cocina o pantalla de meseros.
+2. **Rol de Mesero (App de Sala):**  
+   Interfaz rápida para validar comandas de mesa, llamar al gerente ante quejas y gestionar propinas.
+3. **Mapa de Calor en Tiempo Real (Superadmin):**  
+   Monitoreo visual geográfico de qué colonias y mesas registran mayor volumen de escaneos hora por hora.
+
+---
+
+## 6. Estado de Aprobación & Registro
+
+* **Estado:** `PREAPROBADO` (Aprobado formalmente por Mickey como la visión y hoja de ruta tecnológica integral del proyecto).
