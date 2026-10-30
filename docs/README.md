@@ -28,6 +28,7 @@ graph LR
 ### 📐 1. Especificaciones de Producto & Negocio (`SPEC`)
 * [**`SPEC.md`**](./SPEC.md): Especificación integral de la plataforma (Arquitectura general, Tiers 1-4, flujo de comensal en mesa, panel de control).
 * [**`SPEC_PORTAL_SUSCRIPTOR.md`**](./SPEC_PORTAL_SUSCRIPTOR.md): Especificación funcional del Portal del Dueño/Gerente (`/portal`), gestión de quejas en Inbox Zero, Linktree y datos de negocio.
+* [**`SPEC_GESTION_ORGANIZACIONES.md`**](./SPEC_GESTION_ORGANIZACIONES.md): `[PREAPROBADO]` Onboarding y gestión de organizaciones/clientes en Superadmin, creación al vuelo de empresas y asignación de credenciales.
 * [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): Arquitectura de la red local de anuncios, segmentación no competidora, especificaciones técnicas de banners (1200x628 px) y métricas de ROI.
 
 ---
