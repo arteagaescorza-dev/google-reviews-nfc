@@ -183,3 +183,38 @@ Documenta el backend, bases de datos y cumplimiento regulatorio:
 3. **Modelo Zero-Custody sagrado:** Nunca intermediar ni retener fondos provenientes de las comidas de los restaurantes.
 4. **Modo Bento Light para Superadmin:** Toda la consola de dirección debe respetar el estilo Bento Grid en Light Theme (Apple/Linear) con métricas en pesos mexicanos (MXN).
 5. **Verificación continua en Git:** Todo avance debe pasar la suite de pruebas (`npm run test`) y verificación de tipos (`npx tsc --noEmit`) antes de cada commit.
+
+
+---
+
+## 5. 🏛️ Protocolo de Cascada Documental: "Quedó inamovible" / "Vuélvelo política"
+
+Cuando el usuario emita cualquiera de los comandos de activación:
+> 🗣️ **"Quedó inamovible"** o **"Vuélvelo política"**
+
+Se activa de forma inmediata el **Protocolo de Gobernanza Inamovible**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuario
+    participant AG as Asistente / Antigravity
+    participant POL as docs/POLITICAS_DEL_SISTEMA.md
+    participant SPEC as Documentos Incidentes (/docs)
+    participant DB as Backend / Supabase
+    participant GIT as Control de Versiones Git
+
+    U->>AG: "Quedó inamovible" / "Vuélvelo política"
+    AG->>POL: Registra la regla con identificador POL-###
+    AG->>SPEC: Ejecuta cascada documental en todos los archivos afectados
+    AG->>DB: Alinea tipos TypeScript, tablas o RPCs si aplica
+    AG->>GIT: Commit sincronizado con mensaje descriptivo
+    AG-->>U: Confirma documentos actualizados y estado 100% coordinado
+```
+
+### Reglas del Protocolo de Cascada:
+1. **Identificación de Alcance:** El asistente evalúa qué capas del sistema (1 a 5) y qué documentos específicos son impactados por la nueva política.
+2. **Registro Centralizado:** Se formaliza en [`POLITICAS_DEL_SISTEMA.md`](./POLITICAS_DEL_SISTEMA.md) con ID correlativo (`POL-###`), descripción, justificación técnica y lista de documentos incidentes.
+3. **Actualización en Cascada Obligatoria:** Se abren y editan en el mismo turno todos los documentos de `/docs` vinculados, eliminando cualquier versión anterior o contradictoria para evitar ambigüedades.
+4. **Coherencia con Código:** Si la política afecta base de datos o lógica de frontend, se actualiza el esquema (`schema.sql` / migraciones) o componentes respectivos.
+5. **Commit Atómico:** Todo el paquete de documentación sincronizada se resguarda en Git con mensaje formal `docs(politica): POL-### [descripcion]`.

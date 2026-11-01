@@ -3,12 +3,14 @@
 Bienvenido al repositorio central de conocimiento, arquitectura y especificaciones de la plataforma **Google Reseñas NFC, Red Publicitaria Local & Hardware SaaS**. 
 
 Toda la documentación está organizada de acuerdo con el [**Framework Documental Maestro v2.0 (FDM)**](./FRAMEWORK_DOCUMENTAL.md), estructurada en **5 Capas Sistémicas Coordinadas**:
+* [**POLITICAS_DEL_SISTEMA.md**](./POLITICAS_DEL_SISTEMA.md): Registro oficial de directrices irrevocables activadas por el comando *Quedo inamovible / Vuelvelo politica* (Zero-Custody, Bento Light, Trazabilidad de Hardware, etc.).
 
 ---
 
 ```mermaid
 graph LR
     FDM["📘 FRAMEWORK_DOCUMENTAL.md (v2.0)"] --> C1["🏭 1. Hardware, Imprenta & Logística"]
+* [**POLITICAS_DEL_SISTEMA.md**](./POLITICAS_DEL_SISTEMA.md): Registro oficial de directrices irrevocables activadas por el comando *Quedo inamovible / Vuelvelo politica* (Zero-Custody, Bento Light, Trazabilidad de Hardware, etc.).
     FDM --> C2["📱 2. Front Comensal (Punto de Contacto)"]
     FDM --> C3["👨‍🍳 3. Portal Suscriptor / Local"]
     FDM --> C4["🏛️ 4. Superadministrador Bento Grid"]
@@ -21,6 +23,7 @@ graph LR
 
 ### 📘 0. Metodología y Marco de Trabajo
 * [**`FRAMEWORK_DOCUMENTAL.md`**](./FRAMEWORK_DOCUMENTAL.md): Estándar FDM v2.0 que unifica las 5 capas del sistema (hardware, comensal, portal, superadmin e infraestructura), matrices de trazabilidad y ciclo de vida de especificaciones.
+* [**POLITICAS_DEL_SISTEMA.md**](./POLITICAS_DEL_SISTEMA.md): Registro oficial de directrices irrevocables activadas por el comando *Quedo inamovible / Vuelvelo politica* (Zero-Custody, Bento Light, Trazabilidad de Hardware, etc.).
 
 ---
 
