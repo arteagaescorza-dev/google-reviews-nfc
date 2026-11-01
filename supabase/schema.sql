@@ -267,6 +267,13 @@ TO authenticated
 USING (organization_id IN (SELECT get_user_organization_ids()))
 WITH CHECK (organization_id IN (SELECT get_user_organization_ids()));
 
+CREATE POLICY "Members create their restaurants"
+ON restaurants FOR INSERT
+TO authenticated
+WITH CHECK (
+    organization_id IN (SELECT get_user_organization_ids())
+);
+
 -- 3. Tags: Lectura pública de tags activos, escritura superadmin
 CREATE POLICY "Public read active tags"
 ON tags FOR SELECT
@@ -412,7 +419,21 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- Si no es superadmin, rechazar modificaciones directas a campos de monetización
+    -- Si es INSERT (Creación de nueva sucursal por parte de un miembro común)
+    IF (TG_OP = 'INSERT') THEN
+        IF (NEW.tier IS NOT NULL AND NEW.tier != 2) THEN
+            RAISE EXCEPTION 'Acceso denegado: Las nuevas sucursales deben crearse en el Nivel 2 estándar.';
+        END IF;
+        IF (NEW.is_ad_free IS NOT NULL AND NEW.is_ad_free = true) THEN
+            RAISE EXCEPTION 'Acceso denegado: El estado libre de anuncios requiere contratación.';
+        END IF;
+        IF (NEW.ad_credit_balance IS NOT NULL AND NEW.ad_credit_balance > 0) THEN
+            RAISE EXCEPTION 'Acceso denegado: No se pueden auto-asignar créditos publicitarios.';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- Si es UPDATE:
     IF (NEW.tier IS DISTINCT FROM OLD.tier) THEN
         RAISE EXCEPTION 'Acceso denegado: El nivel de suscripción (tier) solo puede modificarse mediante el flujo de pago verificado.';
     END IF;
@@ -431,7 +452,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_protect_restaurant_billing ON restaurants;
 CREATE TRIGGER trg_protect_restaurant_billing
-BEFORE UPDATE ON restaurants
+BEFORE INSERT OR UPDATE ON restaurants
 FOR EACH ROW
 EXECUTE FUNCTION prevent_unauthorized_restaurant_billing_mutation();
 

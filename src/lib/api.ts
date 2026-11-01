@@ -1535,6 +1535,22 @@ export const api = {
    * Obtiene la lista de cupones para el Pasaporte Digital (filtrados por cliente)
    */
   async getCoupons(phone?: string): Promise<Coupon[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('coupons').select('*, ad:ads(*), restaurant:restaurants(*)').order('created_at', { ascending: false });
+        if (phone) {
+          const cleanPhone = phone.replace(/[^0-9]/g, '');
+          query = query.ilike('customer_phone', `%${cleanPhone}%`);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as Coupon[];
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener cupones de Supabase, usando respaldo local:', err);
+      }
+    }
+
     const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
     if (phone) {
       const cleanPhone = phone.replace(/[^0-9]/g, '');
@@ -1548,6 +1564,21 @@ export const api = {
    */
   async getCouponByCode(code: string): Promise<Coupon | null> {
     const cleanCode = code.trim().toUpperCase();
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('coupons')
+          .select('*, ad:ads(*), restaurant:restaurants(*)')
+          .ilike('coupon_code', cleanCode)
+          .maybeSingle();
+        if (!error && data) {
+          return data as Coupon;
+        }
+      } catch (err) {
+        console.warn('Fallo al buscar cupón en Supabase, usando respaldo local:', err);
+      }
+    }
+
     const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
     const found = list.find((c) => c.coupon_code.toUpperCase() === cleanCode);
     return found || null;
@@ -1562,6 +1593,39 @@ export const api = {
     redeemedBy?: string
   ): Promise<{ success: boolean; error?: string; coupon?: Coupon }> {
     const cleanCode = code.trim().toUpperCase();
+
+    if (isSupabaseConfigured) {
+      try {
+        const existing = await this.getCouponByCode(cleanCode);
+        if (existing) {
+          if (existing.status === 'redeemed') {
+            return { success: false, error: 'CUPON_YA_CANJEADO', coupon: existing };
+          }
+          if (new Date(existing.expires_at).getTime() < Date.now()) {
+            return { success: false, error: 'CUPON_EXPIRADO', coupon: existing };
+          }
+          const now = new Date().toISOString();
+          const { data, error } = await supabase
+            .from('coupons')
+            .update({
+              status: 'redeemed',
+              ticket_amount: ticketAmount !== undefined ? Number(ticketAmount) : existing.ticket_amount,
+              redeemed_at: now,
+              redeemed_by: redeemedBy || 'caja-mostrador',
+            })
+            .eq('coupon_code', cleanCode)
+            .select('*, ad:ads(*), restaurant:restaurants(*)')
+            .single();
+
+          if (!error && data) {
+            return { success: true, coupon: data as Coupon };
+          }
+        }
+      } catch (err) {
+        console.warn('Fallo al canjear cupón en Supabase, usando respaldo local:', err);
+      }
+    }
+
     const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
     const target = list.find((c) => c.coupon_code.toUpperCase() === cleanCode);
 
@@ -1737,6 +1801,21 @@ export const api = {
   // ==========================================
 
   async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('menu_items').select('*').order('name');
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as MenuItem[];
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener menu_items de Supabase, usando respaldo local:', err);
+      }
+    }
+
     const defaultItems: MenuItem[] = [
       {
         id: 'menu-1',
@@ -1856,6 +1935,31 @@ export const api = {
   },
 
   async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: MenuItem }> {
+    if (isSupabaseConfigured) {
+      try {
+        if (item.id && !item.id.startsWith('menu-')) {
+          const { data, error } = await supabase
+            .from('menu_items')
+            .update(item)
+            .eq('id', item.id)
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as MenuItem };
+        } else {
+          const payload = { ...item };
+          if (payload.id && payload.id.startsWith('menu-')) delete payload.id;
+          const { data, error } = await supabase
+            .from('menu_items')
+            .insert([payload])
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as MenuItem };
+        }
+      } catch (err) {
+        console.warn('Fallo al guardar menu_item en Supabase, usando respaldo local:', err);
+      }
+    }
+
     const current = await this.getMenuItems();
     if (item.id) {
       const updated = current.map((m) => (m.id === item.id ? ({ ...m, ...item } as MenuItem) : m));
@@ -1879,6 +1983,21 @@ export const api = {
   },
 
   async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('table_orders').select('*').order('created_at', { ascending: false });
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as TableOrder[];
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener table_orders de Supabase, usando respaldo local:', err);
+      }
+    }
+
     const now = Date.now();
     const defaultOrders: TableOrder[] = [
       {
@@ -1893,7 +2012,7 @@ export const api = {
         total_amount: 670,
         status: 'preparing',
         customer_name: 'Alejandro G.',
-        created_at: new Date(now - 8 * 60 * 1000).toISOString(), // hace 8 mins
+        created_at: new Date(now - 8 * 60 * 1000).toISOString(),
         updated_at: new Date(now - 7 * 60 * 1000).toISOString(),
       },
       {
@@ -1908,7 +2027,7 @@ export const api = {
         total_amount: 455,
         status: 'ready',
         customer_name: 'Mariana Soto',
-        created_at: new Date(now - 14 * 60 * 1000).toISOString(), // hace 14 mins
+        created_at: new Date(now - 14 * 60 * 1000).toISOString(),
         updated_at: new Date(now - 2 * 60 * 1000).toISOString(),
       },
       {
@@ -1923,7 +2042,7 @@ export const api = {
         total_amount: 315,
         status: 'pending',
         customer_name: 'Comensal Mesa 7',
-        created_at: new Date(now - 2 * 60 * 1000).toISOString(), // hace 2 mins
+        created_at: new Date(now - 2 * 60 * 1000).toISOString(),
         updated_at: new Date(now - 2 * 60 * 1000).toISOString(),
       },
       {
@@ -1949,6 +2068,30 @@ export const api = {
   },
 
   async createTableOrder(order: Partial<TableOrder>): Promise<{ success: boolean; data?: TableOrder; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const payload = {
+          restaurant_id: order.restaurant_id || 'res-1',
+          tag_code: order.tag_code || 'TAG-ROM-001',
+          table_number: order.table_number || 'Mesa 1',
+          items: order.items || [],
+          total_amount: order.total_amount || 0,
+          status: 'pending',
+          customer_name: order.customer_name || 'Comensal en Mesa',
+        };
+        const { data, error } = await supabase
+          .from('table_orders')
+          .insert([payload])
+          .select()
+          .single();
+        if (!error && data) {
+          return { success: true, data: data as TableOrder };
+        }
+      } catch (err) {
+        console.warn('Fallo al crear table_order en Supabase, usando respaldo local:', err);
+      }
+    }
+
     const current = await this.getTableOrders();
     const created: TableOrder = {
       id: 'ord-' + Date.now(),
@@ -1967,6 +2110,20 @@ export const api = {
   },
 
   async updateTableOrderStatus(orderId: string, status: TableOrderStatus): Promise<{ success: boolean; data?: TableOrder }> {
+    if (isSupabaseConfigured && !orderId.startsWith('ord-')) {
+      try {
+        const { data, error } = await supabase
+          .from('table_orders')
+          .update({ status, updated_at: new Date().toISOString() })
+          .eq('id', orderId)
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as TableOrder };
+      } catch (err) {
+        console.warn('Fallo al actualizar table_order en Supabase:', err);
+      }
+    }
+
     const current = await this.getTableOrders();
     const updated = current.map((o) => (o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o));
     setLocalItem(STORAGE_KEYS.TABLE_ORDERS, updated);
@@ -1974,6 +2131,21 @@ export const api = {
   },
 
   async getTableCalls(restaurantId?: string): Promise<TableCall[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('table_calls').select('*').order('created_at', { ascending: false });
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as TableCall[];
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener table_calls de Supabase, usando respaldo local:', err);
+      }
+    }
+
     const now = Date.now();
     const defaultCalls: TableCall[] = [
       {
@@ -2002,6 +2174,26 @@ export const api = {
   },
 
   async createTableCall(call: Partial<TableCall>): Promise<{ success: boolean; data?: TableCall }> {
+    if (isSupabaseConfigured) {
+      try {
+        const payload = {
+          restaurant_id: call.restaurant_id || 'res-1',
+          tag_code: call.tag_code || 'TAG-MES-001',
+          table_number: call.table_number || 'Mesa',
+          call_type: call.call_type || 'waiter',
+          status: 'active',
+        };
+        const { data, error } = await supabase
+          .from('table_calls')
+          .insert([payload])
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as TableCall };
+      } catch (err) {
+        console.warn('Fallo al crear table_call en Supabase, usando respaldo local:', err);
+      }
+    }
+
     const current = await this.getTableCalls();
     const created: TableCall = {
       id: 'call-' + Date.now(),
@@ -2017,6 +2209,24 @@ export const api = {
   },
 
   async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{ success: boolean; data?: TableCall }> {
+    if (isSupabaseConfigured && !callId.startsWith('call-')) {
+      try {
+        const { data, error } = await supabase
+          .from('table_calls')
+          .update({
+            status: 'attended',
+            attended_at: new Date().toISOString(),
+            attended_by: staffName,
+          })
+          .eq('id', callId)
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as TableCall };
+      } catch (err) {
+        console.warn('Fallo al resolver table_call en Supabase:', err);
+      }
+    }
+
     const current = await this.getTableCalls();
     const updated = current.map((c) =>
       c.id === callId
@@ -2028,6 +2238,21 @@ export const api = {
   },
 
   async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('restaurant_staff').select('*');
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as StaffMember[];
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener restaurant_staff de Supabase, usando respaldo local:', err);
+      }
+    }
+
     const defaultStaff: StaffMember[] = [
       {
         id: 'staff-1',
