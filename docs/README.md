@@ -21,7 +21,7 @@ graph LR
 
 ### 0. Metodologia y Gobernanza
 * [**`FRAMEWORK_DOCUMENTAL.md`**](./FRAMEWORK_DOCUMENTAL.md): Estandar FDM v2.0 que unifica las 5 capas del sistema (hardware, comensal, portal, superadmin e infraestructura), matrices de trazabilidad y el protocolo de cascada documental.
-* [**`POLITICAS_DEL_SISTEMA.md`**](./POLITICAS_DEL_SISTEMA.md): Registro oficial de directrices irrevocables activadas por el comando *Quedo inamovible / Vuelvelo politica* (Zero-Custody, Bento Light, Trazabilidad de Hardware, Prohibicion de Emojis POL-007, etc.).
+* [**`POLITICAS_DEL_SISTEMA.md`**](./POLITICAS_DEL_SISTEMA.md): Registro oficial de directrices irrevocables activadas por el comando *Quedo inamovible / Vuelvelo politica* (Zero-Custody, Bento Light, Trazabilidad de Hardware, POL-007 sin emojis, POL-008 conmutacion IA y ciclo cerrado 8 pasos, etc.).
 
 ---
 

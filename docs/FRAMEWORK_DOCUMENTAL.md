@@ -216,3 +216,43 @@ sequenceDiagram
 3. **Actualizacion en Cascada Obligatoria:** Se abren y editan en el mismo turno todos los documentos de `/docs` vinculados, eliminando cualquier version anterior o contradictoria para evitar ambiguedades.
 4. **Coherencia con Codigo:** Si la politica afecta base de datos o logica de frontend, se actualiza el esquema (`schema.sql` / migraciones) o componentes respectivos.
 5. **Commit Atomico:** Todo el paquete de documentacion sincronizada se resguarda en Git con mensaje formal `docs(politica): POL-### [descripcion]`.
+
+
+---
+
+## 6. Protocolo de Conmutacion de Tarea para IA y Ciclo Cerrado (POL-008)
+
+De acuerdo con la politica **POL-008**, todo cambio en el sistema debe recorrer estrictamente el **Ciclo Cerrado de 8 Pasos**:
+
+```mermaid
+flowchart TD
+    P1["1. Deteccion del Cambio<br/>(Requerimiento del Usuario)"] --> P2["2. Consulta Documental<br/>(IA lee documento rector)"]
+    P2 --> P3["3. Conmutacion de Rol<br/>(Front, Back o Fullstack)"]
+    P3 --> P4["4. Plan de Implementacion<br/>(Propuesta paso a paso sin codificar)"]
+    P4 --> P5{"5. Confirmacion del Usuario<br/>(El usuario aprueba o ajusta)"}
+    P5 -- Requiere Ajustes --> P4
+    P5 -- Aprobado --> P6["6. Implementacion de Codigo<br/>(Front, Back, Migraciones SQL)"]
+    P6 --> P7{"7. Validacion del Usuario<br/>(El usuario prueba y valida)"}
+    P7 -- Rechazado con Cambios --> P6
+    P7 -- Validado --> P8["8. Formalizacion y Commit<br/>(Cascada documental y Git)"]
+    P8 --> P1
+```
+
+### Estructura Obligatoria en Documentos: Directiva de Conmutacion para IA
+Todo documento tecnico, especificacion o PRD dentro de `/docs` debe incluir al final el siguiente bloque estandarizado de conmutacion:
+
+```markdown
+## Directiva de Conmutacion para IA (AI Task Switcher)
+* **Ambito de Trabajo:** [FRONTEND | BACKEND | FULLSTACK | BASE_DE_DATOS]
+* **Documento Rector:** [Ruta relativa del documento]
+* **Politicas Inamovibles Aplicables:** [POL-001, POL-002, POL-007, etc.]
+* **Archivos Impactados:**
+  * Frontend: [src/pages/..., src/components/...]
+  * Backend: [supabase/migrations/..., RPCs...]
+* **Flujo Obligatorio:**
+  1. No codificar sin confirmacion previa del plan por el usuario.
+  2. Implementar unicamente lo confirmado.
+  3. Validar con pruebas (`npm run test` y `npx tsc --noEmit`).
+  4. Solicitar validacion del usuario en pantalla.
+  5. Actualizar documentacion y realizar commit en Git al validar.
+```

@@ -97,10 +97,28 @@
 
 ---
 
+### POL-008: Seccion de Conmutacion para IA (AI Switcher) y Ciclo Cerrado de Implementacion
+* **Declaracion:** Todos los documentos tecnicos y de especificacion en `/docs` deben contener una seccion estandarizada de prompteo (`## Directiva de Conmutacion para IA`). Esta seccion instruye a la IA a conmutar explicitamente su contexto y rol tecnico (Frontend, Backend, Base de Datos o Fullstack) previo a cualquier ejecucion.
+* **Ciclo Cerrado Obligatorio (Bucle de 8 Pasos):**
+  1. **Deteccion del Cambio:** Se plantea un ajuste, nueva funcionalidad o requerimiento.
+  2. **Consulta Documental:** La IA lee obligatoriamente el documento rector correspondiente antes de proponer nada.
+  3. **Conmutacion de Tarea:** La IA conmuta y explicita el tipo de tarea: Frontend, Backend o Fullstack.
+  4. **Plan de Implementacion:** La IA formula un plan detallado paso a paso con los cambios propuestos (sin codificar aun).
+  5. **Confirmacion del Usuario:** El usuario revisa, ajusta y autoriza el plan de forma explicita.
+  6. **Implementacion:** La IA codifica los cambios autorizados (archivos front, backend o migraciones SQL).
+  7. **Validacion del Usuario:** El usuario prueba los cambios en vivo y los valida o solicita ajustes puntuales.
+  8. **Formalizacion y Commit:** La IA actualiza los documentos en cascada con la realidad validada, ejecuta las pruebas automatizadas y realiza el commit en Git, quedando lista para el siguiente cambio.
+* **Documentos Incidentes:**
+  * [`docs/FRAMEWORK_DOCUMENTAL.md`](./FRAMEWORK_DOCUMENTAL.md)
+  * [`docs/README.md`](./README.md)
+  * Todos los documentos de especificacion en `/docs`
+
+---
+
 ## Protocolo de Actualizacion por Nuevas Politicas
 
 Cuando el usuario instruya **"Quedo inamovible"** o **"Vuelvelo politica"**:
-1. Se le asigna un identificador formal correlativo (`POL-008`, `POL-009`, etc.).
+1. Se le asigna un identificador formal correlativo (`POL-009`, `POL-010`, etc.).
 2. Se redacta la directriz con su alcance, reglas y justificacion en este archivo.
 3. Se ejecuta la **cascada documental** actualizando en simultaneo cada especificacion, guia y esquema afectado sin emojis.
 4. Se registra el cambio en el historial de Git con mensaje descriptivo.

@@ -67,3 +67,30 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 * **Ventas y Pipeline:** `mockup_bento_tab2_ventas.png`
 * **Hardware e Imprenta:** `mockup_bento_tab3_hardware.png`
 * **Finanzas y Cobranza:** `mockup_bento_tab4_finanzas.png`
+
+
+---
+
+## Directiva de Conmutacion para IA (AI Task Switcher)
+
+* **Ambito de Trabajo:** FULLSTACK (Consola Superadmin Bento Grid Light)
+* **Documento Rector:** `docs/TAREAS_UI_SUPERADMIN.md`
+* **Politicas Inamovibles Aplicables:**
+  * `POL-001` (Zero-Custody financiero en consumos de restaurantes).
+  * `POL-002` (Diseno Bento Grid en Light Theme).
+  * `POL-003` (Trazabilidad fisica de hardware, chips NTAG y viniles 3M).
+  * `POL-005` (100% idioma español en código, UI y comentarios).
+  * `POL-006` (Cero regresiones, suite Vitest y TypeScript strict).
+  * `POL-007` (Prohibicion de emojis, uso de `lucide-react`).
+  * `POL-008` (Ciclo cerrado de 8 pasos: cambio -> consulta -> conmuta -> plan -> confirmacion -> implementacion -> validacion -> commit).
+* **Archivos Impactados:**
+  * Frontend: `src/pages/AdminTagsPage.tsx`, `src/pages/AdminDashboardPage.tsx`, `src/pages/AdminFinancesPage.tsx`, `src/components/admin/AdminLayout.tsx`.
+  * Backend: `supabase/migrations/20261101_superadmin_infrastructure.sql`, RPCs `activate_table_tag_in_situ`, `replace_damaged_table_tag`, tablas `hardware_inventory`, `print_batches`, `sales_leads`.
+* **Secuencia de Ejecucion:**
+  1. Conmutar al modulo especifico solicitado (ej. Modulo 1: Hardware).
+  2. Presentar plan detallado de implementacion al usuario.
+  3. Esperar confirmacion expresa del usuario.
+  4. Implementar componentes frontend y llamadas API.
+  5. Ejecutar tests automatizados (`npm run test`) y verificacion de tipos.
+  6. Presentar resultado al usuario para validacion en pantalla.
+  7. Al recibir validacion, actualizar documentacion y hacer commit en Git.
