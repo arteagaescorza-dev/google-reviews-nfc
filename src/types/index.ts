@@ -86,6 +86,9 @@ export interface Ad {
   coupon_code?: string | null;
   coupon_description?: string | null;
   coupon_discount?: string | null;
+  budget_amount?: number;
+  max_impressions?: number;
+  is_renewal_sent?: boolean;
   created_at: string;
 }
 
@@ -161,4 +164,25 @@ export interface Coupon {
   // Relaciones opcionales
   ad?: Ad;
   restaurant?: Restaurant;
+}
+
+
+export interface FinancialMetrics {
+  mrr: number;
+  adRevenue: number;
+  hardwareRevenue: number;
+  grossRevenue: number;
+  cogsHardware: number;
+  gatewayFees: number;
+  cloudCost: number;
+  whatsappCost: number;
+  totalDirectCosts: number;
+  ebitda: number;
+  ebitdaMargin: number;
+  stripeBalance: number;
+  payingLocations: number;
+  totalLocations: number;
+  collectionRate: number;
+  activeCampaigns: number;
+  campaignsAtRisk: number;
 }

@@ -8,6 +8,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminRestaurantsPage } from './pages/AdminRestaurantsPage';
 import { AdminTagsPage } from './pages/AdminTagsPage';
 import { AdminAdsPage } from './pages/AdminAdsPage';
+import { AdminFinancesPage } from './pages/AdminFinancesPage';
 import { AdminSupportPage } from './pages/AdminSupportPage';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
             <Route path="restaurants" element={<AdminRestaurantsPage />} />
             <Route path="tags" element={<AdminTagsPage />} />
             <Route path="ads" element={<AdminAdsPage />} />
+            <Route path="finanzas" element={<AdminFinancesPage />} />
             <Route path="soporte" element={<AdminSupportPage />} />
             {/* Alias de retrocompatibilidad */}
             <Route path="feedback" element={<Navigate to="/admin/soporte" replace />} />

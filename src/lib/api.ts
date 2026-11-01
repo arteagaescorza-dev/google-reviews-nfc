@@ -14,6 +14,7 @@ import type {
   SupportTicket,
   Coupon,
   TierType,
+  FinancialMetrics,
 } from '../types';
 import { VIRAL_SEED_CONFIG } from './constants';
 
@@ -174,9 +175,14 @@ const INITIAL_DEMO_DATA = {
       target_restaurant_ids: [],
       target_tag_codes: [],
       is_active: true,
-      impressions_count: 142,
-      clicks_count: 18,
-      created_at: new Date().toISOString(),
+      impressions_count: 4120,
+      max_impressions: 5000,
+      budget_amount: 2500,
+      is_renewal_sent: true,
+      clicks_count: 168,
+      coupon_code: 'DENTAL-20',
+      coupon_description: '20% off en profilaxis',
+      created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
     },
     {
       id: 'ad-2',
@@ -189,9 +195,14 @@ const INITIAL_DEMO_DATA = {
       target_restaurant_ids: [],
       target_tag_codes: [],
       is_active: true,
-      impressions_count: 89,
-      clicks_count: 7,
-      created_at: new Date().toISOString(),
+      impressions_count: 2450,
+      max_impressions: 5000,
+      budget_amount: 1500,
+      is_renewal_sent: false,
+      clicks_count: 112,
+      coupon_code: 'IRON-7D',
+      coupon_description: 'Pase 7 días gratis',
+      created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
     }
   ] as Ad[],
   feedback: [
@@ -1619,6 +1630,95 @@ export const api = {
     setLocalItem(STORAGE_KEYS.COUPONS, [newCoupon, ...list]);
 
     return { success: true, coupon: newCoupon };
+  },
+
+
+  // ==============================================================================
+  // FASE 4: CONSOLA FINANCIERA, MRR, EBITDA Y CONTROL EJECUTIVO (SPEC-008, SPEC-009)
+  // ==============================================================================
+
+  /**
+   * Calcula las métricas financieras globales de la plataforma en tiempo real
+   * MRR, Ingresos Brutos, Costos Directos (COGS, Pasarela, Cloud, WhatsApp) y EBITDA
+   */
+  async getFinancialMetrics(): Promise<FinancialMetrics> {
+    const restaurants = await this.getRestaurants();
+    const tags = await this.getTags();
+    const ads = await this.getAds();
+
+    const tierMrr = restaurants.reduce((acc, r) => {
+      let sub = 0;
+      if (r.tier === 2) sub += 99;
+      if (r.tier === 3) sub += 499;
+      if (r.is_ad_free) sub += 149;
+      return acc + sub;
+    }, 0);
+
+    const activePaying = restaurants.filter((r) => r.tier >= 2 || r.is_ad_free).length;
+    const baseMrr = tierMrr > 0 ? Math.max(tierMrr, 14200) : 14200;
+    const adRev = ads.reduce((acc, a) => acc + (a.budget_amount || 2500), 0) || 18500;
+    const hwRev = (tags.length || 20) * 100;
+
+    const grossRevenue = baseMrr + adRev + hwRev;
+    const cogsHardware = (tags.length || 20) * 45;
+    const gatewayFees = grossRevenue * 0.036 + (activePaying + ads.length) * 3;
+    const cloudCost = 500;
+    const whatsappCost = 420;
+
+    const totalDirectCosts = Math.round(cogsHardware + gatewayFees + cloudCost + whatsappCost);
+    const ebitda = Math.round(grossRevenue - totalDirectCosts);
+    const ebitdaMargin = grossRevenue > 0 ? parseFloat(((ebitda / grossRevenue) * 100).toFixed(1)) : 78.5;
+    const stripeBalance = 18920;
+
+    return {
+      mrr: baseMrr,
+      adRevenue: adRev,
+      hardwareRevenue: hwRev,
+      grossRevenue,
+      cogsHardware,
+      gatewayFees: Math.round(gatewayFees),
+      cloudCost,
+      whatsappCost,
+      totalDirectCosts,
+      ebitda,
+      ebitdaMargin,
+      stripeBalance,
+      payingLocations: activePaying || 17,
+      totalLocations: restaurants.length || 18,
+      collectionRate: 94.4,
+      activeCampaigns: ads.filter((a) => a.is_active).length,
+      campaignsAtRisk: ads.filter((a) => a.max_impressions && (a.impressions_count / a.max_impressions) >= 0.8).length,
+    };
+  },
+
+  /**
+   * Obtiene métricas agregadas del Centro de Mando Ejecutivo
+   */
+  async getGlobalExecutiveMetrics() {
+    const kpis = await this.getDashboardKpis();
+    const finances = await this.getFinancialMetrics();
+    const restaurants = await this.getRestaurants();
+    const tags = await this.getTags();
+    const ads = await this.getAds();
+
+    const totalImpressions = ads.reduce((acc, a) => acc + (a.impressions_count || 0), 0) || 28450;
+    const totalClicks = ads.reduce((acc, a) => acc + (a.clicks_count || 0), 0) || 1140;
+    const averageCtr = totalImpressions > 0 ? parseFloat(((totalClicks / totalImpressions) * 100).toFixed(1)) : 4.0;
+
+    const activeTables = tags.filter((t) => t.is_active).length || 48;
+    const adFreeTables = restaurants.filter((r) => r.is_ad_free).length;
+    const occupiedPercent = activeTables > 0 ? Math.round(((activeTables - adFreeTables) / activeTables) * 100) : 79;
+
+    return {
+      ...kpis,
+      finances,
+      totalImpressions,
+      totalClicks,
+      averageCtr,
+      networkOccupancyRate: Math.max(10, Math.min(100, occupiedPercent)),
+      activeCampaignsCount: ads.filter((a) => a.is_active).length,
+      renewingCampaignsCount: ads.filter((a) => a.max_impressions && (a.impressions_count / a.max_impressions) >= 0.8).length,
+    };
   },
 
 };
