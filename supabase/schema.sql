@@ -239,10 +239,18 @@ TO authenticated
 USING (is_superadmin())
 WITH CHECK (is_superadmin());
 
-CREATE POLICY "Members can view their own membership"
+CREATE POLICY "Members view organization members"
 ON organization_members FOR SELECT
 TO authenticated
-USING (user_id = auth.uid());
+USING (organization_id IN (SELECT get_user_organization_ids()));
+
+CREATE POLICY "Owners can remove organization members"
+ON organization_members FOR DELETE
+TO authenticated
+USING (organization_id IN (
+    SELECT organization_id FROM organization_members
+    WHERE user_id = auth.uid() AND role = 'owner'
+));
 
 -- 2. Restaurants: Lectura pública si is_active = true, escritura superadmin o miembros
 CREATE POLICY "Public read active restaurants"
@@ -689,3 +697,40 @@ USING (restaurant_id IN (
 WITH CHECK (restaurant_id IN (
     SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
 ));
+
+-- ------------------------------------------------------------------------------
+-- RPC: VERIFICACIÓN SEGURA DE PIN PARA TERMINALES DE SALA Y COCINA (FASE PRODUCTO)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION verify_staff_pin(p_restaurant_id UUID, p_pin TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_staff restaurant_staff%ROWTYPE;
+BEGIN
+    SELECT * INTO v_staff
+    FROM restaurant_staff
+    WHERE restaurant_id = p_restaurant_id
+      AND pin_code = p_pin
+      AND is_active = true
+    LIMIT 1;
+
+    IF v_staff.id IS NOT NULL THEN
+        RETURN jsonb_build_object(
+            'success', true,
+            'staff', jsonb_build_object(
+                'id', v_staff.id,
+                'name', v_staff.name,
+                'role', v_staff.role,
+                'restaurant_id', v_staff.restaurant_id
+            )
+        );
+    ELSE
+        RETURN jsonb_build_object(
+            'success', false,
+            'error', 'PIN de acceso incorrecto o personal inactivo.'
+        );
+    END IF;
+END;
+$$;

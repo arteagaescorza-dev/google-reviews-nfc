@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import type { TableCall, TableOrder, Feedback, StaffMember } from '../../types';
+import type { TableCall, TableOrder, Feedback, StaffMember, Restaurant } from '../../types';
 import {
   BellRing,
   Receipt,
@@ -11,12 +11,30 @@ import {
   UtensilsCrossed,
   Ticket,
   Phone,
+  Store,
 } from 'lucide-react';
 
 export const PortalStaffPage: React.FC = () => {
   const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('res-1');
+
+  useEffect(() => {
+    api.getRestaurants().then((rests) => {
+      if (rests && rests.length > 0) {
+        setRestaurants(rests);
+        const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+        const branchParam = params.get('branch');
+        if (branchParam && rests.some((r) => r.id === branchParam)) {
+          setSelectedRestaurantId(branchParam);
+        } else {
+          setSelectedRestaurantId(rests[0].id);
+        }
+      }
+    });
+  }, []);
 
   const [calls, setCalls] = useState<TableCall[]>([]);
   const [readyOrders, setReadyOrders] = useState<TableOrder[]>([]);
@@ -27,8 +45,8 @@ export const PortalStaffPage: React.FC = () => {
   // Cargar datos operativos
   const loadData = async () => {
     const [allCalls, allOrders, allFeedback] = await Promise.all([
-      api.getTableCalls(),
-      api.getTableOrders(),
+      api.getTableCalls(selectedRestaurantId),
+      api.getTableOrders(selectedRestaurantId),
       api.getFeedbacks(),
     ]);
 
@@ -50,7 +68,7 @@ export const PortalStaffPage: React.FC = () => {
   const handlePinSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setPinError('');
-    const res = await api.loginStaffWithPin('res-1', pinInput);
+    const res = await api.loginStaffWithPin(selectedRestaurantId, pinInput);
     if (res.success && res.staff) {
       setCurrentStaff(res.staff);
       setPinInput('');
@@ -106,9 +124,29 @@ export const PortalStaffPage: React.FC = () => {
           <h2 className="text-xl font-black text-white tracking-tight">
             Terminal de Sala & Meseros
           </h2>
-          <p className="text-xs text-slate-400 mt-1 mb-6">
+          <p className="text-xs text-slate-400 mt-1 mb-4">
             Ingresa tu PIN de 4 dígitos para atender mesas
           </p>
+
+          {restaurants.length > 1 && (
+            <div className="mb-4 text-left">
+              <label className="block text-[11px] font-bold text-slate-400 mb-1">Sucursal</label>
+              <div className="flex items-center gap-2 bg-slate-800 p-2 rounded-xl border border-slate-700">
+                <Store className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                <select
+                  value={selectedRestaurantId}
+                  onChange={(e) => setSelectedRestaurantId(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-white focus:outline-none"
+                >
+                  {restaurants.map((r) => (
+                    <option key={r.id} value={r.id} className="bg-slate-900 text-white">
+                      {r.brand_name} ({r.branch_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {pinError && (
             <div className="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold">
@@ -184,7 +222,7 @@ export const PortalStaffPage: React.FC = () => {
               {currentStaff.name}
             </h1>
             <p className="text-[11px] text-slate-400">
-              Terminal de Sala • La Parrilla Argentina
+              Terminal de Sala • {restaurants.find((r) => r.id === selectedRestaurantId)?.brand_name || 'Restaurante'} ({restaurants.find((r) => r.id === selectedRestaurantId)?.branch_name || 'Principal'})
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { MenuItem, TableOrder, TableOrderStatus, TableCall, StaffMember } from '../../types';
-import { STORAGE_KEYS, getLocalItem, setLocalItem } from './core';
+import { STORAGE_KEYS, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
 export const ordersApi = {
 async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
@@ -500,5 +500,74 @@ async loginStaffWithPin(restaurantId: string, pin: string): Promise<{ success: b
       success: false,
       error: isDemo ? 'PIN incorrecto. En modo demo puedes usar 1234.' : 'PIN de acceso inválido.',
     };
+  }
+,
+async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const clean = sanitizeSupabasePayload(staff, true);
+        const { data, error } = await supabase.from('restaurant_staff').insert([clean]).select().single();
+        if (error) throw error;
+        return { success: true, data: data as StaffMember };
+      } catch (err: any) {
+        console.warn('Error insertando restaurant_staff en Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getStaffMembers(staff.restaurant_id);
+    const newStaff: StaffMember = {
+      ...staff,
+      id: 'staff-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, [newStaff, ...current]);
+    return { success: true, data: newStaff };
+  },
+
+  async updateStaffMember(id: string, updates: Partial<StaffMember>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !id.startsWith('staff-')) {
+      try {
+        const clean = sanitizeSupabasePayload(updates, false);
+        const { data, error } = await supabase
+          .from('restaurant_staff')
+          .update(clean)
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        return { success: true, data: data as StaffMember };
+      } catch (err: any) {
+        console.warn('Error actualizando restaurant_staff en Supabase:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getStaffMembers();
+    const updated = current.map((s) => (s.id === id ? { ...s, ...updates } : s));
+    setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
+    return { success: true, data: updated.find((s) => s.id === id) };
+  },
+
+  async toggleStaffMemberActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
+    return ordersApi.updateStaffMember(id, { is_active: isActive });
+  },
+
+  async deleteStaffMember(id: string): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !id.startsWith('staff-')) {
+      try {
+        const { error } = await supabase.from('restaurant_staff').delete().eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        console.warn('Error eliminando restaurant_staff de Supabase:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getStaffMembers();
+    const updated = current.filter((s) => s.id !== id);
+    setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
+    return { success: true };
   }
 };

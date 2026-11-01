@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad } from '../../types';
+import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad, StaffMember, StaffRole } from '../../types';
 import { CreateCampaignModal } from '../../components/portal/CreateCampaignModal';
 import { api } from '../../lib/api';
 import { SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
@@ -33,6 +33,9 @@ import {
   UserCheck,
   Megaphone,
   Ban,
+  Eye,
+  EyeOff,
+  Key,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -72,6 +75,33 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const [billingEmail, setBillingEmail] = useState(billing.billing_email || '');
   const [isSavingBilling, setIsSavingBilling] = useState(false);
   const [billingSaveSuccess, setBillingSaveSuccess] = useState(false);
+
+  // Estado Revocar Miembro Web (Gerente)
+  const [memberToRevoke, setMemberToRevoke] = useState<OrganizationMember | null>(null);
+  const [isRevokingMember, setIsRevokingMember] = useState(false);
+
+  // Estado Personal Operativo de Sala y Cocina (PIN 4 Dígitos)
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [selectedStaffBranchId, setSelectedStaffBranchId] = useState<string>(restaurants[0]?.id || '');
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState<StaffRole>('waiter');
+  const [newStaffPin, setNewStaffPin] = useState('');
+  const [newStaffBranchId, setNewStaffBranchId] = useState<string>(restaurants[0]?.id || '');
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
+  const [createdStaffCreds, setCreatedStaffCreds] = useState<{ name: string; role: StaffRole; pin: string; branchName: string } | null>(null);
+  const [staffActionToast, setStaffActionToast] = useState<string | null>(null);
+  const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({});
+
+  // Editar PIN
+  const [staffToEditPin, setStaffToEditPin] = useState<StaffMember | null>(null);
+  const [editPinValue, setEditPinValue] = useState('');
+  const [isUpdatingPin, setIsUpdatingPin] = useState(false);
+
+  // Eliminar Personal
+  const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  const [isDeletingStaff, setIsDeletingStaff] = useState(false);
 
   // Estado Equipo
   const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -115,6 +145,122 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const [isDeletingBranch, setIsDeletingBranch] = useState(false);
   const [branchActionToast, setBranchActionToast] = useState<string | null>(null);
 
+  const loadStaff = async (branchId?: string) => {
+    setLoadingStaff(true);
+    const targetBranch = branchId || selectedStaffBranchId || restaurants[0]?.id;
+    const list = await api.getStaffMembers(targetBranch);
+    setStaffMembers(list);
+    setLoadingStaff(false);
+  };
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffName.trim() || !newStaffPin.trim()) return;
+    if (newStaffPin.trim().length < 4) {
+      alert('El PIN debe tener al menos 4 dígitos numéricos.');
+      return;
+    }
+
+    setIsSavingStaff(true);
+    const branch = restaurants.find((r) => r.id === newStaffBranchId) || restaurants[0];
+    const res = await api.createStaffMember({
+      restaurant_id: branch?.id || 'res-1',
+      name: newStaffName.trim(),
+      role: newStaffRole,
+      pin_code: newStaffPin.trim(),
+      is_active: true,
+    });
+    setIsSavingStaff(false);
+
+    if (res.success && res.data) {
+      setCreatedStaffCreds({
+        name: res.data.name,
+        role: res.data.role,
+        pin: res.data.pin_code,
+        branchName: branch ? `${branch.brand_name} (${branch.branch_name})` : 'Sucursal Principal',
+      });
+      loadStaff(selectedStaffBranchId);
+      setStaffActionToast(`Personal ${res.data.name} registrado con éxito.`);
+      setTimeout(() => setStaffActionToast(null), 4000);
+    } else {
+      alert(res.error || 'Error al registrar personal');
+    }
+  };
+
+  const handleToggleStaffActive = async (s: StaffMember) => {
+    const newStatus = !s.is_active;
+    const res = await api.toggleStaffMemberActive(s.id, newStatus);
+    if (res.success) {
+      setStaffMembers((prev) => prev.map((item) => (item.id === s.id ? { ...item, is_active: newStatus } : item)));
+      setStaffActionToast(`Personal ${s.name} ${newStatus ? 'reactivado' : 'pausado'}.`);
+      setTimeout(() => setStaffActionToast(null), 3000);
+    }
+  };
+
+  const handleConfirmUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffToEditPin || editPinValue.length < 4) return;
+    setIsUpdatingPin(true);
+    const res = await api.updateStaffMember(staffToEditPin.id, { pin_code: editPinValue });
+    setIsUpdatingPin(false);
+    if (res.success) {
+      setStaffMembers((prev) => prev.map((s) => (s.id === staffToEditPin.id ? { ...s, pin_code: editPinValue } : s)));
+      setStaffActionToast(`PIN de ${staffToEditPin.name} actualizado correctamente.`);
+      setStaffToEditPin(null);
+      setEditPinValue('');
+      setTimeout(() => setStaffActionToast(null), 3000);
+    }
+  };
+
+  const handleConfirmDeleteStaff = async () => {
+    if (!staffToDelete) return;
+    setIsDeletingStaff(true);
+    const res = await api.deleteStaffMember(staffToDelete.id);
+    setIsDeletingStaff(false);
+    if (res.success) {
+      setStaffMembers((prev) => prev.filter((s) => s.id !== staffToDelete.id));
+      setStaffActionToast(`Personal ${staffToDelete.name} eliminado.`);
+      setStaffToDelete(null);
+      setTimeout(() => setStaffActionToast(null), 3000);
+    }
+  };
+
+  const handleRevokeMember = async () => {
+    if (!memberToRevoke) return;
+    setIsRevokingMember(true);
+    const res = await api.deleteOrganizationMember(organization.id, memberToRevoke.id);
+    setIsRevokingMember(false);
+    if (res.success) {
+      setMembers((prev) => prev.filter((m) => m.id !== memberToRevoke.id));
+      setStaffActionToast(`Acceso del gerente revocado exitosamente.`);
+      setMemberToRevoke(null);
+      setTimeout(() => setStaffActionToast(null), 3000);
+    } else {
+      alert(res.error || 'Error al revocar miembro');
+    }
+  };
+
+  const generateRandomPin = () => {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    setNewStaffPin(pin);
+  };
+
+  const getStaffCopyMessage = () => {
+    if (!createdStaffCreds) return '';
+    const roleTitle =
+      createdStaffCreds.role === 'waiter'
+        ? 'Mesero de Sala'
+        : createdStaffCreds.role === 'kitchen'
+        ? 'Cocinero / KDS'
+        : 'Capitán de Sala';
+    const terminalUrl =
+      createdStaffCreds.role === 'kitchen'
+        ? `${window.location.origin}${window.location.pathname}#/portal/cocina`
+        : `${window.location.origin}${window.location.pathname}#/portal/mesero`;
+
+    return `¡Hola ${createdStaffCreds.name}! 🍽️\nTu acceso al sistema operativo de ${createdStaffCreds.branchName} está listo:\n\nRol: ${roleTitle}\n🔗 Enlace de tu terminal: ${terminalUrl}\n🔑 Tu PIN de 4 dígitos: ${createdStaffCreds.pin}\n\nIngresa tu PIN en la pantalla para comenzar tu turno.`;
+  };
+
   const loadMembers = async () => {
     setLoadingMembers(true);
     const list = await api.getOrganizationMembers(organization.id);
@@ -142,6 +288,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     loadMembers();
     loadSupportTickets();
     loadAds();
+    loadStaff();
   }, [organization.id]);
 
   const handleConfirmUpgrade = async (tier: 2 | 3) => {
@@ -611,15 +758,221 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                       Alta: {new Date(m.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
-                    m.role === 'owner'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}>
-                    {m.role === 'owner' ? '👑 Dueño' : '🧑‍💼 Gerente'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
+                      m.role === 'owner'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      {m.role === 'owner' ? '👑 Dueño' : '🧑‍💼 Gerente'}
+                    </span>
+                    {isOwner && m.role !== 'owner' && (
+                      <button
+                        type="button"
+                        onClick={() => setMemberToRevoke(m)}
+                        title="Revocar acceso al gerente"
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* BLOQUE 3B: Personal de Sala y Cocina (PIN de 4 Dígitos) */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0">
+                <UtensilsCrossed className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Personal de Sala & Cocina</h3>
+                <p className="text-[11px] text-slate-400">Meseros y cocineros con PIN de 4 dígitos</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddStaffModal(true);
+                setNewStaffName('');
+                setNewStaffPin('');
+                setCreatedStaffCreds(null);
+                setNewStaffRole('waiter');
+                setNewStaffBranchId(selectedStaffBranchId || restaurants[0]?.id || '');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 text-xs font-bold flex items-center gap-1 transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Alta Personal</span>
+            </button>
+          </div>
+
+          {/* Selector de Sucursal para Personal si hay más de 1 */}
+          {restaurants.length > 1 && (
+            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+              <Store className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <span className="text-[11px] font-bold text-slate-600">Sucursal:</span>
+              <select
+                value={selectedStaffBranchId}
+                onChange={(e) => {
+                  setSelectedStaffBranchId(e.target.value);
+                  loadStaff(e.target.value);
+                }}
+                className="flex-1 bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+              >
+                {restaurants.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.brand_name} - {r.branch_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Links directos a las pantallas */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <a
+              href="#/portal/mesero"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:text-orange-700 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-orange-600" />
+              <span>Terminal Mesero ↗</span>
+            </a>
+            <a
+              href="#/portal/cocina"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:text-orange-700 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <ChefHat className="w-3.5 h-3.5 text-orange-600" />
+              <span>Pantalla Cocina KDS ↗</span>
+            </a>
+          </div>
+
+          {/* Lista de Personal */}
+          {loadingStaff ? (
+            <p className="text-xs text-slate-400 py-4 text-center">Cargando personal de piso...</p>
+          ) : staffMembers.length === 0 ? (
+            <div className="text-center py-6 px-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+              <p className="text-xs text-slate-500 font-medium">No hay meseros ni cocineros registrados.</p>
+              <p className="text-[11px] text-slate-400">
+                Registra a tu equipo de turno para que puedan ingresar a las pantallas de servicio con su PIN.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddStaffModal(true);
+                  setNewStaffName('');
+                  setNewStaffPin('');
+                  setCreatedStaffCreds(null);
+                }}
+                className="mt-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm"
+              >
+                + Registrar Primer Colaborador
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
+              {staffMembers.map((s) => {
+                const isRevealed = revealedPins[s.id] || false;
+                return (
+                  <div key={s.id} className="p-3 flex items-center justify-between text-xs gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        s.role === 'kitchen'
+                          ? 'bg-amber-100 text-amber-700'
+                          : s.role === 'manager'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {s.role === 'kitchen' ? (
+                          <ChefHat className="w-4 h-4" />
+                        ) : s.role === 'manager' ? (
+                          <ShieldCheck className="w-4 h-4" />
+                        ) : (
+                          <UserCheck className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-bold block truncate max-w-[140px] ${
+                            s.is_active ? 'text-slate-900' : 'text-slate-400 line-through'
+                          }`}>
+                            {s.name}
+                          </span>
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase ${
+                            s.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {s.is_active ? 'Activo' : 'Pausado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                          <span className="font-medium">
+                            {s.role === 'kitchen' ? '👨‍🍳 Cocina' : s.role === 'manager' ? '🛡️ Capitán' : '🍽️ Mesero'}
+                          </span>
+                          <span>•</span>
+                          <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 font-bold text-slate-700 flex items-center gap-1">
+                            PIN: {isRevealed ? s.pin_code : '••••'}
+                            <button
+                              type="button"
+                              onClick={() => setRevealedPins((prev) => ({ ...prev, [s.id]: !prev[s.id] }))}
+                              className="text-slate-400 hover:text-slate-600 ml-0.5"
+                              title={isRevealed ? 'Ocultar PIN' : 'Ver PIN'}
+                            >
+                              {isRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Acciones de Staff: Cambiar PIN, Pausar/Reanudar, Eliminar */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStaffToEditPin(s);
+                          setEditPinValue(s.pin_code);
+                        }}
+                        title="Cambiar PIN de acceso"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStaffActive(s)}
+                        title={s.is_active ? 'Pausar acceso' : 'Reactivar acceso'}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          s.is_active
+                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                            : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                      >
+                        {s.is_active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStaffToDelete(s)}
+                        title="Eliminar del equipo"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1561,6 +1914,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             onSuccess={() => {
               onRefreshRestaurants();
               loadAds();
+    loadStaff();
               setUpgradeSuccessMsg('¡Campaña publicada exitosamente! Tu anuncio ya está rotando en mesas aliadas.');
               setTimeout(() => setUpgradeSuccessMsg(''), 5000);
             }}
@@ -1699,6 +2053,311 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
           onCreated={loadSupportTickets}
         />
       )}
+    
+      {/* Toast de Notificación de Staff */}
+      {staffActionToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 animate-fadeIn border border-slate-700">
+          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>{staffActionToast}</span>
+        </div>
+      )}
+
+      {/* MODAL: Alta de Personal Operativo (PIN) */}
+      {showAddStaffModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Registrar Personal de Servicio</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddStaffModal(false);
+                  setCreatedStaffCreds(null);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {createdStaffCreds ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-emerald-900">¡Personal Dado de Alta!</h4>
+                  <p className="text-xs text-emerald-700">
+                    Las credenciales operativas para <strong>{createdStaffCreds.name}</strong> están listas.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Colaborador:</span>
+                    <strong className="text-slate-800">{createdStaffCreds.name}</strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Rol:</span>
+                    <span className="font-bold text-orange-600 uppercase text-[10px]">
+                      {createdStaffCreds.role}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Sucursal:</span>
+                    <span className="font-bold text-slate-700 text-[11px]">{createdStaffCreds.branchName}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                    <span className="text-slate-500 font-bold">PIN de Acceso:</span>
+                    <span className="font-mono text-base font-black text-indigo-600 tracking-widest bg-white px-2 py-0.5 rounded border border-indigo-200">
+                      {createdStaffCreds.pin}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = getStaffCopyMessage();
+                    navigator.clipboard.writeText(text);
+                    setStaffActionToast('Mensaje de credenciales copiado para WhatsApp');
+                    setTimeout(() => setStaffActionToast(null), 3000);
+                  }}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Copiar Mensaje para WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedStaffCreds(null);
+                    setNewStaffName('');
+                    setNewStaffPin('');
+                  }}
+                  className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-700"
+                >
+                  + Registrar otro colaborador
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateStaff} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    required
+                    value={newStaffName}
+                    onChange={(e) => setNewStaffName(e.target.value)}
+                    placeholder="Ej. Rodrigo Morales (Mesero)"
+                    className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Rol Operativo</label>
+                  <select
+                    value={newStaffRole}
+                    onChange={(e) => setNewStaffRole(e.target.value as StaffRole)}
+                    className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white"
+                  >
+                    <option value="waiter">🍽️ Mesero de Sala (Llamadas y Comandas)</option>
+                    <option value="kitchen">👨‍🍳 Cocinero / Barra (Pantalla KDS Kanban)</option>
+                    <option value="manager">🛡️ Capitán de Sala (PIN de Autorización)</option>
+                  </select>
+                </div>
+
+                {restaurants.length > 1 && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Sucursal Asignada</label>
+                    <select
+                      value={newStaffBranchId}
+                      onChange={(e) => setNewStaffBranchId(e.target.value)}
+                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white"
+                    >
+                      {restaurants.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.brand_name} - {r.branch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700">PIN de Acceso (4 dígitos)</label>
+                    <button
+                      type="button"
+                      onClick={generateRandomPin}
+                      className="text-[10px] text-orange-600 font-bold hover:underline"
+                    >
+                      Generar PIN aleatorio
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    value={newStaffPin}
+                    onChange={(e) => setNewStaffPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ej. 1234"
+                    className="w-full p-2.5 text-xs font-mono tracking-widest rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-orange-500"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    El colaborador usará este PIN para identificarse en su terminal de piso.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddStaffModal(false)}
+                    className="px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-xl"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingStaff || !newStaffName.trim() || newStaffPin.length < 4}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-50 transition-all"
+                  >
+                    {isSavingStaff ? 'Guardando...' : 'Crear Colaborador'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Cambiar PIN de Staff */}
+      {staffToEditPin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+              <Key className="w-5 h-5" />
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-sm font-bold text-slate-900">Cambiar PIN de Acceso</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Actualizar clave para <strong>{staffToEditPin.name}</strong>
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmUpdatePin} className="space-y-3">
+              <div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  value={editPinValue}
+                  onChange={(e) => setEditPinValue(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Nuevo PIN (4 dígitos)"
+                  className="w-full p-2.5 text-center text-sm font-mono tracking-widest rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStaffToEditPin(null)}
+                  className="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPin || editPinValue.length < 4}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm"
+                >
+                  {isUpdatingPin ? 'Actualizando...' : 'Guardar PIN'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirmar Eliminación de Personal */}
+      {staffToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-5 h-5" />
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">¿Eliminar personal?</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Se dará de baja definitiva a <strong>{staffToDelete.name}</strong>. Ya no podrá autenticarse en ninguna terminal de sala o cocina.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setStaffToDelete(null)}
+                className="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingStaff}
+                onClick={handleConfirmDeleteStaff}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm"
+              >
+                {isDeletingStaff ? 'Eliminando...' : 'Dar de Baja'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirmar Revocación de Gerente Web */}
+      {memberToRevoke && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">¿Revocar acceso al Gerente?</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Se cancelará el acceso al portal para <strong>{memberToRevoke.user_email || memberToRevoke.user_id}</strong>. Ya no podrá consultar métricas ni responder quejas.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMemberToRevoke(null)}
+                className="flex-1 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isRevokingMember}
+                onClick={handleRevokeMember}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm"
+              >
+                {isRevokingMember ? 'Revocando...' : 'Revocar Acceso'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

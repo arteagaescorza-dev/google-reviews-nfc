@@ -214,4 +214,26 @@ async createOrganizationMember(
 
     return { success: true };
   }
+,
+async deleteOrganizationMember(organizationId: string, memberId: string): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from('organization_members')
+          .delete()
+          .eq('id', memberId)
+          .eq('organization_id', organizationId);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        console.warn('Error eliminando miembro de Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const all = getLocalItem<OrganizationMember[]>(STORAGE_KEYS.ORGANIZATION_MEMBERS, []);
+    const updated = all.filter((m) => m.id !== memberId);
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_MEMBERS, updated);
+    return { success: true };
+  }
 };
