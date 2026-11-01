@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import type { TableOrder, TableOrderStatus } from '../../types';
+import type { TableOrder, TableOrderStatus, KitchenStation, OrderItem } from '../../types';
 import {
   Clock,
   CheckCircle2,
@@ -11,6 +11,9 @@ import {
   Flame,
   ChefHat,
   X,
+  Wine,
+  Cookie,
+  Layers,
 } from 'lucide-react';
 
 export const PortalKitchenPage: React.FC = () => {
@@ -41,12 +44,51 @@ export const PortalKitchenPage: React.FC = () => {
     return Math.max(1, Math.floor(diffMs / 60000));
   };
 
-  const pendingOrders = orders.filter((o) => o.status === 'pending');
-  const preparingOrders = orders.filter((o) => o.status === 'preparing');
-  const readyOrders = orders.filter((o) => o.status === 'ready');
-  const deliveredOrders = orders.filter((o) => o.status === 'delivered');
 
-  const delayedOrders = orders.filter(
+  const [station, setStation] = useState<KitchenStation>(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const s = params.get('station') as KitchenStation;
+    return s && ['cocina', 'barra', 'postres', 'all'].includes(s) ? s : 'all';
+  });
+
+  const inferItemCategory = (item: OrderItem): 'entradas' | 'principales' | 'bebidas' | 'postres' => {
+    if (item.category) return item.category;
+    const lower = item.name.toLowerCase();
+    if (lower.includes('cerveza') || lower.includes('vino') || lower.includes('limonada') || lower.includes('bebida') || lower.includes('refresco') || lower.includes('café') || lower.includes('cocktail') || lower.includes('gin') || lower.includes('ipa') || lower.includes('chianti')) {
+      return 'bebidas';
+    }
+    if (lower.includes('tiramisú') || lower.includes('panna cotta') || lower.includes('postre') || lower.includes('pastel') || lower.includes('helado') || lower.includes('dulce')) {
+      return 'postres';
+    }
+    return 'principales';
+  };
+
+  const filterOrderByStation = (order: TableOrder, currentStation: KitchenStation): TableOrder | null => {
+    if (currentStation === 'all') return order;
+    const filteredItems = order.items.filter((item) => {
+      const cat = inferItemCategory(item);
+      if (currentStation === 'barra') return cat === 'bebidas';
+      if (currentStation === 'postres') return cat === 'postres';
+      if (currentStation === 'cocina') return cat === 'entradas' || cat === 'principales';
+      return true;
+    });
+    if (filteredItems.length === 0) return null;
+    return {
+      ...order,
+      items: filteredItems,
+    };
+  };
+
+  const visibleOrders = orders
+    .map((o) => filterOrderByStation(o, station))
+    .filter((o): o is TableOrder => o !== null);
+
+  const pendingOrders = visibleOrders.filter((o) => o.status === 'pending');
+  const preparingOrders = visibleOrders.filter((o) => o.status === 'preparing');
+  const readyOrders = visibleOrders.filter((o) => o.status === 'ready');
+  const deliveredOrders = visibleOrders.filter((o) => o.status === 'delivered');
+
+  const delayedOrders = visibleOrders.filter(
     (o) => (o.status === 'pending' || o.status === 'preparing') && getMinutesAgo(o.created_at) > 15
   );
 
@@ -102,6 +144,62 @@ export const PortalKitchenPage: React.FC = () => {
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
+
+      {/* Selector de Estación KDS (Cocina / Barra / Postres / Todas) */}
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setStation('all')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            station === 'all'
+              ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Todas las Estaciones</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStation('cocina')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            station === 'cocina'
+              ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <ChefHat className="w-4 h-4" />
+          <span>🍳 Cocina Caliente</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStation('barra')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            station === 'barra'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Wine className="w-4 h-4" />
+          <span>🍺 Barra de Bebidas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStation('postres')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            station === 'postres'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Cookie className="w-4 h-4" />
+          <span>🍰 Repostería & Postres</span>
+        </button>
       </div>
 
       {/* Tablero Kanban KDS (4 Columnas) */}

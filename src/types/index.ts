@@ -204,12 +204,16 @@ export interface MenuItem {
   preparation_time_mins?: number;
 }
 
+export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'all';
+
 export interface OrderItem {
   menu_item_id: string;
   name: string;
   price: number;
   quantity: number;
   notes?: string;
+  category?: 'entradas' | 'principales' | 'bebidas' | 'postres';
+  station_status?: 'pending' | 'preparing' | 'ready';
 }
 
 export type TableOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
@@ -253,6 +257,8 @@ export interface StaffMember {
   role: StaffRole;
   pin_code: string; // 4 dígitos para login rápido en sala
   is_active: boolean;
+  assigned_tables?: string[];
+  zone_name?: string;
   created_at: string;
 }
 
