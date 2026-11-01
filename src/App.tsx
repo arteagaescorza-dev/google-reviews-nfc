@@ -10,6 +10,9 @@ import { AdminTagsPage } from './pages/AdminTagsPage';
 import { AdminAdsPage } from './pages/AdminAdsPage';
 import { AdminFinancesPage } from './pages/AdminFinancesPage';
 import { AdminSupportPage } from './pages/AdminSupportPage';
+import { AdminCoveragePage } from './pages/AdminCoveragePage';
+import { PortalKitchenPage } from './pages/portal/PortalKitchenPage';
+import { PortalStaffPage } from './pages/portal/PortalStaffPage';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
@@ -35,6 +38,9 @@ export const App: React.FC = () => {
         <Route path="/portal" element={<PortalAuthGuard />}>
           <Route index element={<PortalDashboardPage />} />
         </Route>
+        {/* Terminales de Sala y Cocina */}
+        <Route path="/portal/cocina" element={<PortalKitchenPage />} />
+        <Route path="/portal/mesero" element={<PortalStaffPage />} />
 
         {/* Autenticación Administrativa */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -47,6 +53,7 @@ export const App: React.FC = () => {
             <Route path="tags" element={<AdminTagsPage />} />
             <Route path="ads" element={<AdminAdsPage />} />
             <Route path="finanzas" element={<AdminFinancesPage />} />
+            <Route path="cobertura" element={<AdminCoveragePage />} />
             <Route path="soporte" element={<AdminSupportPage />} />
             {/* Alias de retrocompatibilidad */}
             <Route path="feedback" element={<Navigate to="/admin/soporte" replace />} />

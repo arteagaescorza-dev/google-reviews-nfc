@@ -186,3 +186,92 @@ export interface FinancialMetrics {
   activeCampaigns: number;
   campaignsAtRisk: number;
 }
+
+
+// ==========================================
+// Módulos de Operación de Sala y Cocina
+// ==========================================
+
+export interface MenuItem {
+  id: string;
+  restaurant_id: string;
+  category: 'entradas' | 'principales' | 'bebidas' | 'postres';
+  name: string;
+  description: string;
+  price: number;
+  image_url?: string;
+  is_available: boolean;
+  preparation_time_mins?: number;
+}
+
+export interface OrderItem {
+  menu_item_id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  notes?: string;
+}
+
+export type TableOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+
+export interface TableOrder {
+  id: string;
+  restaurant_id: string;
+  tag_code: string;
+  table_number: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: TableOrderStatus;
+  customer_name?: string;
+  created_at: string;
+  updated_at: string;
+  // Relación opcional
+  restaurant?: Restaurant;
+}
+
+export type TableCallType = 'waiter' | 'bill_cash' | 'bill_card' | 'help';
+export type TableCallStatus = 'active' | 'attended';
+
+export interface TableCall {
+  id: string;
+  restaurant_id: string;
+  tag_code: string;
+  table_number: string;
+  call_type: TableCallType;
+  status: TableCallStatus;
+  created_at: string;
+  attended_at?: string;
+  attended_by?: string;
+}
+
+export type StaffRole = 'waiter' | 'kitchen' | 'manager';
+
+export interface StaffMember {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  role: StaffRole;
+  pin_code: string; // 4 dígitos para login rápido en sala
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TerritoryZone {
+  id: string;
+  name: string;
+  city: string;
+  active_restaurants: number;
+  target_restaurants: number;
+  total_scans: number;
+  density_percent: number;
+  lat: number;
+  lng: number;
+}
+
+export interface TerritoryMetric {
+  totalGoal: number;
+  activeLocations: number;
+  coveragePercent: number;
+  zones: TerritoryZone[];
+  hourlyHeatmap: { hour: string; scans: number; peak: boolean }[];
+}

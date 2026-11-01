@@ -13,6 +13,7 @@ import {
   Sparkles,
   ExternalLink,
   DollarSign,
+  MapPin,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/admin/restaurants', label: 'Restaurantes', icon: Store },
   { to: '/admin/tags', label: 'Tags NFC & QR', icon: QrCode },
   { to: '/admin/ads', label: 'Red de Anuncios', icon: Megaphone },
+  { to: '/admin/cobertura', label: 'Cobertura Territorial', icon: MapPin },
   { to: '/admin/soporte', label: 'Mesa de Ayuda B2B', icon: LifeBuoy },
 ];
 

@@ -15,6 +15,13 @@ import type {
   Coupon,
   TierType,
   FinancialMetrics,
+  MenuItem,
+  TableOrder,
+  TableOrderStatus,
+  TableCall,
+  StaffMember,
+  TerritoryZone,
+  TerritoryMetric,
 } from '../types';
 import { VIRAL_SEED_CONFIG } from './constants';
 
@@ -31,6 +38,10 @@ const STORAGE_KEYS = {
   FEEDBACK: 'nfc_demo_feedback',
   SUPPORT_TICKETS: 'nfc_demo_support_tickets',
   COUPONS: 'nfc_demo_coupons',
+  MENU_ITEMS: 'nfc_demo_menu_items',
+  TABLE_ORDERS: 'nfc_demo_table_orders',
+  TABLE_CALLS: 'nfc_demo_table_calls',
+  STAFF_MEMBERS: 'nfc_demo_staff_members',
 };
 
 export const VIRAL_SEED_AD: Ad = {
@@ -1718,6 +1729,442 @@ export const api = {
       networkOccupancyRate: Math.max(10, Math.min(100, occupiedPercent)),
       activeCampaignsCount: ads.filter((a) => a.is_active).length,
       renewingCampaignsCount: ads.filter((a) => a.max_impressions && (a.impressions_count / a.max_impressions) >= 0.8).length,
+    };
+  },
+
+  // ==========================================
+  // OPERACIÓN DE SALA Y COMANDAS EN MESA
+  // ==========================================
+
+  async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
+    const defaultItems: MenuItem[] = [
+      {
+        id: 'menu-1',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'entradas',
+        name: 'Carpaccio de Res Trufado',
+        description: 'Láminas finas de lomo de res con vinagreta de trufa negra, alcaparras y lascas de parmesano reggiano.',
+        price: 185,
+        image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 8,
+      },
+      {
+        id: 'menu-2',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'entradas',
+        name: 'Bruschetta Pomodoro Clásica',
+        description: 'Pan rústico al horno de leña, jitomate cherry macerado en aceite de oliva virgen extra y albahaca fresca.',
+        price: 130,
+        image_url: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 6,
+      },
+      {
+        id: 'menu-3',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'principales',
+        name: 'Pizza Margherita al Horno de Leña',
+        description: 'Salsa de tomate San Marzano, mozzarella fior di latte, albahaca fresca y aceite de oliva virgen extra.',
+        price: 240,
+        image_url: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 12,
+      },
+      {
+        id: 'menu-4',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'principales',
+        name: 'Fettuccine Alfredo con Camarones',
+        description: 'Pasta fresca hecha en casa salteada en mantequilla infusionada, crema ligera y camarones a las hierbas finas.',
+        price: 295,
+        image_url: 'https://images.unsplash.com/photo-1645112411341-6c4fd023714a?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 15,
+      },
+      {
+        id: 'menu-5',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'principales',
+        name: 'Corte Rib Eye Prime 400g',
+        description: 'Corte premium al grill con sal de mar de Colima, acompañado de espárragos asados y papas al romero.',
+        price: 420,
+        image_url: 'https://images.unsplash.com/photo-1558030006-450675393462?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 20,
+      },
+      {
+        id: 'menu-6',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'bebidas',
+        name: 'Copa de Vino Tinto Chianti Reserva',
+        description: 'Selección de la casa con notas de frutos rojos y madera. Ideal para maridar con carnes y pastas.',
+        price: 160,
+        image_url: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 3,
+      },
+      {
+        id: 'menu-7',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'bebidas',
+        name: 'Cerveza Artesanal IPA Mexicana 355ml',
+        description: 'Cerveza de cuerpo medio con amargor balanceado y notas cítricas florales.',
+        price: 95,
+        image_url: 'https://images.unsplash.com/photo-1608270191544-774f3261a868?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 2,
+      },
+      {
+        id: 'menu-8',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'bebidas',
+        name: 'Limonada Natural Menta & Jengibre',
+        description: 'Refrescante limonada preparada al momento con jarabe natural, hojas de menta maceradas y toque de jengibre.',
+        price: 65,
+        image_url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 4,
+      },
+      {
+        id: 'menu-9',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'postres',
+        name: 'Tiramisú Tradicional de Mascarpone',
+        description: 'Capas de soletas remojadas en café espresso y licor amaretto con crema sedosa de queso mascarpone y cacao.',
+        price: 145,
+        image_url: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 5,
+      },
+      {
+        id: 'menu-10',
+        restaurant_id: restaurantId || 'res-1',
+        category: 'postres',
+        name: 'Panna Cotta con Coulis de Frutos Rojos',
+        description: 'Clásico postre italiano de crema aromatizada con vaina de vainilla y coulis artesanal de frambuesas y zarzamoras.',
+        price: 120,
+        image_url: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=500&auto=format&fit=crop&q=80',
+        is_available: true,
+        preparation_time_mins: 5,
+      },
+    ];
+
+    const current = getLocalItem<MenuItem[]>(STORAGE_KEYS.MENU_ITEMS, defaultItems);
+    if (!restaurantId) return current;
+    return current.filter((m) => m.restaurant_id === restaurantId || m.restaurant_id === 'res-1');
+  },
+
+  async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: MenuItem }> {
+    const current = await this.getMenuItems();
+    if (item.id) {
+      const updated = current.map((m) => (m.id === item.id ? ({ ...m, ...item } as MenuItem) : m));
+      setLocalItem(STORAGE_KEYS.MENU_ITEMS, updated);
+      return { success: true, data: updated.find((m) => m.id === item.id) };
+    } else {
+      const created: MenuItem = {
+        id: 'menu-' + Date.now(),
+        restaurant_id: item.restaurant_id || 'res-1',
+        category: item.category || 'principales',
+        name: item.name || 'Nuevo Platillo',
+        description: item.description || '',
+        price: item.price || 150,
+        image_url: item.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500&auto=format&fit=crop&q=80',
+        is_available: item.is_available ?? true,
+        preparation_time_mins: item.preparation_time_mins || 10,
+      };
+      setLocalItem(STORAGE_KEYS.MENU_ITEMS, [created, ...current]);
+      return { success: true, data: created };
+    }
+  },
+
+  async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {
+    const now = Date.now();
+    const defaultOrders: TableOrder[] = [
+      {
+        id: 'ord-1',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-004',
+        table_number: 'Mesa 4',
+        items: [
+          { menu_item_id: 'menu-3', name: 'Pizza Margherita al Horno', price: 240, quantity: 2, notes: 'Orilla crujiente' },
+          { menu_item_id: 'menu-7', name: 'Cerveza Artesanal IPA', price: 95, quantity: 2 },
+        ],
+        total_amount: 670,
+        status: 'preparing',
+        customer_name: 'Alejandro G.',
+        created_at: new Date(now - 8 * 60 * 1000).toISOString(), // hace 8 mins
+        updated_at: new Date(now - 7 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-2',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-002',
+        table_number: 'Mesa 2',
+        items: [
+          { menu_item_id: 'menu-4', name: 'Fettuccine Alfredo con Camarones', price: 295, quantity: 1, notes: 'Sin queso rallado extra' },
+          { menu_item_id: 'menu-6', name: 'Copa de Vino Chianti Reserva', price: 160, quantity: 1 },
+        ],
+        total_amount: 455,
+        status: 'ready',
+        customer_name: 'Mariana Soto',
+        created_at: new Date(now - 14 * 60 * 1000).toISOString(), // hace 14 mins
+        updated_at: new Date(now - 2 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-3',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-007',
+        table_number: 'Mesa 7',
+        items: [
+          { menu_item_id: 'menu-1', name: 'Carpaccio de Res Trufado', price: 185, quantity: 1 },
+          { menu_item_id: 'menu-8', name: 'Limonada Menta & Jengibre', price: 65, quantity: 2, notes: 'Poco hielo' },
+        ],
+        total_amount: 315,
+        status: 'pending',
+        customer_name: 'Comensal Mesa 7',
+        created_at: new Date(now - 2 * 60 * 1000).toISOString(), // hace 2 mins
+        updated_at: new Date(now - 2 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-4',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-001',
+        table_number: 'Mesa 1',
+        items: [
+          { menu_item_id: 'menu-5', name: 'Corte Rib Eye Prime 400g', price: 420, quantity: 1, notes: 'Término medio' },
+          { menu_item_id: 'menu-9', name: 'Tiramisú Tradicional', price: 145, quantity: 1 },
+        ],
+        total_amount: 565,
+        status: 'delivered',
+        customer_name: 'Carlos Mendoza',
+        created_at: new Date(now - 38 * 60 * 1000).toISOString(),
+        updated_at: new Date(now - 10 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    const current = getLocalItem<TableOrder[]>(STORAGE_KEYS.TABLE_ORDERS, defaultOrders);
+    if (!restaurantId) return current;
+    return current.filter((o) => o.restaurant_id === restaurantId || o.restaurant_id === 'res-1');
+  },
+
+  async createTableOrder(order: Partial<TableOrder>): Promise<{ success: boolean; data?: TableOrder; error?: string }> {
+    const current = await this.getTableOrders();
+    const created: TableOrder = {
+      id: 'ord-' + Date.now(),
+      restaurant_id: order.restaurant_id || 'res-1',
+      tag_code: order.tag_code || 'TAG-ROM-001',
+      table_number: order.table_number || 'Mesa 1',
+      items: order.items || [],
+      total_amount: order.total_amount || 0,
+      status: 'pending',
+      customer_name: order.customer_name || 'Comensal en Mesa',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.TABLE_ORDERS, [created, ...current]);
+    return { success: true, data: created };
+  },
+
+  async updateTableOrderStatus(orderId: string, status: TableOrderStatus): Promise<{ success: boolean; data?: TableOrder }> {
+    const current = await this.getTableOrders();
+    const updated = current.map((o) => (o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o));
+    setLocalItem(STORAGE_KEYS.TABLE_ORDERS, updated);
+    return { success: true, data: updated.find((o) => o.id === orderId) };
+  },
+
+  async getTableCalls(restaurantId?: string): Promise<TableCall[]> {
+    const now = Date.now();
+    const defaultCalls: TableCall[] = [
+      {
+        id: 'call-1',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-005',
+        table_number: 'Mesa 5',
+        call_type: 'bill_card',
+        status: 'active',
+        created_at: new Date(now - 3 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'call-2',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-003',
+        table_number: 'Mesa 3',
+        call_type: 'waiter',
+        status: 'active',
+        created_at: new Date(now - 1 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    const current = getLocalItem<TableCall[]>(STORAGE_KEYS.TABLE_CALLS, defaultCalls);
+    if (!restaurantId) return current;
+    return current.filter((c) => c.restaurant_id === restaurantId || c.restaurant_id === 'res-1');
+  },
+
+  async createTableCall(call: Partial<TableCall>): Promise<{ success: boolean; data?: TableCall }> {
+    const current = await this.getTableCalls();
+    const created: TableCall = {
+      id: 'call-' + Date.now(),
+      restaurant_id: call.restaurant_id || 'res-1',
+      tag_code: call.tag_code || 'TAG-MES-001',
+      table_number: call.table_number || 'Mesa',
+      call_type: call.call_type || 'waiter',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.TABLE_CALLS, [created, ...current]);
+    return { success: true, data: created };
+  },
+
+  async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{ success: boolean; data?: TableCall }> {
+    const current = await this.getTableCalls();
+    const updated = current.map((c) =>
+      c.id === callId
+        ? { ...c, status: 'attended' as const, attended_at: new Date().toISOString(), attended_by: staffName }
+        : c
+    );
+    setLocalItem(STORAGE_KEYS.TABLE_CALLS, updated);
+    return { success: true, data: updated.find((c) => c.id === callId) };
+  },
+
+  async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
+    const defaultStaff: StaffMember[] = [
+      {
+        id: 'staff-1',
+        restaurant_id: restaurantId || 'res-1',
+        name: 'Marco Antonio (Mesero)',
+        role: 'waiter',
+        pin_code: '1234',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'staff-2',
+        restaurant_id: restaurantId || 'res-1',
+        name: 'Chef Roberto (Jefe Cocina)',
+        role: 'kitchen',
+        pin_code: '4321',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'staff-3',
+        restaurant_id: restaurantId || 'res-1',
+        name: 'Sofía Valdés (Capitana Sala)',
+        role: 'manager',
+        pin_code: '9999',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    return getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
+  },
+
+  async loginStaffWithPin(restaurantId: string, pin: string): Promise<{ success: boolean; staff?: StaffMember; error?: string }> {
+    const staffList = await this.getStaffMembers(restaurantId);
+    const matched = staffList.find((s) => s.is_active && (s.pin_code === pin || pin === '1234'));
+    if (matched) {
+      return { success: true, staff: matched };
+    }
+    return { success: false, error: 'PIN incorrecto. Prueba con 1234 para demo de mesero.' };
+  },
+
+  async getTerritoryMetrics(): Promise<TerritoryMetric> {
+    const zones: TerritoryZone[] = [
+      {
+        id: 'zone-1',
+        name: 'Roma Norte & Sur',
+        city: 'CDMX',
+        active_restaurants: 5,
+        target_restaurants: 20,
+        total_scans: 12450,
+        density_percent: 25,
+        lat: 19.4185,
+        lng: -99.1625,
+      },
+      {
+        id: 'zone-2',
+        name: 'Condesa & Hipódromo',
+        city: 'CDMX',
+        active_restaurants: 4,
+        target_restaurants: 18,
+        total_scans: 9820,
+        density_percent: 22.2,
+        lat: 19.4112,
+        lng: -99.1714,
+      },
+      {
+        id: 'zone-3',
+        name: 'Juárez & Corredor Reforma',
+        city: 'CDMX',
+        active_restaurants: 3,
+        target_restaurants: 15,
+        total_scans: 7210,
+        density_percent: 20,
+        lat: 19.4284,
+        lng: -99.1633,
+      },
+      {
+        id: 'zone-4',
+        name: 'Centro Histórico & Alameda',
+        city: 'CDMX',
+        active_restaurants: 3,
+        target_restaurants: 15,
+        total_scans: 5930,
+        density_percent: 20,
+        lat: 19.4326,
+        lng: -99.1332,
+      },
+      {
+        id: 'zone-5',
+        name: 'Polanco & Anzures',
+        city: 'CDMX',
+        active_restaurants: 2,
+        target_restaurants: 16,
+        total_scans: 4850,
+        density_percent: 12.5,
+        lat: 19.4338,
+        lng: -99.1908,
+      },
+      {
+        id: 'zone-6',
+        name: 'Del Valle & Narvarte',
+        city: 'CDMX',
+        active_restaurants: 1,
+        target_restaurants: 16,
+        total_scans: 2140,
+        density_percent: 6.3,
+        lat: 19.3872,
+        lng: -99.1621,
+      },
+    ];
+
+    const activeLocations = zones.reduce((acc, z) => acc + z.active_restaurants, 0); // 18
+    const totalGoal = 100;
+    const coveragePercent = Math.round((activeLocations / totalGoal) * 100); // 18%
+
+    const hourlyHeatmap = [
+      { hour: '12:00', scans: 420, peak: false },
+      { hour: '13:00', scans: 890, peak: false },
+      { hour: '14:00', scans: 2450, peak: true },  // Pico Comida
+      { hour: '15:00', scans: 3120, peak: true },  // Pico Comida
+      { hour: '16:00', scans: 1980, peak: false },
+      { hour: '17:00', scans: 840, peak: false },
+      { hour: '18:00', scans: 610, peak: false },
+      { hour: '19:00', scans: 1150, peak: false },
+      { hour: '20:00', scans: 2890, peak: true },  // Pico Cena
+      { hour: '21:00', scans: 3410, peak: true },  // Pico Cena
+      { hour: '22:00', scans: 2240, peak: true },
+      { hour: '23:00', scans: 910, peak: false },
+    ];
+
+    return {
+      totalGoal,
+      activeLocations,
+      coveragePercent,
+      zones,
+      hourlyHeatmap,
     };
   },
 
