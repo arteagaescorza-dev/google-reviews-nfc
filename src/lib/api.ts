@@ -12,6 +12,8 @@ import type {
   SupportCategory,
   SupportStatus,
   SupportTicket,
+  Coupon,
+  TierType,
 } from '../types';
 import { VIRAL_SEED_CONFIG } from './constants';
 
@@ -27,6 +29,7 @@ const STORAGE_KEYS = {
   ADS: 'nfc_demo_ads',
   FEEDBACK: 'nfc_demo_feedback',
   SUPPORT_TICKETS: 'nfc_demo_support_tickets',
+  COUPONS: 'nfc_demo_coupons',
 };
 
 export const VIRAL_SEED_AD: Ad = {
@@ -244,6 +247,54 @@ const INITIAL_DEMO_DATA = {
       updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
     }
   ] as SupportTicket[],
+  coupons: [
+    {
+      id: 'cpn-1',
+      ad_id: 'ad-1',
+      restaurant_id: 'res-1',
+      tag_code: 'NFC-001',
+      customer_phone: '+525512345678',
+      customer_name: 'Alejandro Morales',
+      coupon_code: 'DENTAL-20',
+      title: '20% de Descuento en Limpieza Dental',
+      advertiser_name: 'Clínica DentalPro',
+      discount_description: '20% off en profilaxis o blanqueamiento dental presentando este cupón digital.',
+      status: 'active',
+      expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
+      created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    },
+    {
+      id: 'cpn-2',
+      ad_id: 'ad-2',
+      restaurant_id: 'res-2',
+      tag_code: 'NFC-002',
+      customer_phone: '+525512345678',
+      customer_name: 'Alejandro Morales',
+      coupon_code: 'IRON-7D',
+      title: 'Pase de 7 Días Gratis',
+      advertiser_name: 'IronFit Gym & Fitness',
+      discount_description: 'Acceso total a pesas, cardio y clases durante una semana completa.',
+      status: 'active',
+      expires_at: new Date(Date.now() + 86400000 * 5).toISOString(),
+      created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+    },
+    {
+      id: 'cpn-3',
+      ad_id: 'ad-1',
+      restaurant_id: 'res-1',
+      customer_phone: '+525588776655',
+      customer_name: 'Sofía Valenzuela',
+      coupon_code: 'DENTAL-USADO',
+      title: '20% de Descuento en Limpieza Dental',
+      advertiser_name: 'Clínica DentalPro',
+      discount_description: '20% off en profilaxis presentando cupón.',
+      status: 'redeemed',
+      ticket_amount: 650,
+      redeemed_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      expires_at: new Date(Date.now() + 86400000 * 3).toISOString(),
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    }
+  ] as Coupon[],
 };
 
 // Carga inicial segura para Demo
@@ -333,6 +384,16 @@ export const api = {
       return VIRAL_SEED_AD;
     }
 
+    // Obtener sucursal para verificar anunciantes vetados (SPEC-003)
+    let blockedIds = new Set<string>();
+    if (restaurantId) {
+      const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+      const r = rests.find((x) => x.id === restaurantId);
+      if (r?.blocked_ad_ids) {
+        blockedIds = new Set(r.blocked_ad_ids);
+      }
+    }
+
     if (isSupabaseConfigured) {
       try {
         const { data: ads, error } = await supabase
@@ -341,8 +402,11 @@ export const api = {
           .eq('is_active', true);
 
         if (!error && ads && ads.length > 0) {
+          // Filtrar anunciantes vetados por este restaurante
+          const eligibleAds = ads.filter((ad: Ad) => !blockedIds.has(ad.id));
+
           // Filtrar según segmentación
-          const matched = ads.find((ad: Ad) => {
+          const matched = eligibleAds.find((ad: Ad) => {
             if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) {
               return true;
             }
@@ -353,7 +417,7 @@ export const api = {
           });
 
           if (matched) return matched;
-          if (ads[0]) return ads[0];
+          if (eligibleAds[0]) return eligibleAds[0];
         }
       } catch (e) {
         console.error('Error al cargar anuncios de Supabase:', e);
@@ -362,7 +426,7 @@ export const api = {
 
     // Fallback Modo Demo
     const ads = getLocalItem<Ad[]>(STORAGE_KEYS.ADS, INITIAL_DEMO_DATA.ads);
-    const activeAds = ads.filter((a) => a.is_active);
+    const activeAds = ads.filter((a) => a.is_active && !blockedIds.has(a.id));
     if (activeAds.length > 0) {
       const matched = activeAds.find((ad) => {
         if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) return true;
@@ -373,7 +437,7 @@ export const api = {
       return activeAds[0];
     }
 
-    // Bucle Viral por defecto: Si no hay patrocinadores activos, mostrar la marca de placas a $100
+    // Bucle Viral por defecto: Si no hay patrocinadores activos o todos fueron vetados, mostrar la marca de placas a $100
     return VIRAL_SEED_AD;
   },
 
@@ -1250,5 +1314,311 @@ export const api = {
     setLocalItem(STORAGE_KEYS.SUPPORT_TICKETS, updated);
     return { success: true };
   },
-};
 
+  // ==============================================================================
+  // FASE 3: MONETIZACIÓN AUTÓNOMA IN-APP, VETO Y CUPONES (SPEC-003, SPEC-006, SPEC-010)
+  // ==============================================================================
+
+  /**
+   * Actualiza el nivel (Tier) de una sucursal de forma autónoma desde el portal
+   * Nivel 2: Menú + WiFi ($99/mes)
+   * Nivel 3: Pauta en Red + Saldo de $500 MXN mensuales renovables ($499/mes)
+   */
+  async upgradeRestaurantTier(restaurantId: string, tier: TierType): Promise<boolean> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (isSupabaseConfigured && !isDemo) {
+      const updates: any = { tier, updated_at: new Date().toISOString() };
+      if (tier === 3) {
+        // En Nivel 3 se abona el saldo publicitario mensual de $500 MXN
+        const { data: current } = await supabase.from('restaurants').select('ad_credit_balance').eq('id', restaurantId).single();
+        updates.ad_credit_balance = (current?.ad_credit_balance || 0) + 500;
+      }
+      const { error } = await supabase.from('restaurants').update(updates).eq('id', restaurantId);
+      return !error;
+    }
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) => {
+      if (r.id === restaurantId) {
+        const credit = tier === 3 ? (r.ad_credit_balance || 0) + 500 : (r.ad_credit_balance || 0);
+        return { ...r, tier, ad_credit_balance: credit, updated_at: new Date().toISOString() };
+      }
+      return r;
+    });
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+    return true;
+  },
+
+  /**
+   * Activa o desactiva la Marca Blanca (Ad-Free) por $149 MXN/mes
+   */
+  async toggleRestaurantAdFree(restaurantId: string, isAdFree: boolean): Promise<boolean> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (isSupabaseConfigured && !isDemo) {
+      const { error } = await supabase.from('restaurants').update({ is_ad_free: isAdFree, updated_at: new Date().toISOString() }).eq('id', restaurantId);
+      return !error;
+    }
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) => (r.id === restaurantId ? { ...r, is_ad_free: isAdFree, updated_at: new Date().toISOString() } : r));
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+    return true;
+  },
+
+  /**
+   * Veta a un anunciante para que deje de aparecer en las mesas de este restaurante (SPEC-003)
+   * Regla de negocio: 1 veto gratis cada 30 días naturales.
+   */
+  async vetoAdvertiser(restaurantId: string, adId: string): Promise<{ success: boolean; error?: string }> {
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const rest = rests.find((r) => r.id === restaurantId);
+    if (!rest) return { success: false, error: 'Restaurante no encontrado' };
+
+    // Verificar si ya usó su veto del mes (menos de 30 días)
+    if (rest.last_veto_date) {
+      const daysSince = (Date.now() - new Date(rest.last_veto_date).getTime()) / (1000 * 3600 * 24);
+      if (daysSince < 30) {
+        return {
+          success: false,
+          error: 'LIMIT_REACHED',
+        };
+      }
+    }
+
+    const currentBlocked = rest.blocked_ad_ids || [];
+    if (!currentBlocked.includes(adId)) {
+      currentBlocked.push(adId);
+    }
+
+    const updated = rests.map((r) =>
+      r.id === restaurantId
+        ? {
+            ...r,
+            blocked_ad_ids: currentBlocked,
+            last_veto_date: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        : r
+    );
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+
+    if (isSupabaseConfigured) {
+      await supabase
+        .from('restaurants')
+        .update({
+          blocked_ad_ids: currentBlocked,
+          last_veto_date: new Date().toISOString(),
+        })
+        .eq('id', restaurantId);
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Levanta el veto de un anunciante previamente bloqueado
+   */
+  async unvetoAdvertiser(restaurantId: string, adId: string): Promise<boolean> {
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updated = rests.map((r) => {
+      if (r.id === restaurantId) {
+        const filtered = (r.blocked_ad_ids || []).filter((id) => id !== adId);
+        return { ...r, blocked_ad_ids: filtered, updated_at: new Date().toISOString() };
+      }
+      return r;
+    });
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updated);
+
+    if (isSupabaseConfigured) {
+      const target = updated.find((r) => r.id === restaurantId);
+      await supabase
+        .from('restaurants')
+        .update({ blocked_ad_ids: target?.blocked_ad_ids || [] })
+        .eq('id', restaurantId);
+    }
+
+    return true;
+  },
+
+  /**
+   * Crea una campaña publicitaria usando el saldo publicitario de $500 o paquete directo
+   */
+  async createAdCampaign(data: {
+    title: string;
+    advertiser_name: string;
+    banner_url: string;
+    destination_url: string;
+    restaurant_id?: string;
+    useCredit?: boolean;
+    coupon_code?: string;
+    coupon_description?: string;
+  }): Promise<{ success: boolean; data?: Ad; error?: string }> {
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+
+    if (data.useCredit && data.restaurant_id) {
+      const rest = rests.find((r) => r.id === data.restaurant_id);
+      if (!rest || (rest.ad_credit_balance || 0) < 500) {
+        return { success: false, error: 'Saldo publicitario insuficiente. Requiere $500 MXN.' };
+      }
+
+      // Descontar saldo
+      const updatedRests = rests.map((r) =>
+        r.id === data.restaurant_id
+          ? { ...r, ad_credit_balance: (r.ad_credit_balance || 0) - 500, updated_at: new Date().toISOString() }
+          : r
+      );
+      setLocalItem(STORAGE_KEYS.RESTAURANTS, updatedRests);
+    }
+
+    const createdAd: Ad = {
+      id: 'ad-' + Date.now(),
+      title: data.title,
+      advertiser_name: data.advertiser_name,
+      banner_url: data.banner_url,
+      destination_url: data.destination_url,
+      placement_type: 'bottom_banner',
+      target_type: 'all',
+      target_restaurant_ids: [],
+      target_tag_codes: [],
+      is_active: true,
+      impressions_count: 0,
+      clicks_count: 0,
+      coupon_code: data.coupon_code || null,
+      coupon_description: data.coupon_description || null,
+      created_at: new Date().toISOString(),
+    };
+
+    const currentAds = getLocalItem<Ad[]>(STORAGE_KEYS.ADS, INITIAL_DEMO_DATA.ads);
+    setLocalItem(STORAGE_KEYS.ADS, [createdAd, ...currentAds]);
+
+    if (isSupabaseConfigured) {
+      try {
+        const clean = sanitizeSupabasePayload(createdAd, true);
+        await supabase.from('ads').insert([clean]);
+      } catch (e: any) {
+        console.warn('Error guardando ad en Supabase:', e.message);
+      }
+    }
+
+    return { success: true, data: createdAd };
+  },
+
+  // ==============================================================================
+  // INFRAESTRUCTURA DE CUPONES Y PASAPORTE DIGITAL PWA (SPEC-006)
+  // ==============================================================================
+
+  /**
+   * Obtiene la lista de cupones para el Pasaporte Digital (filtrados por cliente)
+   */
+  async getCoupons(phone?: string): Promise<Coupon[]> {
+    const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      return list.filter((c) => (c.customer_phone || '').replace(/[^0-9]/g, '').includes(cleanPhone));
+    }
+    return list;
+  },
+
+  /**
+   * Busca un cupón por su código alfanumérico para validación en caja o recepción
+   */
+  async getCouponByCode(code: string): Promise<Coupon | null> {
+    const cleanCode = code.trim().toUpperCase();
+    const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
+    const found = list.find((c) => c.coupon_code.toUpperCase() === cleanCode);
+    return found || null;
+  },
+
+  /**
+   * Quema y redime un cupón (candado de un solo uso Single-Use de SPEC-006)
+   */
+  async redeemCoupon(
+    code: string,
+    ticketAmount?: number,
+    redeemedBy?: string
+  ): Promise<{ success: boolean; error?: string; coupon?: Coupon }> {
+    const cleanCode = code.trim().toUpperCase();
+    const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
+    const target = list.find((c) => c.coupon_code.toUpperCase() === cleanCode);
+
+    if (!target) {
+      return { success: false, error: 'CUPON_NO_ENCONTRADO' };
+    }
+
+    if (target.status === 'redeemed') {
+      return {
+        success: false,
+        error: 'CUPON_YA_CANJEADO',
+        coupon: target,
+      };
+    }
+
+    if (new Date(target.expires_at).getTime() < Date.now()) {
+      return {
+        success: false,
+        error: 'CUPON_EXPIRADO',
+        coupon: target,
+      };
+    }
+
+    const now = new Date().toISOString();
+    const updatedCoupon: Coupon = {
+      ...target,
+      status: 'redeemed',
+      ticket_amount: ticketAmount !== undefined ? Number(ticketAmount) : target.ticket_amount,
+      redeemed_at: now,
+      redeemed_by: redeemedBy || 'caja-mostrador',
+    };
+
+    const updatedList = list.map((c) => (c.id === target.id ? updatedCoupon : c));
+    setLocalItem(STORAGE_KEYS.COUPONS, updatedList);
+
+    return { success: true, coupon: updatedCoupon };
+  },
+
+  /**
+   * Emite un nuevo cupón digital para un comensal desde un anuncio
+   */
+  async issueCoupon(data: {
+    ad_id: string;
+    customer_name: string;
+    customer_phone: string;
+    restaurant_id?: string;
+    title?: string;
+    advertiser_name?: string;
+    discount_description?: string;
+  }): Promise<{ success: boolean; coupon?: Coupon }> {
+    const ads = getLocalItem<Ad[]>(STORAGE_KEYS.ADS, INITIAL_DEMO_DATA.ads);
+    const ad = ads.find((a) => a.id === data.ad_id);
+
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const prefix = (data.advertiser_name || ad?.advertiser_name || 'PROMO')
+      .slice(0, 4)
+      .toUpperCase()
+      .replace(/[^A-Z]/g, 'X');
+    const coupon_code = prefix + '-' + randomSuffix;
+
+    const newCoupon: Coupon = {
+      id: 'cpn-' + Date.now(),
+      ad_id: data.ad_id,
+      restaurant_id: data.restaurant_id || null,
+      customer_name: data.customer_name,
+      customer_phone: data.customer_phone,
+      coupon_code,
+      title: data.title || ad?.title || 'Cupón Exclusivo',
+      advertiser_name: data.advertiser_name || ad?.advertiser_name || 'Comercio Local',
+      discount_description: data.discount_description || ad?.coupon_description || 'Descuento especial por escanear en mesa.',
+      status: 'active',
+      expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    const list = getLocalItem<Coupon[]>(STORAGE_KEYS.COUPONS, INITIAL_DEMO_DATA.coupons as any);
+    setLocalItem(STORAGE_KEYS.COUPONS, [newCoupon, ...list]);
+
+    return { success: true, coupon: newCoupon };
+  },
+
+};

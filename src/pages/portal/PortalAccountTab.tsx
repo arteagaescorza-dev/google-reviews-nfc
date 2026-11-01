@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket } from '../../types';
+import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad } from '../../types';
+import { CreateCampaignModal } from '../../components/portal/CreateCampaignModal';
 import { api } from '../../lib/api';
 import { SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
 import { CreateSupportTicketModal } from '../../components/portal/CreateSupportTicketModal';
@@ -29,8 +30,7 @@ import {
   ShieldCheck,
   UtensilsCrossed,
   Megaphone,
-  Lock,
-  ArrowUpRight,
+  Ban,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -93,9 +93,17 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const [confirmWord, setConfirmWord] = useState('');
   const [isCanceling, setIsCanceling] = useState(false);
 
-  // Modales Checkout / Upgrades
+  // Modales Checkout / Upgrades / Fase 3
   const [showAdFreeModal, setShowAdFreeModal] = useState(false);
   const [showAdsPromoModal, setShowAdsPromoModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState<2 | 3 | null>(null);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [vetoSuccessMsg, setVetoSuccessMsg] = useState('');
+  const [upgradeSuccessMsg, setUpgradeSuccessMsg] = useState('');
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isTogglingAdFree, setIsTogglingAdFree] = useState(false);
+  const [adFreeFromVeto, setAdFreeFromVeto] = useState(false);
 
   // Estado Gestión de Sucursales (Pausar / Reactivar / Eliminar)
   const [togglingBranchId, setTogglingBranchId] = useState<string | null>(null);
@@ -119,10 +127,75 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     setLoadingTickets(false);
   };
 
+  const loadAds = async () => {
+    try {
+      const list = await api.getAds();
+      setAds(list.filter((a) => a.is_active && a.id !== 'ad-viral-seed'));
+    } catch (e) {
+      console.error('Error cargando ads:', e);
+    }
+  };
+
   useEffect(() => {
     loadMembers();
     loadSupportTickets();
+    loadAds();
   }, [organization.id]);
+
+  const handleConfirmUpgrade = async (tier: 2 | 3) => {
+    if (!mainRestaurant) return;
+    setIsUpgrading(true);
+    const ok = await api.upgradeRestaurantTier(mainRestaurant.id, tier);
+    setIsUpgrading(false);
+    if (ok) {
+      setShowUpgradeModal(null);
+      setUpgradeSuccessMsg(
+        tier === 2
+          ? '¡Nivel 2 Activado ( MXN)! Ya puedes gestionar tu Menú Digital y Wi-Fi en 1 Toque en la pestaña Enlaces.'
+          : '¡Nivel 3 Activado ( MXN)! Se han acreditado  MXN en saldo mensual para pautar anuncios en mesas aliadas.'
+      );
+      await onRefreshRestaurants();
+      setTimeout(() => setUpgradeSuccessMsg(''), 5000);
+    }
+  };
+
+  const handleToggleAdFree = async (isAdFree: boolean) => {
+    if (!mainRestaurant) return;
+    setIsTogglingAdFree(true);
+    const ok = await api.toggleRestaurantAdFree(mainRestaurant.id, isAdFree);
+    setIsTogglingAdFree(false);
+    if (ok) {
+      setShowAdFreeModal(false);
+      setUpgradeSuccessMsg(
+        isAdFree
+          ? '¡Marca Blanca Activada ( MXN/mes)! Tus mesas están 100% libres de publicidad de terceros.'
+          : 'Marca Blanca desactivada. Tus mesas mostrarán anuncios patrocinados de la red local.'
+      );
+      await onRefreshRestaurants();
+      setTimeout(() => setUpgradeSuccessMsg(''), 5000);
+    }
+  };
+
+  const handleVeto = async (adId: string) => {
+    if (!mainRestaurant) return;
+    const res = await api.vetoAdvertiser(mainRestaurant.id, adId);
+    if (res.success) {
+      setVetoSuccessMsg('¡Anunciante vetado con éxito! Ha dejado de rotar en tus mesas durante 30 días.');
+      await onRefreshRestaurants();
+      setTimeout(() => setVetoSuccessMsg(''), 4000);
+    } else if (res.error === 'LIMIT_REACHED') {
+      setAdFreeFromVeto(true);
+      setShowAdFreeModal(true);
+    }
+  };
+
+  const handleUnveto = async (adId: string) => {
+    if (!mainRestaurant) return;
+    await api.unvetoAdvertiser(mainRestaurant.id, adId);
+    setVetoSuccessMsg('Se ha levantado el veto del anunciante. Volverá a rotar en tus mesas.');
+    await onRefreshRestaurants();
+    setTimeout(() => setVetoSuccessMsg(''), 4000);
+  };
 
   // Guardar perfil de negocio
   const handleSaveOrg = async (e: React.FormEvent) => {
@@ -549,6 +622,13 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
           )}
         </div>
 
+        {upgradeSuccessMsg && (
+          <div className="p-4 bg-emerald-50 border-2 border-emerald-500 rounded-3xl text-emerald-900 text-xs font-bold flex items-center gap-2.5 shadow-sm animate-fadeIn md:col-span-2">
+            <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span>{upgradeSuccessMsg}</span>
+          </div>
+        )}
+
         {/* BLOQUE 4: Escalera de Valor & Niveles de Servicio (SPEC-010) */}
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -612,13 +692,21 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             </div>
 
             {/* NIVEL 2: MENÚ + LINKTREE + WIFI */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-blue-200 transition-all space-y-3 flex flex-col justify-between">
+            <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
+              (mainRestaurant?.tier || 1) >= 2
+                ? 'border-blue-400 bg-blue-50/40 shadow-sm'
+                : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-blue-200'
+            }`}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
-                    Nivel 2 • Siguiente Paso
+                  <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-wider ${
+                    (mainRestaurant?.tier || 1) >= 2
+                      ? 'bg-blue-600 text-white font-black'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {(mainRestaurant?.tier || 1) >= 2 ? 'Nivel 2 • Activo' : 'Nivel 2 • Siguiente Paso'}
                   </span>
-                  <span className="text-[11px] font-bold text-slate-500">Suscripción pequeña</span>
+                  <span className="text-xs font-black text-slate-800">$99 MXN / mes</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
@@ -626,28 +714,45 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                   <span>Menú Digital + WiFi 1-Toque</span>
                 </div>
 
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-600 leading-relaxed">
                   Todo el Nivel 1 más: carta digital con fotos, redes sociales y conexión directa a tu red WiFi sin pedir contraseñas a meseros.
                 </p>
               </div>
 
               <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
-                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  <span>Desbloqueable in-app</span>
-                </span>
-                <span className="text-blue-600 font-bold text-[11px]">Etapa 3</span>
+                {(mainRestaurant?.tier || 1) >= 2 ? (
+                  <div className="flex items-center gap-1.5 text-blue-700 font-extrabold text-[11px]">
+                    <Check className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Habilitado en tus mesas</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(2)}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+                  >
+                    Activar Nivel 2 ($99 MXN)
+                  </button>
+                )}
               </div>
             </div>
 
             {/* NIVEL 3: SALDO DE PAUTA Y COMANDAS */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-amber-200 transition-all space-y-3 flex flex-col justify-between">
+            <div className={`p-4 rounded-2xl border transition-all space-y-3 flex flex-col justify-between ${
+              (mainRestaurant?.tier || 1) >= 3
+                ? 'border-amber-400 bg-amber-50/40 shadow-sm'
+                : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-amber-200'
+            }`}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px] uppercase tracking-wider">
-                    Nivel 3 • Alto Impacto
+                  <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-wider ${
+                    (mainRestaurant?.tier || 1) >= 3
+                      ? 'bg-amber-600 text-slate-950 font-black'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {(mainRestaurant?.tier || 1) >= 3 ? 'Nivel 3 • Activo' : 'Nivel 3 • Alto Impacto'}
                   </span>
-                  <span className="text-[11px] font-bold text-amber-700">+$500 Saldo Pauta</span>
+                  <span className="text-xs font-black text-amber-900">$499 MXN / mes</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
@@ -655,27 +760,165 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                   <span>Red de Anuncios Local</span>
                 </div>
 
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Todo lo anterior + $500 MXN mensuales para pautar tu anuncio en mesas de comercios aliados. (En el futuro: Comandas en mesa).
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Todo lo anterior + <strong>$500 MXN mensuales en saldo publicitario</strong> para pautar tu negocio en mesas aliadas de tu zona.
                 </p>
+
+                {(mainRestaurant?.tier || 1) >= 3 && (
+                  <div className="p-2.5 bg-amber-100/70 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-950 font-bold">
+                    <span>Tu Saldo de Pauta Disponible:</span>
+                    <span className="text-sm font-black">${mainRestaurant?.ad_credit_balance || 500} MXN</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
-                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  <span>Desbloqueable in-app</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowAdsPromoModal(true)}
-                  className="text-amber-700 hover:text-amber-800 font-bold text-[11px] flex items-center gap-0.5"
-                >
-                  <span>Conocer pauta</span>
-                  <ArrowUpRight className="w-3 h-3" />
-                </button>
+                {(mainRestaurant?.tier || 1) >= 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCampaignModal(true)}
+                    className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-sm transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Crear Anuncio con mi Saldo</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeModal(3)}
+                    className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-xl text-xs font-black shadow-sm transition-all"
+                  >
+                    Activar Nivel 3 ($499 MXN)
+                  </button>
+                )}
               </div>
             </div>
           </div>
+        </div>
+
+        {/* BLOQUE 4.5: Red Publicitaria y Veto Autónomo (SPEC-003) */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <Megaphone className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Patrocinadores en tus Mesas & Veto Autónomo
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Controla la publicidad local que ven tus comensales (1 veto gratuito al mes)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {mainRestaurant?.is_ad_free ? (
+                <span className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Marca Blanca Activa (0% Ads)</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdFreeFromVeto(false);
+                    setShowAdFreeModal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 transition-colors flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Quitar Todos los Anuncios ($149 MXN)</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {vetoSuccessMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold rounded-2xl flex items-center gap-2 animate-fadeIn">
+              <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>{vetoSuccessMsg}</span>
+            </div>
+          )}
+
+          {mainRestaurant?.is_ad_free ? (
+            <div className="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 text-center space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <Check className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-emerald-950">
+                Tus mesas están 100% limpias de publicidad de terceros
+              </h4>
+              <p className="text-xs text-emerald-800 max-w-md mx-auto">
+                Has contratado el módulo Marca Blanca. Ningún comercio ni patrocinador rotará en tus pantallas.
+              </p>
+              <button
+                type="button"
+                disabled={isTogglingAdFree}
+                onClick={() => handleToggleAdFree(false)}
+                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline pt-1"
+              >
+                Desactivar Marca Blanca
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-600 flex items-start gap-2">
+                <Ban className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  <strong>Política de Veto (SPEC-003):</strong> Tienes derecho a bloquear <strong>1 anunciante por mes</strong> sin costo para que no aparezca en tus mesas durante 30 días. Para bloquear a todos sin límites, activa Marca Blanca.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ads.map((ad) => {
+                  const isVetoed = (mainRestaurant?.blocked_ad_ids || []).includes(ad.id);
+                  return (
+                    <div
+                      key={ad.id}
+                      className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                        isVetoed
+                          ? 'bg-rose-50/40 border-rose-200'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                          {ad.advertiser_name}
+                        </span>
+                        <h4 className="text-xs font-bold text-slate-800 truncate">{ad.title}</h4>
+                        <span className="text-[10px] text-slate-500">
+                          {isVetoed ? '🚫 Vetado en tus mesas' : 'Rotando actualmente'}
+                        </span>
+                      </div>
+
+                      <div>
+                        {isVetoed ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUnveto(ad.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold"
+                          >
+                            Desbloquear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleVeto(ad.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold border border-rose-200 flex items-center gap-1"
+                          >
+                            <Ban className="w-3 h-3" />
+                            <span>Vetar</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* BLOQUE 5: Sucursales de la Cadena */}
@@ -1108,48 +1351,145 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
         </div>
       )}
 
-      {/* MODAL 3: Checkout Ad-Free */}
-      {showAdFreeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <Sparkles className="w-6 h-6" />
+      {/* MODAL 3: Checkout Ad-Free (Marca Blanca $149 MXN) */}
+        {showAdFreeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <Sparkles className="w-6 h-6" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-base font-bold text-slate-900">Activar Marca Blanca (0% Ads)</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Elimina el 100% de los anuncios de terceros en tus mesas. Tus comensales solo verán tu logo, tus estrellas y tu menú.
+                </p>
+              </div>
+
+              {adFreeFromVeto && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
+                  <strong>⚠️ Límite de veto alcanzado:</strong> Ya utilizaste tu bloqueo mensual gratuito (1 anunciante cada 30 días). Si deseas eliminar todos los anuncios sin restricciones, activa Marca Blanca.
+                </div>
+              )}
+
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                <span className="text-xs text-slate-400 block uppercase font-bold">Cuota Mensual</span>
+                <span className="text-2xl font-black text-slate-900">$149 MXN</span>
+                <span className="text-[11px] text-slate-500 block">por sucursal al mes</span>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={isTogglingAdFree}
+                  onClick={() => handleToggleAdFree(true)}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isTogglingAdFree ? 'Activando...' : 'Activar Marca Blanca In-App ($149)'}</span>
+                </button>
+
+                <a
+                  href="https://wa.me/525557510201?text=Hola,%20deseo%20activar%20Marca%20Blanca%20(Ad-Free)%20por%20$149%20MXN"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5"
+                >
+                  <span>Pedir Factura por WhatsApp</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowAdFreeModal(false);
+                  setAdFreeFromVeto(false);
+                }}
+                className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-600"
+              >
+                Cerrar
+              </button>
             </div>
-
-            <div className="text-center">
-              <h3 className="text-base font-bold text-slate-900">Activar Marca Blanca (0% Ads)</h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Elimina todos los anuncios patrocinados de terceros en tus mesas. Tus comensales solo verán tu logo, tus estrellas y tus enlaces.
-              </p>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-              <span className="text-xs text-slate-400 block uppercase font-bold">Cuota Mensual</span>
-              <span className="text-2xl font-black text-slate-900">$299 MXN</span>
-              <span className="text-[11px] text-slate-500 block">por sucursal al mes</span>
-            </div>
-
-            <a
-              href="https://wa.me/525557510201?text=Hola,%20deseo%20activar%20Marca%20Blanca%20(Ad-Free)%20para%20mis%20sucursales"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5"
-            >
-              <span>Solicitar Activación por WhatsApp</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-
-            <button
-              onClick={() => setShowAdFreeModal(false)}
-              className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-600"
-            >
-              Cerrar
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* MODAL 4: Pauta Publicitaria */}
+        {/* MODAL UPGRADE NIVEL (Fase 3) */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                showUpgradeModal === 2 ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+              }`}>
+                {showUpgradeModal === 2 ? <UtensilsCrossed className="w-6 h-6" /> : <Megaphone className="w-6 h-6" />}
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-base font-bold text-slate-900">
+                  {showUpgradeModal === 2
+                    ? 'Desbloquear Nivel 2: Menú + WiFi'
+                    : 'Desbloquear Nivel 3: Saldo de Pauta $500'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  {showUpgradeModal === 2
+                    ? 'Habilita tu carta digital, tus redes sociales y la conexión WiFi con 1 toque en las mesas de tus sucursales.'
+                    : 'Obtén $500 MXN mensuales en saldo publicitario para promocionar tu restaurante en mesas de negocios aliados.'}
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                <span className="text-xs text-slate-400 block uppercase font-bold">Inversión Mensual</span>
+                <span className="text-2xl font-black text-slate-900">
+                  {showUpgradeModal === 2 ? '$99 MXN' : '$499 MXN'}
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {showUpgradeModal === 2 ? 'Cancelación libre en cualquier momento' : 'Incluye $500 MXN en saldo renovable'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                disabled={isUpgrading}
+                onClick={() => handleConfirmUpgrade(showUpgradeModal)}
+                className={`w-full py-3 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all ${
+                  showUpgradeModal === 2
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black'
+                }`}
+              >
+                <Check className="w-4 h-4" />
+                <span>
+                  {isUpgrading
+                    ? 'Procesando activación...'
+                    : `Confirmar y Activar Nivel ${showUpgradeModal}`}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowUpgradeModal(null)}
+                className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CREAR CAMPAÑA CON SALDO (Fase 3) */}
+        {showCampaignModal && mainRestaurant && (
+          <CreateCampaignModal
+            isOpen={showCampaignModal}
+            onClose={() => setShowCampaignModal(false)}
+            restaurant={mainRestaurant}
+            onSuccess={() => {
+              onRefreshRestaurants();
+              loadAds();
+              setUpgradeSuccessMsg('¡Campaña publicada exitosamente! Tu anuncio ya está rotando en mesas aliadas.');
+              setTimeout(() => setUpgradeSuccessMsg(''), 5000);
+            }}
+          />
+        )}
+
+        {/* MODAL 4: Pauta Publicitaria */}
       {showAdsPromoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden p-6 space-y-4">

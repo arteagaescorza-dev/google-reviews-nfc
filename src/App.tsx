@@ -12,6 +12,8 @@ import { AdminSupportPage } from './pages/AdminSupportPage';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
+import { WebPassportPage } from './pages/WebPassportPage';
+import { RedeemCouponPage } from './pages/RedeemCouponPage';
 
 export const App: React.FC = () => {
   return (
@@ -20,6 +22,12 @@ export const App: React.FC = () => {
         {/* Rutas Públicas de Comensal / NFC Tag */}
         <Route path="/" element={<ResolverPage />} />
         <Route path="/t/:tagCode" element={<ResolverPage />} />
+
+        {/* Pasaporte Web PWA para Comensales (SPEC-006) */}
+        <Route path="/pasaporte" element={<WebPassportPage />} />
+
+        {/* Validador de Cupones en Recepción / Mostrador (SPEC-006) */}
+        <Route path="/canjear" element={<RedeemCouponPage />} />
 
         {/* Portal Móvil del Suscriptor / Dueño del Local */}
         <Route path="/portal/login" element={<PortalLoginPage />} />

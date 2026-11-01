@@ -44,6 +44,9 @@ export interface Restaurant {
   address?: string | null;
   manager_phone?: string | null;
   is_active: boolean;
+  blocked_ad_ids?: string[];
+  last_veto_date?: string | null;
+  ad_credit_balance?: number;
   created_at: string;
   updated_at: string;
   // Relación opcional
@@ -80,6 +83,9 @@ export interface Ad {
   is_active: boolean;
   impressions_count: number;
   clicks_count: number;
+  coupon_code?: string | null;
+  coupon_description?: string | null;
+  coupon_discount?: string | null;
   created_at: string;
 }
 
@@ -129,5 +135,30 @@ export interface SupportTicket {
   updated_at: string;
   // Relaciones opcionales
   organization?: Organization;
+  restaurant?: Restaurant;
+}
+
+
+export type CouponStatus = 'active' | 'redeemed' | 'expired';
+
+export interface Coupon {
+  id: string;
+  ad_id: string;
+  restaurant_id?: string | null;
+  tag_code?: string | null;
+  customer_phone?: string | null;
+  customer_name?: string | null;
+  coupon_code: string;
+  title: string;
+  advertiser_name: string;
+  discount_description: string;
+  status: CouponStatus;
+  ticket_amount?: number | null;
+  redeemed_at?: string | null;
+  redeemed_by?: string | null;
+  expires_at: string;
+  created_at: string;
+  // Relaciones opcionales
+  ad?: Ad;
   restaurant?: Restaurant;
 }
