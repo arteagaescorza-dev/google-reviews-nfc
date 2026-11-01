@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import type { Restaurant, Organization } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
+import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
 import { TIERS } from '../lib/constants';
 import {
   Store,
@@ -14,6 +15,7 @@ import {
   MapPin,
   Phone,
   KeyRound,
+  Building2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -25,6 +27,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [selectedOrgForUserModal, setSelectedOrgForUserModal] = useState<string | undefined>(undefined);
+  const [isNewOrgModalOpen, setIsNewOrgModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -62,7 +65,16 @@ export const AdminRestaurantsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsNewOrgModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-sm transition-all"
+            title="Alta express en calle para registrar un nuevo negocio en 30 segundos"
+          >
+            <Building2 className="w-4 h-4 text-emerald-600" />
+            <span>+ Empresa en Calle</span>
+          </button>
+
           <button
             onClick={() => {
               setSelectedOrgForUserModal(undefined);
@@ -229,6 +241,15 @@ export const AdminRestaurantsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal de Alta Express de Organización */}
+      <NewOrganizationModal
+        isOpen={isNewOrgModalOpen}
+        onClose={() => setIsNewOrgModalOpen(false)}
+        onCreated={(newOrg) => {
+          setOrganizations((prev) => [newOrg, ...prev]);
+        }}
+      />
+
       {/* Modal de Alta / Edición de Restaurante */}
       <RestaurantFormModal
         isOpen={isModalOpen}
@@ -236,6 +257,9 @@ export const AdminRestaurantsPage: React.FC = () => {
         onSaved={loadData}
         restaurant={editingRestaurant}
         organizations={organizations}
+        onOrganizationCreated={(newOrg) => {
+          setOrganizations((prev) => [newOrg, ...prev]);
+        }}
       />
 
       {/* Modal de Accesos al Portal de Suscriptores */}
@@ -244,6 +268,9 @@ export const AdminRestaurantsPage: React.FC = () => {
         onClose={() => setIsUserModalOpen(false)}
         organizations={organizations}
         preselectedOrgId={selectedOrgForUserModal}
+        onOrganizationCreated={(newOrg) => {
+          setOrganizations((prev) => [newOrg, ...prev]);
+        }}
       />
     </div>
   );

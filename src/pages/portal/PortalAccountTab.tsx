@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo } from '../../types';
+import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket } from '../../types';
 import { api } from '../../lib/api';
-import { TIERS } from '../../lib/constants';
+import { TIERS, SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
+import { CreateSupportTicketModal } from '../../components/portal/CreateSupportTicketModal';
 import {
   Building2,
   FileText,
@@ -22,6 +23,9 @@ import {
   Play,
   Trash2,
   Loader2,
+  LifeBuoy,
+  PlusCircle,
+  MessageSquare,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -74,6 +78,11 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const [invitedCredentials, setInvitedCredentials] = useState<{ email: string; pass: string; role: MemberRole } | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
 
+  // Estado Mesa de Ayuda B2B
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
+
   // Estado Cancelación / Zona de Peligro
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [confirmWord, setConfirmWord] = useState('');
@@ -98,8 +107,16 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     setLoadingMembers(false);
   };
 
+  const loadSupportTickets = async () => {
+    setLoadingTickets(true);
+    const list = await api.getMySupportTickets();
+    setSupportTickets(list);
+    setLoadingTickets(false);
+  };
+
   useEffect(() => {
     loadMembers();
+    loadSupportTickets();
   }, [organization.id]);
 
   // Guardar perfil de negocio
@@ -716,6 +733,100 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
         </div>
       </div>
 
+      {/* BLOQUE 5B: MESA DE AYUDA B2B */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <LifeBuoy className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">Mesa de Ayuda B2B</h3>
+                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-extrabold uppercase border border-blue-200">
+                  Soporte Directo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                ¿Placas físicas dañadas o despegadas? ¿Nuevas placas ($100 c/u) o dudas de facturación?
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateTicketModal(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all self-start sm:self-auto"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>+ Levantar Solicitud</span>
+          </button>
+        </div>
+
+        {loadingTickets ? (
+          <div className="py-6 text-center text-slate-400 text-xs">Cargando tus solicitudes de soporte...</div>
+        ) : supportTickets.length === 0 ? (
+          <div className="p-6 bg-slate-50/70 rounded-2xl border border-slate-200/80 text-center space-y-2">
+            <LifeBuoy className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-xs font-bold text-slate-700">No tienes incidencias ni solicitudes abiertas</p>
+            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+              Todas tus placas físicas y servicios están activos. Si requieres repuestos o placas adicionales para nuevas mesas, da clic en el botón superior.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {supportTickets.map((t) => {
+              const catCfg = SUPPORT_CATEGORIES[t.category] || SUPPORT_CATEGORIES.general;
+              const statusCfg = SUPPORT_STATUSES[t.status] || SUPPORT_STATUSES.pending;
+
+              return (
+                <div
+                  key={t.id}
+                  className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/40 hover:bg-white hover:shadow-sm transition-all space-y-2.5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold border ${catCfg.badge}`}>
+                        {catCfg.label}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${statusCfg.badge}`}>
+                        {statusCfg.label}
+                      </span>
+                      {t.restaurant && (
+                        <span className="text-[11px] font-medium text-slate-500">
+                          • {t.restaurant.name}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      {new Date(t.created_at).toLocaleDateString('es-MX', { dateStyle: 'medium' })}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">{t.subject}</h4>
+                    <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{t.message}</p>
+                  </div>
+
+                  {/* Respuesta del Superadmin */}
+                  {t.admin_reply && (
+                    <div className="mt-2 p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl space-y-1 animate-fadeIn">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-900">
+                        <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Respuesta de Soporte Técnico:</span>
+                      </div>
+                      <p className="text-xs text-blue-950 font-medium whitespace-pre-wrap pl-5">
+                        {t.admin_reply}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* BLOQUE 6: Zona de Peligro / Pausa de Servicio */}
       <div className="bg-rose-50/60 rounded-3xl p-5 border border-rose-200 shadow-sm space-y-3">
         <div className="flex items-center gap-2 text-rose-700">
@@ -1089,6 +1200,17 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Creación de Ticket de Soporte B2B */}
+      {showCreateTicketModal && (
+        <CreateSupportTicketModal
+          isOpen={showCreateTicketModal}
+          onClose={() => setShowCreateTicketModal(false)}
+          organizationId={organization.id}
+          restaurants={restaurants}
+          onCreated={loadSupportTickets}
+        />
       )}
     </div>
   );

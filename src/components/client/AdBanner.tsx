@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { Ad } from '../../types';
 import { api } from '../../lib/api';
-import { ExternalLink, Sparkles } from 'lucide-react';
+import { ExternalLink, Sparkles, MessageCircle, Zap } from 'lucide-react';
+import { VIRAL_SEED_CONFIG } from '../../lib/constants';
 
 interface AdBannerProps {
   ad: Ad | null;
@@ -24,6 +25,55 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ad, className = '' }) => {
     api.recordAdStat(ad.id, 'click');
   };
 
+  const isViralSeed = ad.id === 'ad-viral-seed' || ad.advertiser_name === VIRAL_SEED_CONFIG.brandName;
+
+  if (isViralSeed) {
+    return (
+      <div className={`w-full max-w-md mx-auto mt-6 pt-3 border-t border-slate-200/80 ${className}`}>
+        <div className="flex items-center justify-between px-2 mb-2">
+          <span className="text-[10px] uppercase tracking-wider font-extrabold text-blue-600 flex items-center gap-1">
+            <Zap className="w-3 h-3 fill-blue-600" />
+            Tecnología NFC Inteligente
+          </span>
+          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            $100 MXN / Placa
+          </span>
+        </div>
+
+        <a
+          href={ad.destination_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleClick}
+          className="group block overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 shadow-md hover:shadow-xl transition-all duration-200 active:scale-[0.99] border border-slate-700/50"
+        >
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                ¿Tienes un restaurante o negocio?
+              </p>
+              <p className="text-[11px] text-slate-300 mt-1 leading-snug">
+                Multiplica tus reseñas de 5 estrellas en Google con placas NFC para mesa por solo <strong>$100 MXN</strong>.
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-5 h-5 fill-emerald-400/20" />
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-xs">
+            <span className="text-[11px] text-slate-400 font-medium">Entrega inmediata en tu zona</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold group-hover:bg-emerald-400 transition-colors shadow-sm">
+              <span>Pedir por WhatsApp</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </a>
+      </div>
+    );
+  }
+
+  // Anuncio Estándar de Patrocinador Local (Etapa 3)
   return (
     <div className={`w-full max-w-md mx-auto mt-6 pt-4 border-t border-slate-200/80 ${className}`}>
       <div className="flex items-center justify-between px-2 mb-2">
@@ -70,4 +120,3 @@ export const AdBanner: React.FC<AdBannerProps> = ({ ad, className = '' }) => {
     </div>
   );
 };
-

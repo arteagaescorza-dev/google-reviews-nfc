@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import type { Organization, OrganizationMember, MemberRole } from '../../types';
 import { api } from '../../lib/api';
-import { X, UserPlus, Copy, Check, Users, KeyRound, Mail } from 'lucide-react';
+import { X, UserPlus, Copy, Check, Users, KeyRound, Mail, MessageCircle, Plus } from 'lucide-react';
+import { NewOrganizationModal } from './NewOrganizationModal';
 
 interface OrganizationUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   organizations: Organization[];
   preselectedOrgId?: string;
+  onOrganizationCreated?: (org: Organization) => void;
 }
 
 export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
@@ -15,7 +17,10 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
   onClose,
   organizations,
   preselectedOrgId,
+  onOrganizationCreated,
 }) => {
+  const [localOrgs, setLocalOrgs] = useState<Organization[]>(organizations);
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +33,7 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
   const [copiedCredentials, setCopiedCredentials] = useState(false);
 
   useEffect(() => {
+    setLocalOrgs(organizations);
     if (preselectedOrgId) {
       setSelectedOrgId(preselectedOrgId);
     } else if (organizations.length > 0) {
@@ -124,15 +130,25 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
         <div className="p-5 overflow-y-auto space-y-4">
           {/* Selector de Organización */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Cliente / Organización
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Cliente / Organización
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowNewOrgModal(true)}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Nueva Empresa</span>
+              </button>
+            </div>
             <select
               value={selectedOrgId}
               onChange={(e) => setSelectedOrgId(e.target.value)}
               className="w-full p-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none"
             >
-              {organizations.map((org) => (
+              {localOrgs.map((org) => (
                 <option key={org.id} value={org.id}>
                   {org.name} ({org.owner_name})
                 </option>
@@ -159,14 +175,34 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
                   <Check className="w-4 h-4 text-emerald-600" />
                   <span>{successMsg}</span>
                 </p>
-                <button
-                  type="button"
-                  onClick={handleCopyCredentials}
-                  className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{copiedCredentials ? '¡Mensaje Copiado!' : 'Copiar Acceso para WhatsApp'}</span>
-                </button>
+                <p className="text-[11px] text-emerald-700">
+                  Comparte el acceso al portal con el dueño para que disfrute de su filtro de quejas gratis:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyCredentials}
+                    className="py-2 px-3 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    {copiedCredentials ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCredentials ? '¡Copiado!' : 'Copiar Texto'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = currentOrg?.owner_phone?.replace(/[^0-9]/g, '');
+                      const waUrl = cleanPhone
+                        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(getCopyMessage())}`
+                        : `https://wa.me/?text=${encodeURIComponent(getCopyMessage())}`;
+                      window.open(waUrl, '_blank');
+                    }}
+                    className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Enviar por WhatsApp</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -282,6 +318,20 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
           </button>
         </div>
       </div>
+
+      {showNewOrgModal && (
+        <NewOrganizationModal
+          isOpen={showNewOrgModal}
+          onClose={() => setShowNewOrgModal(false)}
+          onCreated={(newOrg) => {
+            setLocalOrgs((prev) => [newOrg, ...prev]);
+            setSelectedOrgId(newOrg.id);
+            if (onOrganizationCreated) {
+              onOrganizationCreated(newOrg);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

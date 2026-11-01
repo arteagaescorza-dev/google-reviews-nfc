@@ -3,7 +3,8 @@ import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
-import { X, Plus, Trash2, Store, Check, ExternalLink, Wifi } from 'lucide-react';
+import { X, Plus, Trash2, Store, Check, ExternalLink, Wifi, Building2 } from 'lucide-react';
+import { NewOrganizationModal } from './NewOrganizationModal';
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface RestaurantFormModalProps {
   onSaved: () => void;
   restaurant?: Restaurant | null;
   organizations: Organization[];
+  onOrganizationCreated?: (org: Organization) => void;
 }
 
 function parseWifiString(url: string): { ssid: string; pass: string } {
@@ -39,7 +41,10 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   onSaved,
   restaurant,
   organizations,
+  onOrganizationCreated,
 }) => {
+  const [localOrgs, setLocalOrgs] = useState<Organization[]>(organizations);
+  const [showNewOrgModal, setShowNewOrgModal] = useState(false);
   const [brandName, setBrandName] = useState('');
   const [branchName, setBranchName] = useState('Principal');
   const [slug, setSlug] = useState('');
@@ -72,6 +77,10 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   };
 
   useEffect(() => {
+    setLocalOrgs(organizations);
+  }, [organizations]);
+
+  useEffect(() => {
     if (restaurant) {
       setBrandName(restaurant.brand_name || '');
       setBranchName(restaurant.branch_name || 'Principal');
@@ -96,7 +105,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor('#2563eb');
       setAddress('');
       setManagerPhone('');
-      setOrganizationId(organizations[0]?.id || '');
+      setOrganizationId(localOrgs[0]?.id || organizations[0]?.id || '');
       setLinks([]);
     }
     setErrorMsg('');
@@ -245,6 +254,42 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Organización / Empresa del Cliente */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Empresa / Organización del Cliente
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewOrgModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-colors w-fit"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Nueva Empresa en Calle</span>
+              </button>
+            </div>
+
+            <select
+              value={organizationId}
+              onChange={(e) => setOrganizationId(e.target.value)}
+              className="w-full p-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:bg-white"
+            >
+              <option value="">-- Sin Organización Asignada (Independiente) --</option>
+              {localOrgs.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.owner_name}{org.owner_phone ? ` - ${org.owner_phone}` : ''})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1.5">
+              Agrupa todas las sucursales de este locatario para que las gestione desde su mismo portal.
+            </p>
+          </div>
+
           {/* Datos de marca y sucursal */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -577,6 +622,20 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
           </div>
         </form>
       </div>
+
+      {showNewOrgModal && (
+        <NewOrganizationModal
+          isOpen={showNewOrgModal}
+          onClose={() => setShowNewOrgModal(false)}
+          onCreated={(newOrg) => {
+            setLocalOrgs((prev) => [newOrg, ...prev]);
+            setOrganizationId(newOrg.id);
+            if (onOrganizationCreated) {
+              onOrganizationCreated(newOrg);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

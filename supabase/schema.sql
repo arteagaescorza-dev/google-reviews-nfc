@@ -325,3 +325,44 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
+
+
+-- ------------------------------------------------------------------------------
+-- 7. TABLA: SUPPORT_TICKETS (MESA DE AYUDA B2B LOCATARIO <-> SUPERADMIN - SPEC-008)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    restaurant_id UUID REFERENCES restaurants(id) ON DELETE SET NULL,
+    category TEXT NOT NULL CHECK (category IN ('plate_damaged', 'billing', 'more_plates', 'general')),
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'resolved')),
+    admin_reply TEXT DEFAULT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_org ON support_tickets(organization_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Superadmin full access to support_tickets"
+ON support_tickets FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members view their support_tickets"
+ON support_tickets FOR SELECT
+TO authenticated
+USING (organization_id IN (SELECT get_user_organization_ids()));
+
+CREATE POLICY "Members create their support_tickets"
+ON support_tickets FOR INSERT
+TO authenticated
+WITH CHECK (
+    organization_id IN (SELECT get_user_organization_ids())
+    AND status = 'pending'
+);

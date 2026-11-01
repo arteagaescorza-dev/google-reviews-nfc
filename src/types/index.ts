@@ -113,3 +113,21 @@ export interface OrganizationMember {
   user_email?: string | null;
 }
 
+export type SupportCategory = 'plate_damaged' | 'billing' | 'more_plates' | 'general';
+export type SupportStatus = 'pending' | 'in_progress' | 'resolved';
+
+export interface SupportTicket {
+  id: string;
+  organization_id: string;
+  restaurant_id?: string | null;
+  category: SupportCategory;
+  subject: string;
+  message: string;
+  status: SupportStatus;
+  admin_reply?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Relaciones opcionales
+  organization?: Organization;
+  restaurant?: Restaurant;
+}

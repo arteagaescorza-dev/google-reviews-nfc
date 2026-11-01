@@ -123,18 +123,16 @@ export const AdminLoginPage: React.FC = () => {
             </button>
           </form>
 
-          {!isSupabaseConfigured && (
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={handleInstantDemoLogin}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Entrar directamente en Modo Demo</span>
-              </button>
-            </div>
-          )}
+          <div className="mt-4 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={handleInstantDemoLogin}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Entrar directamente en Modo Demo</span>
+            </button>
+          </div>
 
           <div className="mt-6 text-center">
             <a

@@ -1,5 +1,19 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { Restaurant, Tag, Ad, Feedback, Organization, LinkItem, OrganizationMember, MemberRole, FeedbackStatus } from '../types';
+import type {
+  Restaurant,
+  Tag,
+  Ad,
+  Feedback,
+  Organization,
+  LinkItem,
+  OrganizationMember,
+  MemberRole,
+  FeedbackStatus,
+  SupportCategory,
+  SupportStatus,
+  SupportTicket,
+} from '../types';
+import { VIRAL_SEED_CONFIG } from './constants';
 
 // ==============================================================================
 // DATOS EN MEMORIA / LOCALSTORAGE PARA MODO DEMO CUANDO SUPABASE AÚN NO ESTÁ VINCULADO
@@ -12,6 +26,23 @@ const STORAGE_KEYS = {
   TAGS: 'nfc_demo_tags',
   ADS: 'nfc_demo_ads',
   FEEDBACK: 'nfc_demo_feedback',
+  SUPPORT_TICKETS: 'nfc_demo_support_tickets',
+};
+
+export const VIRAL_SEED_AD: Ad = {
+  id: 'ad-viral-seed',
+  title: `${VIRAL_SEED_CONFIG.headline} ${VIRAL_SEED_CONFIG.subheadline}`,
+  advertiser_name: VIRAL_SEED_CONFIG.brandName,
+  banner_url: VIRAL_SEED_CONFIG.bannerImageUrl,
+  destination_url: `https://wa.me/${VIRAL_SEED_CONFIG.whatsappNumber}?text=${encodeURIComponent(VIRAL_SEED_CONFIG.whatsappMessage)}`,
+  placement_type: 'bottom_banner',
+  target_type: 'all',
+  target_restaurant_ids: [],
+  target_tag_codes: [],
+  is_active: true,
+  impressions_count: 0,
+  clicks_count: 0,
+  created_at: new Date().toISOString(),
 };
 
 const INITIAL_DEMO_DATA = {
@@ -188,6 +219,31 @@ const INITIAL_DEMO_DATA = {
       created_at: new Date(Date.now() - 3600000 * 28).toISOString(),
     }
   ] as Feedback[],
+  supportTickets: [
+    {
+      id: 'ticket-1',
+      organization_id: 'org-1',
+      restaurant_id: 'res-2',
+      category: 'plate_damaged',
+      subject: 'Placa despegada en Mesa 4',
+      message: 'Se despegó la placa NFC de la mesa 4 por limpieza constante. ¿Me pueden reponer el adhesivo o la placa física?',
+      status: 'pending',
+      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+      updated_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+    },
+    {
+      id: 'ticket-2',
+      organization_id: 'org-1',
+      restaurant_id: 'res-1',
+      category: 'more_plates',
+      subject: 'Solicitud de 5 placas adicionales para terraza',
+      message: 'Abrimos una nueva terraza con 5 mesas. Necesitamos 5 placas de $100 MXN para entregarse esta misma semana.',
+      status: 'in_progress',
+      admin_reply: 'Excelente Carlos, ya están programadas tus 5 placas con el logo de La Parrilla. Pasamos mañana a entregarlas.',
+      created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      updated_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+    }
+  ] as SupportTicket[],
 };
 
 // Carga inicial segura para Demo
@@ -271,7 +327,12 @@ export const api = {
   /**
    * Obtiene el mejor anuncio para un restaurante o tag específico
    */
-  async getAdForPlacement(tagCode?: string, restaurantId?: string): Promise<Ad | null> {
+  async getAdForPlacement(tagCode?: string, restaurantId?: string, isTier1?: boolean): Promise<Ad | null> {
+    // Invariante Etapa 1: En nivel de siembra (Tier 1) SOLO se publicita la marca propia de placas a $100
+    if (isTier1) {
+      return VIRAL_SEED_AD;
+    }
+
     if (isSupabaseConfigured) {
       try {
         const { data: ads, error } = await supabase
@@ -279,20 +340,21 @@ export const api = {
           .select('*')
           .eq('is_active', true);
 
-        if (error || !ads || ads.length === 0) return null;
+        if (!error && ads && ads.length > 0) {
+          // Filtrar según segmentación
+          const matched = ads.find((ad: Ad) => {
+            if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) {
+              return true;
+            }
+            if (restaurantId && ad.target_type === 'specific_restaurants' && ad.target_restaurant_ids?.includes(restaurantId)) {
+              return true;
+            }
+            return ad.target_type === 'all';
+          });
 
-        // Filtrar según segmentación
-        const matched = ads.find((ad: Ad) => {
-          if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) {
-            return true;
-          }
-          if (restaurantId && ad.target_type === 'specific_restaurants' && ad.target_restaurant_ids?.includes(restaurantId)) {
-            return true;
-          }
-          return ad.target_type === 'all';
-        });
-
-        return matched || ads[0] || null;
+          if (matched) return matched;
+          if (ads[0]) return ads[0];
+        }
       } catch (e) {
         console.error('Error al cargar anuncios de Supabase:', e);
       }
@@ -301,15 +363,18 @@ export const api = {
     // Fallback Modo Demo
     const ads = getLocalItem<Ad[]>(STORAGE_KEYS.ADS, INITIAL_DEMO_DATA.ads);
     const activeAds = ads.filter((a) => a.is_active);
-    if (activeAds.length === 0) return null;
+    if (activeAds.length > 0) {
+      const matched = activeAds.find((ad) => {
+        if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) return true;
+        if (restaurantId && ad.target_type === 'specific_restaurants' && ad.target_restaurant_ids?.includes(restaurantId)) return true;
+        return ad.target_type === 'all';
+      });
+      if (matched) return matched;
+      return activeAds[0];
+    }
 
-    const matched = activeAds.find((ad) => {
-      if (tagCode && ad.target_type === 'specific_tags' && ad.target_tag_codes?.includes(tagCode)) return true;
-      if (restaurantId && ad.target_type === 'specific_restaurants' && ad.target_restaurant_ids?.includes(restaurantId)) return true;
-      return ad.target_type === 'all';
-    });
-
-    return matched || activeAds[0];
+    // Bucle Viral por defecto: Si no hay patrocinadores activos, mostrar la marca de placas a $100
+    return VIRAL_SEED_AD;
   },
 
   /**
@@ -437,11 +502,42 @@ export const api = {
   },
 
   async getOrganizations(): Promise<Organization[]> {
-    if (isSupabaseConfigured) {
-      const { data } = await supabase.from('organizations').select('*').order('created_at', { ascending: false });
-      return data || [];
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.from('organizations').select('*').order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (e) {
+        console.warn('Error cargando organizaciones de Supabase:', e);
+      }
     }
     return getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+  },
+
+  /**
+   * Da de alta una nueva organización en Visita 1 (Alta Express en Calle en 30s)
+   */
+  async createOrganization(org: Omit<Organization, 'id' | 'created_at'>): Promise<{ success: boolean; data?: Organization; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const clean = sanitizeSupabasePayload(org, true);
+        const { data, error } = await supabase.from('organizations').insert([clean]).select().single();
+        if (error) throw error;
+        return { success: true, data };
+      } catch (err: any) {
+        console.warn('Error insertando en Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const orgs = getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+    const newOrg: Organization = {
+      ...org,
+      id: 'org-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.ORGANIZATIONS, [newOrg, ...orgs]);
+    return { success: true, data: newOrg };
   },
 
   async updateOrganization(id: string, updates: Partial<Organization>): Promise<{ success: boolean; error?: string }> {
@@ -979,6 +1075,162 @@ export const api = {
       user_email: email,
     };
     setLocalItem(STORAGE_KEYS.ORGANIZATION_MEMBERS, [newMember, ...all]);
+    return { success: true };
+  },
+
+  // ==============================================================================
+  // MESA DE AYUDA B2B: INCIDENCIAS TÉCNICAS Y CONTRACTUALES (SPEC-008)
+  // ==============================================================================
+
+  /**
+   * Obtiene todos los tickets de soporte levantados por locatarios (Superadmin)
+   */
+  async getSupportTickets(): Promise<SupportTicket[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('support_tickets')
+          .select('*, organization:organizations(*), restaurant:restaurants(*)')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (e) {
+        console.error('Error al cargar tickets de soporte de Supabase:', e);
+      }
+    }
+
+    const tickets = getLocalItem<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, INITIAL_DEMO_DATA.supportTickets);
+    const orgs = await this.getOrganizations();
+    const rests = await this.getRestaurants();
+
+    return tickets.map((t) => ({
+      ...t,
+      organization: orgs.find((o) => o.id === t.organization_id),
+      restaurant: rests.find((r) => r.id === t.restaurant_id),
+    }));
+  },
+
+  /**
+   * Obtiene los tickets de soporte exclusivos de la organización del locatario
+   */
+  async getMySupportTickets(): Promise<SupportTicket[]> {
+    const membership = await this.getMyMembership();
+    if (!membership) return [];
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('support_tickets')
+          .select('*, restaurant:restaurants(*)')
+          .eq('organization_id', membership.organization.id)
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (e) {
+        console.error('Error al cargar mis tickets de soporte de Supabase:', e);
+      }
+    }
+
+    const tickets = getLocalItem<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, INITIAL_DEMO_DATA.supportTickets);
+    const rests = await this.getRestaurants();
+
+    return tickets
+      .filter((t) => t.organization_id === membership.organization.id)
+      .map((t) => ({
+        ...t,
+        organization: membership.organization,
+        restaurant: rests.find((r) => r.id === t.restaurant_id),
+      }));
+  },
+
+  /**
+   * Levanta un nuevo ticket de soporte desde el portal del suscriptor
+   */
+  async createSupportTicket(data: {
+    organization_id: string;
+    restaurant_id?: string | null;
+    category: SupportCategory;
+    subject: string;
+    message: string;
+  }): Promise<{ success: boolean; data?: SupportTicket; error?: string }> {
+    const now = new Date().toISOString();
+    const isPortalDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
+
+    if (!isPortalDemo && isSupabaseConfigured) {
+      try {
+        const payload = sanitizeSupabasePayload({
+          ...data,
+          status: 'pending',
+          created_at: now,
+          updated_at: now,
+        }, true);
+
+        const { data: inserted, error } = await supabase
+          .from('support_tickets')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) throw error;
+        return { success: true, data: inserted };
+      } catch (err: any) {
+        console.warn('Error al crear ticket en Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const tickets = getLocalItem<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, INITIAL_DEMO_DATA.supportTickets);
+    const newTicket: SupportTicket = {
+      id: 'ticket-' + Date.now(),
+      organization_id: data.organization_id,
+      restaurant_id: data.restaurant_id || null,
+      category: data.category,
+      subject: data.subject.trim(),
+      message: data.message.trim(),
+      status: 'pending',
+      created_at: now,
+      updated_at: now,
+    };
+
+    setLocalItem(STORAGE_KEYS.SUPPORT_TICKETS, [newTicket, ...tickets]);
+    return { success: true, data: newTicket };
+  },
+
+  /**
+   * Actualiza el estado o respuesta del Superadmin a un ticket de soporte
+   */
+  async updateSupportTicketStatus(
+    id: string,
+    status: SupportStatus,
+    admin_reply?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const now = new Date().toISOString();
+
+    if (isSupabaseConfigured) {
+      try {
+        const updates: any = { status, updated_at: now };
+        if (admin_reply !== undefined) {
+          updates.admin_reply = admin_reply.trim() || null;
+        }
+        const { error } = await supabase.from('support_tickets').update(updates).eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    const tickets = getLocalItem<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, INITIAL_DEMO_DATA.supportTickets);
+    const updated = tickets.map((t) => {
+      if (t.id === id) {
+        return {
+          ...t,
+          status,
+          admin_reply: admin_reply !== undefined ? admin_reply.trim() || null : t.admin_reply,
+          updated_at: now,
+        };
+      }
+      return t;
+    });
+
+    setLocalItem(STORAGE_KEYS.SUPPORT_TICKETS, updated);
     return { success: true };
   },
 };

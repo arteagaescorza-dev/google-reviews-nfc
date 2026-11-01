@@ -9,16 +9,21 @@ export const AdminAuthGuard: React.FC = () => {
 
   useEffect(() => {
     async function checkAuth() {
-      // Si Supabase está configurado, verificar sesión real
+      // 1. Si el usuario activó Modo Demo, dar acceso inmediato sin requerir Supabase session
+      const demoAuth = localStorage.getItem('nfc_demo_auth');
+      if (demoAuth === 'true') {
+        setIsAuthenticated(true);
+        return;
+      }
+
+      // 2. Si no es Demo y Supabase está configurado, verificar sesión real
       if (isSupabaseConfigured) {
         const { data: { session } } = await supabase.auth.getSession();
         setIsAuthenticated(Boolean(session));
         return;
       }
 
-      // Si está en Modo Demo, verificar sesión local
-      const demoAuth = localStorage.getItem('nfc_demo_auth');
-      setIsAuthenticated(demoAuth === 'true');
+      setIsAuthenticated(false);
     }
 
     checkAuth();

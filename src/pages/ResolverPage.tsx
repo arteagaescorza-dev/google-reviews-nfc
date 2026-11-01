@@ -41,7 +41,7 @@ export const ResolverPage: React.FC = () => {
 
         // Si el restaurante no ha pagado por eliminar anuncios, buscar el anuncio correspondiente
         if (!loadedRestaurant.is_ad_free) {
-          const matchedAd = await api.getAdForPlacement(loadedTag.tag_code, loadedRestaurant.id);
+          const matchedAd = await api.getAdForPlacement(loadedTag.tag_code, loadedRestaurant.id, loadedRestaurant.tier === 1);
           if (isMounted) {
             setAd(matchedAd);
           }
