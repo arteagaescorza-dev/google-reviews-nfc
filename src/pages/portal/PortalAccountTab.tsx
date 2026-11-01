@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad, StaffMember, StaffRole } from '../../types';
 import { CreateCampaignModal } from '../../components/portal/CreateCampaignModal';
 import { api } from '../../lib/api';
+import { getNotificationPermission, requestNotificationPermission, sendLocalNotification, playAlertSound } from '../../lib/notifications';
 import { SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
 import { CreateSupportTicketModal } from '../../components/portal/CreateSupportTicketModal';
 import {
@@ -33,6 +34,8 @@ import {
   UserCheck,
   Megaphone,
   Ban,
+  Bell,
+  Volume2,
   Eye,
   EyeOff,
   Key,
@@ -102,6 +105,36 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   // Eliminar Personal
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const [isDeletingStaff, setIsDeletingStaff] = useState(false);
+
+  // Estado Notificaciones Push Nativas (Fase 4)
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>(getNotificationPermission());
+  const [isRequestingPush, setIsRequestingPush] = useState(false);
+  const [pushTestSuccess, setPushTestSuccess] = useState(false);
+
+  const handleEnablePush = async () => {
+    setIsRequestingPush(true);
+    const perm = await requestNotificationPermission();
+    setPushPermission(perm);
+    setIsRequestingPush(false);
+    if (perm === 'granted') {
+      sendLocalNotification(
+        '🔔 ¡Notificaciones Push Activadas!',
+        'Tu teléfono vibrará y sonará de inmediato ante cualquier queja de 1 a 3 estrellas en tus mesas.',
+        { isUrgent: false }
+      );
+    }
+  };
+
+  const handleTestPushAlarm = async () => {
+    setPushTestSuccess(true);
+    playAlertSound('warning');
+    await sendLocalNotification(
+      '🚨 Alerta Urgente: Mesa 4 (★ 2)',
+      'Comensal reporta: "El servicio tardó demasiado". Atiéndelo en vivo antes de que pida la cuenta.',
+      { isUrgent: true }
+    );
+    setTimeout(() => setPushTestSuccess(false), 3000);
+  };
 
   // Estado Equipo
   const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -983,6 +1016,81 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             <span>{upgradeSuccessMsg}</span>
           </div>
         )}
+
+                {/* BLOQUE PUSH: Notificaciones Nativas & Alertas en Teléfono (FASE 4) */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">Notificaciones Push & Alertas Nativas en Vivo</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    pushPermission === 'granted'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : pushPermission === 'denied'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {pushPermission === 'granted' ? '🔔 Activas' : pushPermission === 'denied' ? '🔕 Bloqueadas' : '⚠️ Pendientes'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Despierta tu celular con sonido y vibración inmediata ante quejas de 1-3 estrellas o llamadas de mesa
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {pushPermission !== 'granted' ? (
+                <button
+                  type="button"
+                  disabled={isRequestingPush}
+                  onClick={handleEnablePush}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>{isRequestingPush ? 'Activando...' : 'Activar en este Teléfono'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleTestPushAlarm}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{pushTestSuccess ? '¡Alarma Sonando!' : 'Probar Alarma en mi Celular'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <span className="font-bold text-slate-700 block">🚨 Contención en Vivo</span>
+              <p className="text-[11px] text-slate-500">
+                Tu teléfono suena al instante cuando una mesa califica mal, para que puedas levantarte y solucionar el problema antes de que se vayan.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <span className="font-bold text-slate-700 block">📱 Soporte S.O. Nativo</span>
+              <p className="text-[11px] text-slate-500">
+                Funciona en Android (Chrome/PWA/APK) e iOS (Safari PWA/App Store). No requiere tener la pantalla del portal encendida.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+              <span className="font-bold text-slate-700 block">📍 Geocercas GPS 200m</span>
+              <p className="text-[11px] text-slate-500">
+                Integrado con Apple Wallet y Google Wallet para despertar cupones en la pantalla bloqueada cuando el cliente camina cerca.
+              </p>
+            </div>
+          </div>
+        </div>
+
 
         {/* BLOQUE 4: Escalera de Valor & Niveles de Servicio (SPEC-010) */}
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">

@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import type { PortalContextType } from '../../components/portal/PortalAuthGuard';
 import type { Restaurant, Feedback } from '../../types';
 import { api } from '../../lib/api';
+import { setupRealtimeAlerts } from '../../lib/notifications';
 import { PortalHeader } from '../../components/portal/PortalHeader';
 import { PortalBottomNav, type PortalTab } from '../../components/portal/PortalBottomNav';
 import { PwaInstallBanner } from '../../components/portal/PwaInstallBanner';
@@ -40,6 +41,20 @@ export const PortalDashboardPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [selectedRestaurantId]);
+
+  // Conectar alertas push en tiempo real (quejas de 1-3 estrellas y llamadas urgentes)
+  useEffect(() => {
+    if (organization?.id) {
+      const cleanup = setupRealtimeAlerts(
+        organization.id,
+        (newFb) => {
+          setFeedbacks((prev) => [newFb, ...prev]);
+        }
+      );
+      return cleanup;
+    }
+  }, [organization?.id]);
+
 
   const pendingFeedbackCount = feedbacks.filter((f) => f.status === 'new').length;
 

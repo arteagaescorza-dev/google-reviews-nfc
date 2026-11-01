@@ -735,3 +735,37 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- ------------------------------------------------------------------------------
+-- 13. TABLA: PUSH_SUBSCRIPTIONS (DISPOSITIVOS Y TOKENS PUSH - FASE 4 NATIVA)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    device_token TEXT NOT NULL,
+    platform TEXT NOT NULL CHECK (platform IN ('web', 'ios', 'android')),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Superadmin full access to push_subscriptions"
+ON push_subscriptions FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members manage their push_subscriptions"
+ON push_subscriptions FOR ALL
+TO authenticated
+USING (organization_id IN (
+    SELECT get_user_organization_ids()
+))
+WITH CHECK (organization_id IN (
+    SELECT get_user_organization_ids()
+));

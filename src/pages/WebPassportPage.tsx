@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { exportApplePassJson, generateGoogleWalletUrl } from '../lib/wallet';
 import type { Coupon } from '../types';
 import {
   Ticket,
@@ -11,6 +12,9 @@ import {
   Smartphone,
   ArrowLeft,
   Sparkles,
+  MapPin,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 
 export const WebPassportPage: React.FC = () => {
@@ -236,6 +240,43 @@ export const WebPassportPage: React.FC = () => {
                         title="Canjear por WhatsApp"
                       >
                         <MessageCircle className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Botones de Billetera Digital Nativa (Apple Wallet & Google Wallet) con Geocerca GPS */}
+                  <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-amber-400/90 font-bold">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-amber-400" />
+                        <span>Geocerca GPS activa: despierta a &lt;200m</span>
+                      </span>
+                      <span className="text-slate-400 text-[9px] font-normal">Billetera del S.O.</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exportApplePassJson(cpn);
+                          alert('🍏 Manifiesto de Apple Wallet (.pkpass) generado con coordenadas GPS de locales aliados.');
+                        }}
+                        className="py-2 px-2.5 rounded-xl bg-slate-950 hover:bg-black border border-slate-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                      >
+                        <Download className="w-3.5 h-3.5 text-slate-300" />
+                        <span>Apple Wallet</span>
+                      </button>
+
+                      <a
+                        href={generateGoogleWalletUrl(cpn)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="py-2 px-2.5 rounded-xl bg-slate-950 hover:bg-black border border-slate-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Google Wallet</span>
                       </a>
                     </div>
                   </div>
