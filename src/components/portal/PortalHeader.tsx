@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import type { Restaurant, Organization } from '../../types';
 import type { PortalTab } from './PortalBottomNav';
-import { Store, LogOut, ChevronDown, ShieldAlert, Link2, BarChart3, Settings } from 'lucide-react';
+import { Store, LogOut, ChevronDown, ShieldAlert, Link2, BarChart3, Settings, ShieldCheck } from 'lucide-react';
 import { normalizeImageUrl } from '../../lib/utils';
 
 interface PortalHeaderProps {
@@ -61,9 +61,15 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
           </div>
 
           <div className="min-w-0">
-            <h1 className="text-sm font-bold text-white truncate leading-tight">
-              {currentRestaurant?.brand_name || organization.name}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-white truncate leading-tight">
+                {currentRestaurant?.brand_name || organization.name}
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-black uppercase tracking-wide border border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Cliente Fundador</span>
+              </span>
+            </div>
 
             {/* Selector de sucursal */}
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -88,6 +94,10 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   {currentRestaurant?.branch_name || 'Sucursal Principal'}
                 </p>
               )}
+
+              <span className="inline-flex sm:hidden items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase border border-emerald-500/30">
+                <span>🛡️ Filtro Gratis</span>
+              </span>
 
               {onAddBranch && (
                 <button

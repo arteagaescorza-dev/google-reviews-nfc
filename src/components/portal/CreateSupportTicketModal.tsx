@@ -237,3 +237,4 @@ export const CreateSupportTicketModal: React.FC<CreateSupportTicketModalProps> =
     </div>
   );
 };
+

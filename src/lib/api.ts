@@ -1008,7 +1008,8 @@ export const api = {
   },
 
   async getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
       const { data } = await supabase
         .from('organization_members')
         .select('*')
@@ -1027,7 +1028,8 @@ export const api = {
     password: string,
     role: MemberRole = 'owner'
   ): Promise<{ success: boolean; error?: string }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
       try {
         // Registro estándar en Supabase Auth con confirmación por correo
         const { data, error } = await supabase.auth.signUp({
@@ -1058,6 +1060,13 @@ export const api = {
           if (!memberErr.message.includes('unique')) throw memberErr;
         }
 
+        // Activación Segundo Caballo de Troya (Visita 2): Elevar sucursales de Tier 1 a Tier 2 (Filtro de Reseñas Gratis)
+        await supabase
+          .from('restaurants')
+          .update({ tier: 2 })
+          .eq('organization_id', organizationId)
+          .eq('tier', 1);
+
         return { success: true };
       } catch (err: any) {
         return { success: false, error: err.message };
@@ -1075,6 +1084,14 @@ export const api = {
       user_email: email,
     };
     setLocalItem(STORAGE_KEYS.ORGANIZATION_MEMBERS, [newMember, ...all]);
+
+    // Activación Segundo Caballo de Troya (Visita 2): Elevar sucursales de Tier 1 a Tier 2 (Filtro de Reseñas Gratis)
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    const updatedRests = rests.map((r) =>
+      r.organization_id === organizationId && r.tier === 1 ? { ...r, tier: 2 as const } : r
+    );
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, updatedRests);
+
     return { success: true };
   },
 

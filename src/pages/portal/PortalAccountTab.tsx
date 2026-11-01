@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket } from '../../types';
 import { api } from '../../lib/api';
-import { TIERS, SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
+import { SUPPORT_CATEGORIES, SUPPORT_STATUSES } from '../../lib/constants';
 import { CreateSupportTicketModal } from '../../components/portal/CreateSupportTicketModal';
 import {
   Building2,
   FileText,
   Users,
-  CreditCard,
   AlertTriangle,
   Save,
   Check,
@@ -26,6 +25,12 @@ import {
   LifeBuoy,
   PlusCircle,
   MessageSquare,
+  Layers,
+  ShieldCheck,
+  UtensilsCrossed,
+  Megaphone,
+  Lock,
+  ArrowUpRight,
 } from 'lucide-react';
 
 interface PortalAccountTabProps {
@@ -268,7 +273,6 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
 
   // Restaurante activo representativo
   const mainRestaurant = restaurants[0];
-  const tierInfo = mainRestaurant ? TIERS[mainRestaurant.tier || 2] : null;
 
   return (
     <div className="space-y-6">
@@ -545,67 +549,132 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
           )}
         </div>
 
-        {/* BLOQUE 4: Plan, Suscripción y Red de Ads */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-4 h-4" />
+        {/* BLOQUE 4: Escalera de Valor & Niveles de Servicio (SPEC-010) */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4 md:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">Escalera de Niveles de Servicio</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase border border-emerald-200">
+                    Cliente Fundador
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Beneficios activos en tus mesas y próximas herramientas desbloqueables in-app
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Plan & Red Publicitaria</h3>
-              <p className="text-[11px] text-slate-400">Nivel de servicio contratado y patrocinadores</p>
-            </div>
-          </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Paquete de Reputación:</span>
-              <span className="font-bold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                {tierInfo ? tierInfo.name : 'Tier 2 (Filtro Activo)'}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Estado de Publicidad:</span>
-              {mainRestaurant?.is_ad_free ? (
-                <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Marca Blanca (0% Anuncios)</span>
-                </span>
-              ) : (
-                <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                  Mostrando Patrocinadores
-                </span>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {!mainRestaurant?.is_ad_free && (
+                <button
+                  type="button"
+                  onClick={() => setShowAdFreeModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 transition-colors flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Quitar Ads (Marca Blanca)</span>
+                </button>
               )}
             </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Sucursales Activas:</span>
-              <span className="font-bold text-slate-900">{restaurants.length} locales</span>
-            </div>
           </div>
 
-          {/* Botones de Upgrades / Checkout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            {!mainRestaurant?.is_ad_free && (
-              <button
-                type="button"
-                onClick={() => setShowAdFreeModal(true)}
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Quitar Anuncios (Marca Blanca)</span>
-              </button>
-            )}
+          {/* Tarjetas de los 3 Niveles */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {/* NIVEL 1 / FUNDADOR (ACTIVO) */}
+            <div className="p-4 rounded-2xl border-2 border-emerald-500/70 bg-emerald-50/40 relative overflow-hidden space-y-3 flex flex-col justify-between shadow-sm">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider">
+                    Nivel 1 • Activo
+                  </span>
+                  <span className="text-xs font-black text-emerald-800">$0 MXN / mes</span>
+                </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAdsPromoModal(true)}
-              className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-all"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Promocionar mi Negocio en la Red</span>
-            </button>
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>Filtro de Reputación</span>
+                </div>
+
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Calificaciones de 4-5 estrellas van a Google Maps. Las quejas de 1-3 estrellas se desvían de forma privada a tu celular.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-emerald-200/80 flex items-center gap-1.5 text-emerald-800 font-extrabold text-[11px]">
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Incluido gratis de por vida</span>
+              </div>
+            </div>
+
+            {/* NIVEL 2: MENÚ + LINKTREE + WIFI */}
+            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-blue-200 transition-all space-y-3 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider">
+                    Nivel 2 • Siguiente Paso
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500">Suscripción pequeña</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <UtensilsCrossed className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <span>Menú Digital + WiFi 1-Toque</span>
+                </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Todo el Nivel 1 más: carta digital con fotos, redes sociales y conexión directa a tu red WiFi sin pedir contraseñas a meseros.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  <span>Desbloqueable in-app</span>
+                </span>
+                <span className="text-blue-600 font-bold text-[11px]">Etapa 3</span>
+              </div>
+            </div>
+
+            {/* NIVEL 3: SALDO DE PAUTA Y COMANDAS */}
+            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-amber-200 transition-all space-y-3 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px] uppercase tracking-wider">
+                    Nivel 3 • Alto Impacto
+                  </span>
+                  <span className="text-[11px] font-bold text-amber-700">+$500 Saldo Pauta</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                  <Megaphone className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>Red de Anuncios Local</span>
+                </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Todo lo anterior + $500 MXN mensuales para pautar tu anuncio en mesas de comercios aliados. (En el futuro: Comandas en mesa).
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  <span>Desbloqueable in-app</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAdsPromoModal(true)}
+                  className="text-amber-700 hover:text-amber-800 font-bold text-[11px] flex items-center gap-0.5"
+                >
+                  <span>Conocer pauta</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
