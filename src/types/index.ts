@@ -126,6 +126,8 @@ export interface Restaurant {
   organization?: Organization;
 }
 
+export type TagPhysicalCondition = 'nuevo' | 'instalado' | 'desgastado' | 'danado' | 'reemplazado';
+
 export interface Tag {
   id: string;
   tag_code: string;
@@ -135,6 +137,13 @@ export interface Tag {
   scan_count: number;
   last_scanned_at?: string | null;
   is_active: boolean;
+  batch_id?: string | null;
+  nfc_chip_model?: string;
+  physical_condition?: TagPhysicalCondition;
+  installer_name?: string | null;
+  installed_at?: string | null;
+  replaced_by_tag_code?: string | null;
+  replacement_reason?: string | null;
   created_at: string;
   // Relación opcional
   restaurant?: Restaurant;
@@ -198,6 +207,8 @@ export interface OrganizationMember {
 export type SupportCategory = 'plate_damaged' | 'billing' | 'more_plates' | 'general';
 export type SupportStatus = 'pending' | 'in_progress' | 'resolved';
 
+export type ReplacementTrackingStatus = 'no_aplica' | 'solicitado' | 'aprobado' | 'en_reparto' | 'instalado';
+
 export interface SupportTicket {
   id: string;
   organization_id: string;
@@ -207,11 +218,86 @@ export interface SupportTicket {
   message: string;
   status: SupportStatus;
   admin_reply?: string | null;
+  affected_tag_code?: string | null;
+  replacement_status?: ReplacementTrackingStatus;
+  replacement_tag_code?: string | null;
   created_at: string;
   updated_at: string;
   // Relaciones opcionales
   organization?: Organization;
   restaurant?: Restaurant;
+}
+
+// ==========================================
+// Módulos Fase 6: Hardware, Imprenta y Ventas B2B
+// ==========================================
+
+export type InventoryCategory = 'nfc_chip' | 'vinyl_sticker' | 'acrylic_stand' | 'installation_tool' | 'packaging';
+
+export interface HardwareInventoryItem {
+  id: string;
+  sku: string;
+  item_name: string;
+  category: InventoryCategory;
+  stock_available: number;
+  stock_allocated: number;
+  stock_min_threshold: number;
+  unit_cost_mxn: number;
+  supplier_info?: Record<string, any>;
+  last_restocked_at?: string;
+  updated_at: string;
+}
+
+export type PrintBatchStatus = 'generado' | 'en_imprenta' | 'recibido_en_bodega' | 'en_uso' | 'agotado';
+
+export interface PrintBatch {
+  id: string;
+  batch_number: string;
+  supplier_name: string;
+  total_units: number;
+  prefix: string;
+  range_start: number;
+  range_end: number;
+  status: PrintBatchStatus;
+  cost_total_mxn: number;
+  specifications?: Record<string, any>;
+  pdf_vector_url?: string | null;
+  created_at: string;
+  received_at?: string | null;
+}
+
+export type SalesLeadStage = 
+  | 'prospeccion' 
+  | 'demo_agendada' 
+  | 'demo_realizada' 
+  | 'cotizacion_enviada' 
+  | 'cierre_ganado' 
+  | 'instalacion_pendiente' 
+  | 'instalado_activo' 
+  | 'cerrado_perdido';
+
+export interface SalesLead {
+  id: string;
+  restaurant_name: string;
+  business_type?: BusinessType;
+  contact_name: string;
+  contact_role?: string;
+  phone: string;
+  email?: string | null;
+  address: string;
+  city: string;
+  estimated_tables: number;
+  stage: SalesLeadStage;
+  deal_mrr_mxn: number;
+  hardware_kit_fee_mxn: number;
+  assigned_sales_rep: string;
+  next_follow_up?: string | null;
+  notes?: string | null;
+  lost_reason?: string | null;
+  converted_organization_id?: string | null;
+  converted_restaurant_id?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 
