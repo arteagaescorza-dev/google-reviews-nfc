@@ -309,3 +309,4 @@ USING (is_superadmin()) WITH CHECK (is_superadmin());
 CREATE POLICY "Public read active territory_zones"
 ON public.territory_zones FOR SELECT TO anon, authenticated
 USING (is_active = true);
+

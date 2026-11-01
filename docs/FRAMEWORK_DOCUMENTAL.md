@@ -1,138 +1,185 @@
-# 📚 Framework de Registro Documental (FRD)
-**Estándar de Documentación Técnica & Arquitectura de Software**
+# 📚 Framework Documental Maestro (FDM v2.0)
+**Sistema Coordinado de Arquitectura, Especificaciones y Operaciones**
 
-**Proyecto:** Plataforma NFC Google Reseñas & Red Publicitaria Local  
-**Versión del Framework:** 1.0.0  
-**Fecha de Publicación:** 29 de Octubre, 2026  
-**Inspiración y Fundamentos:** Diátaxis Framework, Architecture Decision Records (ADR - Michael Nygard) y Filosofía *Docs-as-Code*.
+* **Proyecto:** Plataforma Integral NFC Google Reseñas, Red Publicitaria Local & Hardware SaaS
+* **Versión del Framework:** 2.0.0 (Consolidada y Coordinada)
+* **Fecha:** Noviembre 2026
+* **Estándar:** Diátaxis Framework, Architecture Decision Records (ADR - Michael Nygard) y Docs-as-Code
 
 ---
 
-## 1. ¿Por qué un Framework Documental?
+## 1. Visión y Propósito del Framework Coordinado
 
-En proyectos ágiles con inteligencia artificial y desarrollo acelerado, la documentación suele fragmentarse, desactualizarse o perderse en chats. Este framework establece **reglas claras, carpetas y plantillas estándar** para que cualquier cambio técnico, regla de negocio o decisión arquitectónica quede registrada con rigor, trazabilidad y facilidad de consulta.
+Este framework garantiza que **absolutamente todos los componentes de la empresa tecnológica estén sincronizados y coordinados en una sola fuente de verdad**:
+* Desde el vinil físico cortado en la imprenta y la antena NTAG pegada en la mesa del restaurante,
+* pasando por el escaneo del comensal, el beeper háptico y la comanda a cocina,
+* hasta la cobranza de suscripciones en Stripe, el cálculo de EBITDA y el pipeline comercial de ventas.
 
 ```mermaid
 graph TD
-    subgraph Entrada ["📥 Fuentes de Registro"]
-        F1["Preguntas del Usuario (/grill-me)"]
-        F2["Decisiones de Arquitectura (ADR)"]
-        F3["Auditorías de Seguridad & Deuda"]
+    subgraph CAPA1 ["🏭 1. Hardware, Imprenta & Logística"]
+        C1A["Lotes de Imprenta (Suaje, Vinil 3M, PDF Vector)"]
+        C1B["Bodega de Insumos (Chips NTAG213/215, Acrílicos)"]
+        C1C["Activador Express In-Situ & Reposición por Desgaste"]
     end
 
-    subgraph Cuadrantes ["🧭 Cuadrantes del Framework (Diátaxis + ADR)"]
-        C1["📐 1. Especificaciones (PRD / Reglas)"]
-        C2["🏛️ 2. Decisiones de Arquitectura (ADRs)"]
-        C3["🛠️ 3. Guías Operativas & How-To"]
-        C4["🧪 4. Pruebas, Seguridad & Auditoría"]
-        C5["🗺️ 5. Roadmaps & Deuda Técnica"]
+    subgraph CAPA2 ["📱 2. Front Comensal (Punto de Contacto)"]
+        C2A["Resolver NFC/QR (Filtro 5★ Google vs Buzón Privado)"]
+        C2B["Carta Digital, Split Bill & Beeper Digital Háptico"]
+        C2C["Turnero Plaza 4K, Delivery Oficinas & Pasaporte PWA"]
     end
 
-    subgraph Salida ["📦 Repositorio /docs"]
-        R1["docs/README.md (Índice Maestro)"]
-        R2["Trazabilidad Git + Control de Versiones"]
+    subgraph CAPA3 ["👨‍🍳 3. Portal Suscriptor / Operación Local"]
+        C3A["KDS de Cocina Multi-Estación & Terminal de Sala (PIN)"]
+        C3B["Corte Z Diario (Auditoría Efectivo vs Terminal)"]
+        C3C["Inbox Zero de Feedback & Veto de Anunciantes"]
     end
 
-    F1 --> Cuadrantes
-    F2 --> Cuadrantes
-    F3 --> Cuadrantes
-    Cuadrantes --> Salida
+    subgraph CAPA4 ["🏛️ 4. Superadministrador Bento Grid Light"]
+        C4A["Centro de Mando Ejecutivo (Resumen de Facturación)"]
+        C4B["Finanzas Reales, Stripe SPEI & Cálculo de EBITDA"]
+        C4C["Pipeline Comercial B2B (Prospección ➡️ Demo ➡️ Cierre)"]
+        C4D["Red Publicitaria Local, Cobertura & Mesa de Ayuda B2B"]
+    end
+
+    subgraph CAPA5 ["🛡️ 5. Infraestructura, Seguridad & Zero-Custody"]
+        C5A["Supabase PostgreSQL (RLS, Triggers, RPCs Atómicas)"]
+        C5B["Modelo Zero-Custody (Comidas directo al local sin tocar cuenta)"]
+        C5C["Webhooks Stripe/Mercado Pago & Campañas Win-Back"]
+        C5D["Suite de Calidad (Vitest 34 tests, TypeScript Strict)"]
+    end
+
+    CAPA1 --> CAPA2
+    CAPA2 --> CAPA3
+    CAPA3 --> CAPA4
+    CAPA4 --> CAPA5
+    CAPA5 --> CAPA1
 ```
 
 ---
 
-## 2. Taxonomía de Documentos (Los 5 Cuadrantes)
+## 2. Las 5 Capas Coordinadas del Sistema
 
-Todos los documentos que residen en `/docs` pertenecen a una de las siguientes 5 categorías:
+### 🏭 Capa 1: Hardware, Producción en Imprenta & Logística de Campo
+Documenta el mundo físico de la empresa:
+1. **Lotes de Imprenta (`print_batches`):**
+   * Especificaciones de impresión: vinil adhesivo 3M de alto tráfico, laminado mate con filtro UV, suaje circular de 6x6 cm.
+   * Generación correlativa de folios (`TAG-0101` a `TAG-0500`) con marcas de corte vectoriales en PDF/SVG para imprenta local.
+2. **Control de Bodega (`hardware_inventory`):**
+   * Inventario de materias primas: antenas vírgenes NTAG213/215, viniles impresos, bases acrílicas de mesa.
+   * Punto de reorden automatizado cuando el stock baja del umbral de seguridad.
+3. **Instalación y Campo (`activate_table_tag_in_situ`):**
+   * Asistente de instalación en 3 pasos: técnico escanea el QR del vinil recién colocado, selecciona restaurante y mesa, y graba la antena NFC en 3 segundos. Descuenta stock atómicamente.
+4. **Reposición por Desgaste (`replace_damaged_table_tag`):**
+   * Sustitución de placas deterioradas por solventes, cloro o exposición solar, transfiriendo la mesa al nuevo tag sin romper el histórico ni los enlaces.
 
-### 📐 1. Especificaciones y Requisitos de Producto (`SPEC`)
-* **Propósito:** Definir el *qué* y el *para quién* de una funcionalidad antes o durante su construcción.
-* **Prefijo:** `SPEC_*.md`
-* **Ejemplos en el proyecto:**
-  * [`SPEC.md`](./SPEC.md) (Especificación integral del sistema).
-  * [`SPEC_PORTAL_SUSCRIPTOR.md`](./SPEC_PORTAL_SUSCRIPTOR.md) (Requisitos del portal del dueño).
-  * [`SPEC_RED_PUBLICITARIA.md`](./SPEC_RED_PUBLICITARIA.md) (Especificación del ad server y banners).
-
----
-
-### 🏛️ 2. Registros de Decisión Arquitectónica (`ADR`)
-* **Propósito:** Documentar *por qué* se tomó una decisión técnica o de negocio no trivial, qué alternativas se evaluaron y qué consecuencias conlleva.
-* **Prefijo:** `ADR_###_*.md` (o sección de decisiones en Master Plan).
-* **Ejemplos en el proyecto:**
-  * *ADR-001:* Fallback inmediato a Google Maps en Tags de comercios inactivos (Opción 2 sin romper chips).
-  * *ADR-002:* Multi-tenancy híbrido con organizaciones y roles `owner` / `manager`.
-  * *ADR-003:* Almacenamiento JSONB de datos fiscales en `organizations.billing_info`.
+* **Documentos de Referencia:**
+  * [`GUIA_OPERATIVA.md`](./GUIA_OPERATIVA.md): Manual de campo e inducción técnica.
+  * [`TAREAS_UI_SUPERADMIN.md`](./TAREAS_UI_SUPERADMIN.md): Tareas UI-HW-01 a UI-HW-04.
+  * [`supabase/migrations/20261101_superadmin_infrastructure.sql`](../supabase/migrations/20261101_superadmin_infrastructure.sql).
 
 ---
 
-### 🛠️ 3. Guías Prácticas y Procedimientos Operativos (`HOW-TO`)
-* **Propósito:** Resolver una tarea concreta orientada a la acción paso a paso.
-* **Prefijo:** `GUIA_*.md`
-* **Ejemplos en el proyecto:**
-  * [`GUIA_OPERATIVA.md`](./GUIA_OPERATIVA.md) (Cómo programar chips NFC físicos, dar de alta mesas y vincular QR).
+### 📱 Capa 2: Experiencia del Comensal & PWA Pública
+Documenta la interacción directa del cliente al tocar la antena NFC o escanear el QR:
+1. **Filtro Inteligente de Reseñas (Escudo Reputacional):**
+   * Calificación 4 o 5 estrellas ➡️ Redirección instantánea a la ficha oficial de Google Maps / Reseñas.
+   * Calificación 1 a 3 estrellas ➡️ Buzón privado de quejas (`feedback`) con notificación inmediata al dueño.
+2. **Carta Digital & Pedido en Mesa (KDS):**
+   * Visualización de platillos, selección de términos y envío directo a cocina sin descargar apps.
+3. **Beeper Digital Háptico (`BeeperDigitalModal.tsx`):**
+   * Vibración táctil continua y pulsante en el móvil del comensal cuando su orden está lista en barra/cocina.
+4. **Turnero Maestro 4K de Plaza Pública (`TurneroPlazaPage.tsx`):**
+   * Pantalla gigante para patios de comida y food halls con audio chime y sintetizador de voz (Web Speech API).
+5. **Blindaje Delivery Corporativo a Oficinas (`CorporateDeliveryModal.tsx`):**
+   * Captura de coordenadas de edificio, piso y número de oficina, con PIN secreto de 4 dígitos para entrega mano a mano y lista negra de teléfonos fraudulentos.
+6. **Pasaporte Web PWA & Cupones (`WebPassportPage.tsx` / `RedeemCouponPage.tsx`):**
+   * Billetera de fidelidad, acumulación de cashback, promociones de un solo uso y descarga de passes (Apple Wallet / Google Pay).
+
+* **Documentos de Referencia:**
+  * [`SPEC.md`](./SPEC.md): Especificación integral de comensal.
+  * [`SPEC_INFRAESTRUCTURA_CUPONES.md`](./SPEC_INFRAESTRUCTURA_CUPONES.md): Motor de cupones.
+  * [`portal_del_comensal_monetizacion_y_funcionalidades.md`](../brain/13b937c5-a31f-49e0-8595-33b7d8cfdd0e/portal_del_comensal_monetizacion_y_funcionalidades.md).
 
 ---
 
-### 🧪 4. Auditoría, Seguridad y Reportes de Pruebas (`AUDIT / TEST`)
-* **Propósito:** Diagnóstico de calidad, cumplimiento de estándares y resultados de verificación empírica.
-* **Prefijo:** `AUDIT_*.md` o `REPORTE_*.md`
-* **Ejemplos en el proyecto:**
-  * [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md) (Auditoría OWASP API Security Top 10).
-  * [`IMPECCABLE_CRITIQUE.md`](./IMPECCABLE_CRITIQUE.md) (Revisión de diseño de interfaces).
-  * *Reportes de pruebas Playwright E2E (`reporte_pruebas_webapp.md`).*
+### 👨‍🍳 Capa 3: Operación en Local (Portal del Suscriptor)
+Documenta la interfaz que operan los dueños, meseros y cocineros en el restaurante:
+1. **KDS de Cocina Multi-Estación (`PortalKitchenPage.tsx`):**
+   * Filtros de comanda por estación: Cocina Caliente, Barra de Bebidas, Postres y Salida.
+2. **Terminal de Sala para Meseros (`PortalStaffPage.tsx`):**
+   * Acceso por PIN rápido de 4 dígitos para atender llamadas de mesa, solicitudes de cuenta y pedidos.
+3. **Corte Z Diario (`DailyCashClose`):**
+   * Arqueo ciego de caja, balance entre ventas en efectivo, terminal y diferencias reportadas al dueño.
+4. **Inbox Zero de Reseñas Privadas:**
+   * Gestión de quejas de 1-3 estrellas antes de que lleguen a redes sociales.
+5. **Autonomía Publicitaria (Veto de Anunciantes):**
+   * El locatario puede vetar 1 anunciante de la red por mes para proteger la imagen de su negocio.
+
+* **Documentos de Referencia:**
+  * [`SPEC_PORTAL_SUSCRIPTOR.md`](./SPEC_PORTAL_SUSCRIPTOR.md): Especificación de roles y vistas.
+  * [`MASTER_PLAN_PORTAL_SUSCRIPTOR.md`](./MASTER_PLAN_PORTAL_SUSCRIPTOR.md): Roadmap de ejecución en local.
 
 ---
 
-### 🗺️ 5. Deuda Técnica, Roadmaps y Planes Maestros (`META`)
-* **Propósito:** Gestión de la evolución futura y salud del código base.
-* **Ejemplos en el proyecto:**
-  * [`DEUDA_TECNICA.md`](./DEUDA_TECNICA.md) (Inventario priorizado de deuda técnica).
-  * [`ROADMAP.md`](./ROADMAP.md) (Iniciativas futuras estratégicas).
-  * [`MASTER_PLAN_PORTAL_SUSCRIPTOR.md`](./MASTER_PLAN_PORTAL_SUSCRIPTOR.md) (Plan de fases del portal).
+### 🏛️ Capa 4: Superadministrador Bento Grid (Light Theme)
+Documenta el centro de mando para la dirección, ventas, marketing y soporte:
+1. **Bento Box 1: Centro de Mando Ejecutivo (`AdminDashboardPage.tsx`):**
+   * KPIs consolidados: facturación real del mes, composición de ingresos (Ads vs SaaS), stock de insumos y feed en vivo.
+2. **Bento Box 2: Pipeline Comercial B2B & Marketing:**
+   * Embudo de ventas para prospectar restaurantes, agendar visitas de demostración de placas NFC y cerrar contratos.
+   * Automatización de secuencias Win-Back para restaurantes cancelados (Día 3 y Día 14).
+3. **Bento Box 3: Hardware, Lotes de Imprenta & Activador:**
+   * Monitoreo de stock de insumos físicos, generador de pliegos y activador in-situ.
+4. **Bento Box 4: Finanzas Reales, Stripe SPEI & Reposiciones:**
+   * Semáforo de cobro de suscripciones, estatus de saldo en Stripe y mesa de reposición de tags dañados.
+5. **Directorio y Cobertura Territorial:**
+   * Restaurantes, Tags NFC, Red de Anuncios, Cobertura en mapa metropolitano y Mesa de Ayuda B2B.
+
+* **Documentos de Referencia:**
+  * [`plan_redisenio_superadmin_ui_ux_pro_max.md`](../brain/13b937c5-a31f-49e0-8595-33b7d8cfdd0e/plan_redisenio_superadmin_ui_ux_pro_max.md): Plan maestro Bento Grid.
+  * [`TAREAS_UI_SUPERADMIN.md`](./TAREAS_UI_SUPERADMIN.md): Catálogo de tareas UI-HW, UI-VT, UI-FN y UI-RS.
+  * [`SPEC_ARQUITECTURA_FINANCIERA.md`](./SPEC_ARQUITECTURA_FINANCIERA.md): Modelo de ingresos y EBITDA.
 
 ---
 
-## 3. Metadatos Estándar (Frontmatter YAML)
+### 🛡️ Capa 5: Infraestructura Técnica, Seguridad & Zero-Custody
+Documenta el backend, bases de datos y cumplimiento regulatorio:
+1. **Arquitectura Zero-Custody de Pagos:**
+   * El dinero de la comida va directo de la cuenta del comensal a la cuenta de Stripe Connect / Mercado Pago del restaurante. La plataforma no custodia fondos de alimentos.
+   * La plataforma solo cobra de forma autónoma: (a) Su suscripción SaaS mensual y (b) La pauta de la red publicitaria.
+2. **Seguridad y RLS Multi-Tenant (PostgreSQL):**
+   * Aislamiento estricto por `organization_id` y validación de `is_superadmin()` para administración global.
+3. **Bitácora de Webhooks y Automatizaciones:**
+   * Despacho y reintentos automáticos a CRMs externos (`crm_webhook_logs`) y procesamiento de eventos Stripe (`stripe-webhook`).
+4. **Suite de Verificación Automatizada:**
+   * Vitest (34 unit tests verdes), compilación TypeScript estricta y empaquetado de producción en Vite.
 
-Todo nuevo documento oficial debe iniciar con el bloque de metadatos frontmatter para garantizar indexación automática y claridad de autoría:
-
-```yaml
----
-id: SPEC-004
-titulo: Gestión del Ciclo de Vida de Sucursales y Tags NFC
-categoria: especificacion | decision-record | guia-operativa | auditoria | deuda-tecnica
-estado: borrador | aprobado | implementado | deprecado
-fecha_creacion: 2026-10-29
-ultima_actualizacion: 2026-10-29
-autores: [Mickey, Antigravity]
-tags: [sucursales, tags-nfc, google-reviews, ciclo-de-vida]
-documentos_relacionados: [SPEC_PORTAL_SUSCRIPTOR.md, DEUDA_TECNICA.md]
----
-```
+* **Documentos de Referencia:**
+  * [`SECURITY_AUDIT.md`](./SECURITY_AUDIT.md): Auditoría OWASP y mitigación de vulnerabilidades.
+  * [`DEUDA_TECNICA.md`](./DEUDA_TECNICA.md): Bitácora de deuda técnica resuelta y verificada.
 
 ---
 
-## 4. Ciclo de Vida de un Documento
+## 3. Matriz de Trazabilidad Cruzada
 
-```mermaid
-stateDiagram-v2
-    [*] --> Borrador: Propuesta o exploración inicial (/grill-me)
-    Borrador --> Aprobado: Revisión y visto bueno del usuario
-    Aprobado --> Implementado: Código desarrollado, testeado y fusionado a Git
-    Implementado --> Deprecado: Superado por una versión posterior (Nunca se borra)
-    Deprecado --> [*]
-```
-
-1. **Borrador (`draft`):** Se redacta la idea, alternativas y especificación técnica.
-2. **Aprobado (`approved`):** El usuario da su visto bueno a las soluciones propuestas.
-3. **Implementado (`implemented`):** El código se construye, pasa pruebas (build + tests E2E) y se despliega.
-4. **Deprecado (`deprecated`):** Si una regla cambia radicalmente, el documento histórico no se elimina; se marca como deprecado y enlaza al documento que lo sustituye.
+| Dominio | Documento Especificación | Migración SQL | Componentes / Páginas Front | Suite de Pruebas |
+| :--- | :--- | :--- | :--- | :--- |
+| **Hardware & Imprenta** | `TAREAS_UI_SUPERADMIN.md` | `20261101_superadmin_infrastructure.sql` | `AdminTagsPage.tsx` | `nfc.test.ts` |
+| **Pipeline Ventas B2B** | `plan_redisenio_superadmin_ui_ux_pro_max.md` | `20261101_superadmin_infrastructure.sql` | `AdminDashboardPage.tsx` | `winback.test.ts` |
+| **Comandas & KDS** | `SPEC.md` | `schema.sql` (table_orders) | `PortalKitchenPage.tsx` | `orders.test.ts` |
+| **Turnero Plaza 4K** | `DEUDA_TECNICA.md` (DT-15) | `schema.sql` (table_orders) | `TurneroPlazaPage.tsx` | `calculations.test.ts` |
+| **Delivery Corporativo** | `DEUDA_TECNICA.md` (DT-17, 19) | `schema.sql` (corporate_orders) | `CorporateDeliveryModal.tsx` | `corporate.test.ts` |
+| **Beeper Digital** | `DEUDA_TECNICA.md` (DT-16) | Local / Web Audio / Navigator | `BeeperDigitalModal.tsx` | `beeper.test.ts` |
+| **Finanzas & EBITDA** | `SPEC_ARQUITECTURA_FINANCIERA.md` | `schema.sql` / `20261101_phase5...` | `AdminFinancesPage.tsx` | `payments.test.ts` |
+| **Exportación & Reportes** | `DEUDA_TECNICA.md` (DT-11) | Local (Blob / XLSX / PDF) | `src/lib/export.ts` | `export.test.ts` |
 
 ---
 
-## 5. Reglas de Redacción y Formato
+## 4. Convención de Trabajo y Reglas de Oro
 
-1. **Diagramas Obligatorios para Procesos:** Todo flujo con más de 2 pasos debe incluir un diagrama Mermaid (`sequenceDiagram`, `flowchart TD` o `stateDiagram-v2`).
-2. **Tablas de Decisión con Consecuencias:** Siempre documentar las opciones descartadas y la justificación de la opción ganadora.
-3. **Enlaces Relativos Clickables:** Todo archivo referenciado debe contener su enlace relativo en formato Markdown: `[Título](./ARCHIVO.md)`.
-4. **Integridad Histórica:** No sobrescribir decisiones tomadas en el pasado; añadir una sección de *Actualizaciones* o crear un nuevo registro de decisión.
+1. **Ningún código sin especificación previa:** Todo cambio de producto o interfaz debe tener su especificación en `/docs`.
+2. **Coherencia Backend-Frontend:** Todo elemento visual que se presente en la UI debe tener su contraparte en tablas, columnas o RPCs de Supabase.
+3. **Modelo Zero-Custody sagrado:** Nunca intermediar ni retener fondos provenientes de las comidas de los restaurantes.
+4. **Modo Bento Light para Superadmin:** Toda la consola de dirección debe respetar el estilo Bento Grid en Light Theme (Apple/Linear) con métricas en pesos mexicanos (MXN).
+5. **Verificación continua en Git:** Todo avance debe pasar la suite de pruebas (`npm run test`) y verificación de tipos (`npx tsc --noEmit`) antes de cada commit.

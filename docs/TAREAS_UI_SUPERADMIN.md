@@ -66,3 +66,4 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 * **Ventas & Pipeline:** `mockup_bento_tab2_ventas.png`
 * **Hardware & Imprenta:** `mockup_bento_tab3_hardware.png`
 * **Finanzas & Cobranza:** `mockup_bento_tab4_finanzas.png`
+

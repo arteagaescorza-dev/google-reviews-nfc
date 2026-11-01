@@ -1,69 +1,69 @@
-# 🧭 Índice Maestro de Documentación (`/docs`)
+# 🧭 Índice Maestro de Documentación Coordinada (`/docs`)
 
-Bienvenido al repositorio central de conocimiento y arquitectura de la plataforma **Google Reseñas NFC & Red Publicitaria Local**. Toda la documentación sigue el estándar formal definido en el [**Framework de Registro Documental (FRD)**](./FRAMEWORK_DOCUMENTAL.md).
+Bienvenido al repositorio central de conocimiento, arquitectura y especificaciones de la plataforma **Google Reseñas NFC, Red Publicitaria Local & Hardware SaaS**. 
+
+Toda la documentación está organizada de acuerdo con el [**Framework Documental Maestro v2.0 (FDM)**](./FRAMEWORK_DOCUMENTAL.md), estructurada en **5 Capas Sistémicas Coordinadas**:
 
 ---
 
 ```mermaid
 graph LR
-    subgraph DocsTree ["📚 Estructura de Documentación"]
-        FRD["📘 FRAMEWORK_DOCUMENTAL.md"]
-        SPEC["📐 Especificaciones (SPEC)"]
-        ADR["🏛️ Decisiones & Planes (MASTER_PLAN)"]
-        OPS["🛠️ Guías Operativas (GUIA)"]
-        SEC["🛡️ Seguridad & Calidad (SECURITY/AUDIT)"]
-        ROAD["🗺️ Deuda Técnica & Roadmap (ROADMAP)"]
-    end
+    FDM["📘 FRAMEWORK_DOCUMENTAL.md (v2.0)"] --> C1["🏭 1. Hardware, Imprenta & Logística"]
+    FDM --> C2["📱 2. Front Comensal (Punto de Contacto)"]
+    FDM --> C3["👨‍🍳 3. Portal Suscriptor / Local"]
+    FDM --> C4["🏛️ 4. Superadministrador Bento Grid"]
+    FDM --> C5["🛡️ 5. Infraestructura, Seguridad & Zero-Custody"]
 ```
 
 ---
 
-## 📚 Directorio de Documentos por Categoría
+## 🗂️ Directorio de Documentos por Capa Sistémica
 
-### 📘 0. Estándar y Metodología
-* [**`FRAMEWORK_DOCUMENTAL.md`**](./FRAMEWORK_DOCUMENTAL.md): Taxonomía de 5 cuadrantes, ciclo de vida de documentos, metadatos YAML y reglas de redacción inspiradas en *Diátaxis* y *ADRs*.
-
----
-
-### 📐 1. Especificaciones de Producto & Negocio (`SPEC`)
-* [**`SPEC.md`**](./SPEC.md): Especificación integral de la plataforma (Arquitectura general, Tiers 1-4, flujo de comensal en mesa, panel de control).
-* [**`SPEC_PORTAL_SUSCRIPTOR.md`**](./SPEC_PORTAL_SUSCRIPTOR.md): Especificación funcional del Portal del Dueño/Gerente (`/portal`), gestión de quejas en Inbox Zero, Linktree y datos de negocio.
-* [**`SPEC_GESTION_ORGANIZACIONES.md`**](./SPEC_GESTION_ORGANIZACIONES.md): `[PREAPROBADO]` Onboarding y gestión de organizaciones/clientes en Superadmin, creación al vuelo de empresas y asignación de credenciales.
-* [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): `[PREAPROBADO]` Arquitectura de red publicitaria, política de veto manual de 1 anunciante/mes y atribución closed-loop.
-* [**`SPEC_INFRAESTRUCTURA_CUPONES.md`**](./SPEC_INFRAESTRUCTURA_CUPONES.md): `[PREAPROBADO]` Motor de cupones digitales de un solo uso, entrega al comensal, validación QR en mostrador y control de privacidad de ingresos (ROI).
-* [**`SPEC_UTILIDAD_MULTIGIRO.md`**](./SPEC_UTILIDAD_MULTIGIRO.md): `[PREAPROBADO]` Anclas de utilidad multi-giro (WiFi zero-password, pre-orden, rachas) y modelo self-service sin creación de contenido por la plataforma.
-* [**`SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md`**](./SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md): `[PREAPROBADO]` Mesa de ayuda B2B, veto autónomo del locatario y 6 nuevas herramientas para el módulo de anuncios Superadmin.
-* [**`SPEC_ARQUITECTURA_FINANCIERA.md`**](./SPEC_ARQUITECTURA_FINANCIERA.md): `[PREAPROBADO]` Arquitectura financiera, MRR, cobranza autónoma, EBITDA y facturación fiscal CFDI.
-* [**`SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md`**](./SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md): `[PREAPROBADO]` Esquema de oferta comercial, venta de placas NFC en frío a $100 MXN, 3 niveles de software con pauta incluida, comandas futuras y Ad-Free.
-* [**`SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md`**](./SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md): `[PREAPROBADO]` Estrategia de despliegue GTM en 3 etapas: siembra física de 100 locales con anuncios dormidos, activación de app con filtro gratis y monetización in-app autónoma.
+### 📘 0. Metodología y Marco de Trabajo
+* [**`FRAMEWORK_DOCUMENTAL.md`**](./FRAMEWORK_DOCUMENTAL.md): Estándar FDM v2.0 que unifica las 5 capas del sistema (hardware, comensal, portal, superadmin e infraestructura), matrices de trazabilidad y ciclo de vida de especificaciones.
 
 ---
 
-### 🏛️ 2. Decisiones de Arquitectura & Planes Maestros (`ARCH / ADR`)
-* [**`MASTER_PLAN_PORTAL_SUSCRIPTOR.md`**](./MASTER_PLAN_PORTAL_SUSCRIPTOR.md): Plan de ejecución de 4 fases (Fase A: Mi Cuenta, Fase B: Fallback inmediato a Maps, Fase C: Métricas ponderadas de cadena, Fase D: Alta y pedido de sucursales).
-* [**`IMPLEMENTATION_PLAN_PORTAL.md`**](./IMPLEMENTATION_PLAN_PORTAL.md): Plan de implementación y componentes iniciales del portal del suscriptor.
+### 🏭 Capa 1: Hardware, Producción en Imprenta & Logística de Campo
+* [**`TAREAS_UI_SUPERADMIN.md`**](./TAREAS_UI_SUPERADMIN.md): Registro de componentes de stock de bodega, generador de pliegos de vinil para imprenta y activador express in-situ.
+* [**`GUIA_OPERATIVA.md`**](./GUIA_OPERATIVA.md): Manual de campo e inducción operativa para programar chips NFC físicos con NFC Tools, vincular códigos QR y colocar viniles en mesas.
+* [**`supabase/migrations/20261101_superadmin_infrastructure.sql`**](../supabase/migrations/20261101_superadmin_infrastructure.sql): Esquema de base de datos para `hardware_inventory`, `print_batches`, trazabilidad de desgaste y RPC de activación in-situ.
 
 ---
 
-### 🛠️ 3. Guías Operativas & Procedimientos en Sala (`HOW-TO`)
-* [**`GUIA_OPERATIVA.md`**](./GUIA_OPERATIVA.md): Manual operativo paso a paso para programar chips NFC físicos con la app NFC Tools, vincular códigos QR, asignar sucursales y etiquetar mesas de restaurante.
+### 📱 Capa 2: Punto de Contacto Comensal (Front Público PWA)
+* [**`SPEC.md`**](./SPEC.md): Especificación integral de la plataforma (Filtro 5★ de Google vs buzón de quejas 1-3★, carta digital y flujo en mesa).
+* [**`SPEC_INFRAESTRUCTURA_CUPONES.md`**](./SPEC_INFRAESTRUCTURA_CUPONES.md): Motor de cupones de descuento digitales de un solo uso, entrega al comensal y validación en mostrador.
+* [**`SPEC_UTILIDAD_MULTIGIRO.md`**](./SPEC_UTILIDAD_MULTIGIRO.md): Módulos multi-giro (WiFi zero-password, pre-orden, rachas de visita) para gimnasios, consultorios y spas.
 
 ---
 
-### 🛡️ 4. Auditoría, Seguridad & Aseguramiento de Calidad (`AUDIT / TEST`)
-* [**`SECURITY_AUDIT.md`**](./SECURITY_AUDIT.md): Evaluación de vulnerabilidades bajo el estándar OWASP API Security Top 10 (2023), análisis de Row Level Security (RLS) y hardening de endpoints públicos.
-* [**`IMPECCABLE_CRITIQUE.md`**](./IMPECCABLE_CRITIQUE.md): Diagnóstico exhaustivo de consistencia visual, diseño de interfaz y usabilidad táctil.
+### 👨‍🍳 Capa 3: Operación en Local (Portal del Suscriptor)
+* [**`SPEC_PORTAL_SUSCRIPTOR.md`**](./SPEC_PORTAL_SUSCRIPTOR.md): Especificación funcional del Portal del Dueño/Gerente (`/portal`), gestión de quejas en Inbox Zero y personalización de enlaces.
+* [**`MASTER_PLAN_PORTAL_SUSCRIPTOR.md`**](./MASTER_PLAN_PORTAL_SUSCRIPTOR.md): Plan de ejecución de fases del portal (Mi Cuenta, Fallback inmediato a Maps y métricas ponderadas).
+* [**`SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md`**](./SPEC_MESA_AYUDA_Y_ANUNCIOS_ADMIN.md): Mesa de ayuda B2B para que los locatarios soliciten soporte o más placas NFC.
 
 ---
 
-### 🗺️ 5. Deuda Técnica, Salud del Código & Roadmap (`ROADMAP / META`)
-* [**`DEUDA_TECNICA.md`**](./DEUDA_TECNICA.md): Inventario formalizado de deuda técnica en 9 dimensiones (Tokens CSS, WebSockets Realtime, Pasarela Stripe, Testing Vitest, Rate Limiting, Recaptura por email, CRM y Billeteras Nativas).
-* [**`ROADMAP.md`**](./ROADMAP.md): Hoja de ruta estratégica de producto con iniciativas futuras (Menú digital interactivo, rol de mesero validador, mapa de calor en tiempo real).
+### 🏛️ Capa 4: Superadministrador Bento Grid (Light Theme) & Negocio
+* [**`TAREAS_UI_SUPERADMIN.md`**](./TAREAS_UI_SUPERADMIN.md): Catálogo de tareas de interfaz Bento Grid Light preaprobadas para Dirección, Ventas, Hardware y Finanzas.
+* [**`SPEC_ARQUITECTURA_FINANCIERA.md`**](./SPEC_ARQUITECTURA_FINANCIERA.md): Modelo financiero de MRR, costos de operación (COGS hardware, servidores, WhatsApp) y cálculo de EBITDA.
+* [**`SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md`**](./SPEC_ESQUEMA_OFERTA_Y_ESCALERA_VALOR.md): Estructura de oferta comercial, kits de placas NFC a $100 MXN y 3 niveles de suscripción de software.
+* [**`SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md`**](./SPEC_GTM_ESTRATEGIA_ADOPCION_3_ETAPAS.md): Estrategia de despliegue Go-To-Market en 3 etapas para conquistar polos gastronómicos.
+* [**`SPEC_RED_PUBLICITARIA.md`**](./SPEC_RED_PUBLICITARIA.md): Red de anuncios patrocinados locales, modelo CPM/CPC y atribución cerrada (closed-loop).
+* [**`SPEC_GESTION_ORGANIZACIONES.md`**](./SPEC_GESTION_ORGANIZACIONES.md): Onboarding y administración multi-sucursal de clientes en el panel general.
 
 ---
 
-## 🔄 ¿Cómo registrar un nuevo documento?
+### 🛡️ Capa 5: Infraestructura Técnica, Seguridad & Deuda Resuelta
+* [**`DEUDA_TECNICA.md`**](./DEUDA_TECNICA.md): Inventario de deuda técnica y nuevas capacidades (19 ítems verificados y resueltos: seguridad RLS, comandas KDS, turnero 4K, delivery corporativo, pasarelas y CRM).
+* [**`SECURITY_AUDIT.md`**](./SECURITY_AUDIT.md): Evaluación de vulnerabilidades OWASP API Security Top 10, políticas RLS de Supabase y prevención de mass-assignment.
+* [**`ROADMAP.md`**](./ROADMAP.md): Hoja de ruta estratégica de producto e iniciativas futuras.
 
-1. Consulta [**`FRAMEWORK_DOCUMENTAL.md`**](./FRAMEWORK_DOCUMENTAL.md) para seleccionar la categoría adecuada.
-2. Agrega el encabezado YAML estandarizado al inicio del archivo.
-3. Añade el nuevo archivo a esta tabla de contenidos en su sección correspondiente.
+---
+
+## 🔄 Reglas de Coordinación y Mantenimiento
+
+1. **Sincronización Continua:** Cualquier cambio que afecte el flujo físico (imprenta/hardware), el portal o el Superadmin debe registrarse primero en el documento de especificación correspondiente antes de programar.
+2. **Coherencia Backend:** Ningún componente front debe mostrar datos que no tengan persistencia o cálculo en Supabase (`schema.sql` y migraciones).
+3. **Control de Versiones:** Los avances se documentan y verifican con pruebas automatizadas (`npm run test`) antes de realizar commits en Git.
