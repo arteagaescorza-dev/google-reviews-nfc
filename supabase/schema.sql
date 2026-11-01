@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
     name TEXT NOT NULL,
     google_review_url TEXT NOT NULL,
     logo_url TEXT,
+    business_type TEXT NOT NULL DEFAULT 'restaurant' CHECK (business_type IN ('restaurant', 'gym', 'dental', 'spa', 'general')),
     tier INT NOT NULL DEFAULT 2 CHECK (tier IN (1, 2, 3, 4)),
     is_ad_free BOOLEAN NOT NULL DEFAULT false,
     brand_color TEXT NOT NULL DEFAULT '#2563eb',

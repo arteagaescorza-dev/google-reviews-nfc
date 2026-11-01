@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { extractTagCodeFromUrl, ensureAbsoluteUrl } from '../lib/utils';
-import type { Restaurant, Tag, Ad } from '../types';
+import type { Restaurant, Tag, Ad, BusinessType } from '../types';
+import { VERTICAL_CONFIG } from '../types';
 import { DirectRedirect } from '../components/client/DirectRedirect';
 import { ReviewRating } from '../components/client/ReviewRating';
 import { FeedbackModal } from '../components/client/FeedbackModal';
@@ -17,6 +18,10 @@ import {
   UtensilsCrossed,
   CheckCircle2,
   Clock,
+  Dumbbell,
+  Stethoscope,
+  Sparkles,
+  Wifi,
 } from 'lucide-react';
 
 export const ResolverPage: React.FC = () => {
@@ -168,48 +173,194 @@ export const ResolverPage: React.FC = () => {
         </div>
       )}
 
-      {/* Botones de Utilidad de Servicio en Mesa (Llamar Mesero / Pedir Cuenta) */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <button
-          type="button"
-          onClick={handleCallWaiter}
-          className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 hover:bg-slate-50/80 text-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-        >
-          <BellRing className="w-4 h-4 text-amber-500" />
-          <span className="text-xs font-bold">Llamar Mesero</span>
-        </button>
+      {/* ACCIONES Y BOTONES ADAPTADOS AL GIRO DEL NEGOCIO (SPEC-MULTI-VERTICAL) */}
+      {(() => {
+        const bType: BusinessType = restaurant?.business_type || 'restaurant';
+        const vConfig = VERTICAL_CONFIG[bType] || VERTICAL_CONFIG.restaurant;
 
-        <button
-          type="button"
-          onClick={handleRequestBill}
-          className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 hover:bg-slate-50/80 text-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-        >
-          <Receipt className="w-4 h-4 text-emerald-600" />
-          <span className="text-xs font-bold">Pedir la Cuenta</span>
-        </button>
-      </div>
+        if (bType === 'restaurant') {
+          return (
+            <>
+              {/* Botones de Restaurante: Llamar Mesero / Pedir Cuenta */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={handleCallWaiter}
+                  className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 hover:bg-slate-50/80 text-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <BellRing className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold">Llamar Mesero</span>
+                </button>
 
-      {/* Botón Principal: Menú & Comanda Digital en Mesa */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => setIsCartModalOpen(true)}
-          className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-extrabold text-xs shadow-md hover:from-orange-700 hover:to-amber-700 transition-all flex items-center justify-between px-4"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-xl bg-white/20">
-              <UtensilsCrossed className="w-4 h-4 text-white" />
+                <button
+                  type="button"
+                  onClick={handleRequestBill}
+                  className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 hover:bg-slate-50/80 text-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                >
+                  <Receipt className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold">Pedir la Cuenta</span>
+                </button>
+              </div>
+
+              {/* Botón de Carta & Pedido a Cocina */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setIsCartModalOpen(true)}
+                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-extrabold text-xs shadow-md hover:from-orange-700 hover:to-amber-700 transition-all flex items-center justify-between px-4"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-xl bg-white/20">
+                      <UtensilsCrossed className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block font-black text-sm">Menú & Pedir en Mesa</span>
+                      <span className="block text-[10px] text-orange-100">Envía tus platillos directo a cocina</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-white text-orange-700 font-black text-[11px] shadow-xs">
+                    Ver Carta &rarr;
+                  </span>
+                </button>
+              </div>
+            </>
+          );
+        }
+
+        if (bType === 'gym') {
+          return (
+            <>
+              {/* Acciones de Gimnasio: Reportar Equipo / Wi-Fi */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    api.createTableCall({
+                      restaurant_id: restaurant?.id || '',
+                      tag_code: tagCode,
+                      table_number: tag?.table_identifier || 'Zona Cardio',
+                      call_type: 'help',
+                    });
+                    setCallToast({ message: '¡Gracias! Reporte de equipo enviado a mantenimiento.', type: 'waiter' });
+                    setTimeout(() => setCallToast(null), 4000);
+                  }}
+                  className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 text-slate-700 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Dumbbell className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs font-bold">Reportar Equipo</span>
+                </button>
+
+                <a
+                  href="#wifi"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCallToast({ message: 'Red Wi-Fi lista: consulta la clave en recepción.', type: 'waiter' });
+                    setTimeout(() => setCallToast(null), 4000);
+                  }}
+                  className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 text-slate-700 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <Wifi className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-bold">Wi-Fi de Socios</span>
+                </a>
+              </div>
+
+              {/* Botón Principal Gimnasio: Rutinas y Horarios */}
+              <div className="mb-4">
+                <div className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md flex items-center justify-between px-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-xl bg-white/20">
+                      <Dumbbell className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block font-black text-sm">{vConfig.catalogTitle}</span>
+                      <span className="block text-[10px] text-blue-100">{vConfig.catalogSubtitle}</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-white text-blue-700 font-black text-[11px]">
+                    Activo ✓
+                  </span>
+                </div>
+              </div>
+            </>
+          );
+        }
+
+        if (bType === 'dental') {
+          return (
+            <>
+              {/* Acciones de Clínica Dental: Recepción / Urgencias */}
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    api.createTableCall({
+                      restaurant_id: restaurant?.id || '',
+                      tag_code: tagCode,
+                      table_number: tag?.table_identifier || 'Gabinete Dental',
+                      call_type: 'waiter',
+                    });
+                    setCallToast({ message: 'Aviso enviado a recepción. Un asistente se acerca.', type: 'waiter' });
+                    setTimeout(() => setCallToast(null), 4000);
+                  }}
+                  className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 text-slate-700 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <BellRing className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold">Asistencia Recepción</span>
+                </button>
+
+                {restaurant?.manager_phone ? (
+                  <a
+                    href={`https://wa.me/${restaurant.manager_phone.replace(/\D/g, '')}?text=${encodeURIComponent('Hola, soy paciente y tengo una consulta urgente sobre mi tratamiento.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-slate-300 text-slate-700 flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Stethoscope className="w-4 h-4 text-rose-500" />
+                    <span className="text-xs font-bold">WhatsApp Urgencias</span>
+                  </a>
+                ) : (
+                  <div className="p-2.5 rounded-2xl bg-white border border-slate-200/80 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5">
+                    <Stethoscope className="w-4 h-4 text-teal-600" />
+                    <span>Urgencias 24/7</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón Principal Dental: Cuidados Post-Consulta */}
+              <div className="mb-4">
+                <div className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-extrabold text-xs shadow-md flex items-center justify-between px-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-xl bg-white/20">
+                      <Stethoscope className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block font-black text-sm">{vConfig.catalogTitle}</span>
+                      <span className="block text-[10px] text-teal-100">{vConfig.catalogSubtitle}</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-white text-teal-800 font-black text-[11px]">
+                    Indicaciones ✓
+                  </span>
+                </div>
+              </div>
+            </>
+          );
+        }
+
+        // Spa o General
+        return (
+          <div className="mb-4 p-3.5 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              <div>
+                <p className="text-xs font-bold">{vConfig.catalogTitle}</p>
+                <p className="text-[10px] text-slate-400">{vConfig.catalogSubtitle}</p>
+              </div>
             </div>
-            <div className="text-left">
-              <span className="block font-black text-sm">Menú & Pedir en Mesa</span>
-              <span className="block text-[10px] text-orange-100">Envía tus platillos directo a cocina</span>
-            </div>
+            <span className="text-xs text-amber-400 font-bold">★ Califícanos</span>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-white text-orange-700 font-black text-[11px] shadow-xs">
-            Ver Carta &rarr;
-          </span>
-        </button>
-      </div>
+        );
+      })()}
 
       <div className="flex-1 flex flex-col items-center pt-1">
         {/* Widget interactivo de calificación con estrellas */}

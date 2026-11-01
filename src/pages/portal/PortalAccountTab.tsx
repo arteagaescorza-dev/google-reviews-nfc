@@ -1315,9 +1315,14 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
               >
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="font-bold text-slate-900 text-xs truncate">
-                      {r.branch_name || r.name}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-bold text-slate-900 text-xs truncate">
+                        {r.branch_name || r.name}
+                      </span>
+                      <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                        {r.business_type === 'gym' ? '🏋️ Gym' : r.business_type === 'dental' ? '🦷 Dental' : r.business_type === 'spa' ? '💆 Spa' : '🍽️ Gastro'}
+                      </span>
+                    </div>
                     <span
                       className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                         r.is_active

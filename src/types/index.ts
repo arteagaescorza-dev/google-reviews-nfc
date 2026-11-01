@@ -1,3 +1,75 @@
+export type BusinessType = 'restaurant' | 'gym' | 'dental' | 'spa' | 'general';
+
+export interface BusinessVerticalConfig {
+  unitLabel: string;
+  unitPlural: string;
+  catalogTitle: string;
+  catalogSubtitle: string;
+  actionPrimary: string;
+  actionSecondary: string;
+  showKds: boolean;
+  showFloorStaff: boolean;
+  feedbackQuestion: string;
+}
+
+export const VERTICAL_CONFIG: Record<BusinessType, BusinessVerticalConfig> = {
+  restaurant: {
+    unitLabel: 'Mesa',
+    unitPlural: 'Mesas',
+    catalogTitle: 'Menú & Pedir en Mesa',
+    catalogSubtitle: 'Envía tus platillos directo a cocina',
+    actionPrimary: 'Llamar Mesero',
+    actionSecondary: 'Pedir la Cuenta',
+    showKds: true,
+    showFloorStaff: true,
+    feedbackQuestion: '¿Cómo estuvo tu experiencia hoy?',
+  },
+  gym: {
+    unitLabel: 'Máquina / Zona',
+    unitPlural: 'Equipos & Zonas',
+    catalogTitle: 'Guías de Rutinas & Clases',
+    catalogSubtitle: 'Videos de técnica y horarios en vivo',
+    actionPrimary: 'Reportar Equipo',
+    actionSecondary: 'Conexión Wi-Fi',
+    showKds: false,
+    showFloorStaff: false,
+    feedbackQuestion: '¿Cómo estuvo tu entrenamiento hoy?',
+  },
+  dental: {
+    unitLabel: 'Gabinete / Consultorio',
+    unitPlural: 'Consultorios',
+    catalogTitle: 'Cuidados Post-Atención',
+    catalogSubtitle: 'Indicaciones médicas y medicamentos',
+    actionPrimary: 'Asistencia en Recepción',
+    actionSecondary: 'WhatsApp Urgencias',
+    showKds: false,
+    showFloorStaff: false,
+    feedbackQuestion: '¿Cómo fue tu atención médica hoy?',
+  },
+  spa: {
+    unitLabel: 'Cabina / Sillón',
+    unitPlural: 'Cabinas',
+    catalogTitle: 'Catálogo de Tratamientos',
+    catalogSubtitle: 'Servicios, masajes y faciales',
+    actionPrimary: 'Llamar Terapeuta',
+    actionSecondary: 'Pagar Servicio',
+    showKds: false,
+    showFloorStaff: false,
+    feedbackQuestion: '¿Cómo te sentiste con tu tratamiento hoy?',
+  },
+  general: {
+    unitLabel: 'Estación / Punto',
+    unitPlural: 'Puntos de Atención',
+    catalogTitle: 'Catálogo de Servicios',
+    catalogSubtitle: 'Promociones y enlaces de contacto',
+    actionPrimary: 'Solicitar Asistencia',
+    actionSecondary: 'Contacto WhatsApp',
+    showKds: false,
+    showFloorStaff: false,
+    feedbackQuestion: '¿Cómo calificarías nuestro servicio hoy?',
+  },
+};
+
 export type TierType = 1 | 2 | 3 | 4;
 
 export type LinkType = 'menu' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp' | 'wifi' | 'website' | 'other';
@@ -33,6 +105,7 @@ export interface Restaurant {
   organization_id?: string | null;
   brand_name: string;
   branch_name: string;
+  business_type?: BusinessType;
   slug: string;
   name: string;
   google_review_url: string;

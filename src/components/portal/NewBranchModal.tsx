@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Organization } from '../../types';
+import type { Organization, BusinessType } from '../../types';
 import { api } from '../../lib/api';
 import {
   Store,
@@ -27,6 +27,7 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
   onSuccess,
 }) => {
   const [branchName, setBranchName] = useState('');
+  const [businessType, setBusinessType] = useState<BusinessType>('restaurant');
   const [address, setAddress] = useState('');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
   const [branchPhone, setBranchPhone] = useState('');
@@ -58,6 +59,7 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
 
       const res = await api.saveRestaurant({
         organization_id: organization.id,
+        business_type: businessType,
         brand_name: organization.name,
         branch_name: branchName.trim(),
         name: `${organization.name} - ${branchName.trim()}`,
@@ -163,6 +165,26 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
                 {errorMessage}
               </div>
             )}
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Giro del Negocio
+              </label>
+              <select
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value as BusinessType)}
+                className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="restaurant">🍽️ Restaurante / Cafetería / Bar</option>
+                <option value="gym">🏋️ Gimnasio / Centro Fitness / Crossfit</option>
+                <option value="dental">🦷 Clínica Dental / Consultorio Médico</option>
+                <option value="spa">💆 Spa / Salón de Belleza / Barbería</option>
+                <option value="general">🏬 Comercio Local / Servicio General</option>
+              </select>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Adapta automáticamente la pantalla del tag NFC y oculta KDS/meseros en negocios no gastronómicos.
+              </p>
+            </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
