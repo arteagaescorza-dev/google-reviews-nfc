@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { extractTagCodeFromUrl } from '../lib/utils';
+import { extractTagCodeFromUrl, ensureAbsoluteUrl } from '../lib/utils';
 import type { Restaurant, Tag, Ad } from '../types';
 import { DirectRedirect } from '../components/client/DirectRedirect';
 import { ReviewRating } from '../components/client/ReviewRating';
@@ -114,7 +114,10 @@ export const ResolverPage: React.FC = () => {
   // Si la sucursal o el tag están pausados o inactivos:
   if (restaurant.is_active === false || tag.is_active === false) {
     if (restaurant.google_review_url) {
-      window.location.replace(restaurant.google_review_url);
+      const safeRedirectUrl = ensureAbsoluteUrl(restaurant.google_review_url);
+      if (safeRedirectUrl && safeRedirectUrl !== '#') {
+        window.location.replace(safeRedirectUrl);
+      }
     }
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">

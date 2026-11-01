@@ -29,10 +29,14 @@ export function normalizeImageUrl(url: string): string {
 
 /**
  * Normaliza y valida una URL asegurando que tenga protocolo http/https
+ * Bloquea esquemas de script maliciosos como javascript:, data: o vbscript:
  */
 export function ensureAbsoluteUrl(url: string): string {
   if (!url) return '';
   const trimmed = url.trim();
+  if (/^(javascript|data|vbscript):/i.test(trimmed)) {
+    return '#';
+  }
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed;
   }

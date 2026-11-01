@@ -165,10 +165,18 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+    IF p_type NOT IN ('impression', 'click') THEN
+        RAISE EXCEPTION 'Tipo de evento publicitario no válido: %', p_type;
+    END IF;
+
     IF p_type = 'impression' THEN
-        UPDATE ads SET impressions_count = impressions_count + 1 WHERE id = p_ad_id;
+        UPDATE ads 
+        SET impressions_count = impressions_count + 1 
+        WHERE id = p_ad_id AND is_active = true;
     ELSIF p_type = 'click' THEN
-        UPDATE ads SET clicks_count = clicks_count + 1 WHERE id = p_ad_id;
+        UPDATE ads 
+        SET clicks_count = clicks_count + 1 
+        WHERE id = p_ad_id AND is_active = true;
     END IF;
 END;
 $$;
@@ -187,7 +195,7 @@ AS $$
     WHERE id = auth.uid() 
     AND (
       email = 'arteagaescorza@gmail.com'
-      OR (raw_user_meta_data->>'role') = 'superadmin'
+      OR (raw_app_meta_data->>'role') = 'superadmin'
     )
   );
 $$;
@@ -318,12 +326,19 @@ WITH CHECK (restaurant_id IN (
     SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
 ));
 
--- 6. Tag Scans: Admin full access
-CREATE POLICY "Admin full access to tag_scans"
+-- 6. Tag Scans: Superadmin acceso total, miembros ven solo los de sus locales
+CREATE POLICY "Superadmin full access to tag_scans"
 ON tag_scans FOR ALL
 TO authenticated
-USING (true)
-WITH CHECK (true);
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members view their restaurant tag_scans"
+ON tag_scans FOR SELECT
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
 
 
 
@@ -366,3 +381,290 @@ WITH CHECK (
     organization_id IN (SELECT get_user_organization_ids())
     AND status = 'pending'
 );
+
+-- ------------------------------------------------------------------------------
+-- ASEGURAR COLUMNAS PARA RED PUBLICITARIA Y GEOLOCALIZACIÓN
+-- ------------------------------------------------------------------------------
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS coordinates JSONB DEFAULT '{"lat": 19.4185, "lng": -99.1625}'::jsonb;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS ad_credit_balance NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS blocked_ad_categories TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS budget_total NUMERIC(10,2) DEFAULT 1000.00;
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS budget_spent NUMERIC(10,2) DEFAULT 0.00;
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS cpc NUMERIC(10,2) DEFAULT 1.50;
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS cpm NUMERIC(10,2) DEFAULT 0.15;
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general';
+ALTER TABLE ads ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
+-- ------------------------------------------------------------------------------
+-- CONTROL DE PROPIEDADES A NIVEL DE COLUMNA (MASS ASSIGNMENT PREVENTION - VULN-002)
+-- Bloquea que un locatario altere tier, is_ad_free o ad_credit_balance sin autorización
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION prevent_unauthorized_restaurant_billing_mutation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Permitir si la acción es ejecutada por el Superadmin
+    IF is_superadmin() THEN
+        RETURN NEW;
+    END IF;
+
+    -- Si no es superadmin, rechazar modificaciones directas a campos de monetización
+    IF (NEW.tier IS DISTINCT FROM OLD.tier) THEN
+        RAISE EXCEPTION 'Acceso denegado: El nivel de suscripción (tier) solo puede modificarse mediante el flujo de pago verificado.';
+    END IF;
+
+    IF (NEW.is_ad_free IS DISTINCT FROM OLD.is_ad_free) THEN
+        RAISE EXCEPTION 'Acceso denegado: El estado libre de anuncios (is_ad_free) requiere suscripción activa.';
+    END IF;
+
+    IF (NEW.ad_credit_balance IS DISTINCT FROM OLD.ad_credit_balance) THEN
+        RAISE EXCEPTION 'Acceso denegado: El saldo de créditos publicitarios no puede ser alterado directamente.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_restaurant_billing ON restaurants;
+CREATE TRIGGER trg_protect_restaurant_billing
+BEFORE UPDATE ON restaurants
+FOR EACH ROW
+EXECUTE FUNCTION prevent_unauthorized_restaurant_billing_mutation();
+
+-- ------------------------------------------------------------------------------
+-- 8. TABLA: COUPONS (PASAPORTE DIGITAL Y CANJE DE PROMOCIONES - FASE 3)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS coupons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ad_id UUID REFERENCES ads(id) ON DELETE SET NULL,
+    restaurant_id UUID REFERENCES restaurants(id) ON DELETE SET NULL,
+    tag_code TEXT,
+    customer_phone TEXT,
+    customer_name TEXT,
+    coupon_code TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    advertiser_name TEXT NOT NULL,
+    discount_description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'redeemed', 'expired')),
+    ticket_amount NUMERIC(10,2) DEFAULT NULL,
+    redeemed_at TIMESTAMPTZ DEFAULT NULL,
+    redeemed_by TEXT DEFAULT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(coupon_code);
+CREATE INDEX IF NOT EXISTS idx_coupons_restaurant ON coupons(restaurant_id);
+
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read active coupons"
+ON coupons FOR SELECT
+TO anon, authenticated
+USING (true);
+
+CREATE POLICY "Public insert generated coupons"
+ON coupons FOR INSERT
+TO anon, authenticated
+WITH CHECK (
+    status = 'active'
+    AND length(coupon_code) >= 6
+);
+
+CREATE POLICY "Superadmin full access to coupons"
+ON coupons FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members redeem their restaurant coupons"
+ON coupons FOR UPDATE
+TO authenticated
+USING (
+    restaurant_id IS NULL OR restaurant_id IN (
+        SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+    )
+)
+WITH CHECK (
+    status IN ('redeemed', 'active')
+);
+
+-- ------------------------------------------------------------------------------
+-- 9. TABLA: MENU_ITEMS (CARTA DIGITAL DE COMANDAS - FASE PRODUCTO)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS menu_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+    category TEXT NOT NULL CHECK (category IN ('entradas', 'principales', 'bebidas', 'postres')),
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    image_url TEXT,
+    is_available BOOLEAN NOT NULL DEFAULT true,
+    preparation_time_mins INT NOT NULL DEFAULT 15,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_menu_items_restaurant ON menu_items(restaurant_id);
+
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read available menu items"
+ON menu_items FOR SELECT
+TO anon, authenticated
+USING (is_available = true);
+
+CREATE POLICY "Superadmin full access to menu_items"
+ON menu_items FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members manage their menu_items"
+ON menu_items FOR ALL
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+))
+WITH CHECK (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
+
+-- ------------------------------------------------------------------------------
+-- 10. TABLA: TABLE_ORDERS (COMANDAS DIGITALES A COCINA / KDS - FASE PRODUCTO)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS table_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+    tag_code TEXT NOT NULL,
+    table_number TEXT NOT NULL,
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
+    total_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'preparing', 'ready', 'delivered', 'cancelled')),
+    customer_name TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_table_orders_restaurant ON table_orders(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_table_orders_status ON table_orders(status);
+
+ALTER TABLE table_orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public insert new orders"
+ON table_orders FOR INSERT
+TO anon, authenticated
+WITH CHECK (
+    status = 'pending'
+    AND length(table_number) >= 1
+    AND total_amount >= 0
+);
+
+CREATE POLICY "Public read orders by id"
+ON table_orders FOR SELECT
+TO anon, authenticated
+USING (true);
+
+CREATE POLICY "Superadmin full access to table_orders"
+ON table_orders FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members view their restaurant orders"
+ON table_orders FOR SELECT
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
+
+CREATE POLICY "Members update their restaurant orders"
+ON table_orders FOR UPDATE
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+))
+WITH CHECK (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
+
+-- ------------------------------------------------------------------------------
+-- 11. TABLA: TABLE_CALLS (LLAMADAS A MESERO Y PEDIDOS DE CUENTA - FASE PRODUCTO)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS table_calls (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+    tag_code TEXT NOT NULL,
+    table_number TEXT NOT NULL,
+    call_type TEXT NOT NULL CHECK (call_type IN ('waiter', 'bill_cash', 'bill_card', 'help')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'attended')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    attended_at TIMESTAMPTZ DEFAULT NULL,
+    attended_by TEXT DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_table_calls_restaurant ON table_calls(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_table_calls_status ON table_calls(status);
+
+ALTER TABLE table_calls ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public insert table calls"
+ON table_calls FOR INSERT
+TO anon, authenticated
+WITH CHECK (
+    status = 'active'
+    AND length(table_number) >= 1
+);
+
+CREATE POLICY "Superadmin full access to table_calls"
+ON table_calls FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members view and attend their table_calls"
+ON table_calls FOR ALL
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+))
+WITH CHECK (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));
+
+-- ------------------------------------------------------------------------------
+-- 12. TABLA: RESTAURANT_STAFF (PERSONAL DE SALA Y COCINA CON PIN - FASE PRODUCTO)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS restaurant_staff (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('waiter', 'kitchen', 'manager')),
+    pin_code TEXT NOT NULL CHECK (length(pin_code) >= 4),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_restaurant_staff_res ON restaurant_staff(restaurant_id);
+
+ALTER TABLE restaurant_staff ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Superadmin full access to restaurant_staff"
+ON restaurant_staff FOR ALL
+TO authenticated
+USING (is_superadmin())
+WITH CHECK (is_superadmin());
+
+CREATE POLICY "Members manage their restaurant_staff"
+ON restaurant_staff FOR ALL
+TO authenticated
+USING (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+))
+WITH CHECK (restaurant_id IN (
+    SELECT id FROM restaurants WHERE organization_id IN (SELECT get_user_organization_ids())
+));

@@ -2063,11 +2063,15 @@ export const api = {
 
   async loginStaffWithPin(restaurantId: string, pin: string): Promise<{ success: boolean; staff?: StaffMember; error?: string }> {
     const staffList = await this.getStaffMembers(restaurantId);
-    const matched = staffList.find((s) => s.is_active && (s.pin_code === pin || pin === '1234'));
+    const isDemo = !isSupabaseConfigured || (typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true');
+    const matched = staffList.find((s) => s.is_active && (s.pin_code === pin || (isDemo && pin === '1234')));
     if (matched) {
       return { success: true, staff: matched };
     }
-    return { success: false, error: 'PIN incorrecto. Prueba con 1234 para demo de mesero.' };
+    return {
+      success: false,
+      error: isDemo ? 'PIN incorrecto. En modo demo puedes usar 1234.' : 'PIN de acceso inválido.',
+    };
   },
 
   async getTerritoryMetrics(): Promise<TerritoryMetric> {
