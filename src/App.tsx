@@ -18,6 +18,8 @@ import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
 import { WebPassportPage } from './pages/WebPassportPage';
 import { RedeemCouponPage } from './pages/RedeemCouponPage';
+import { TurneroPlazaPage } from './pages/TurneroPlazaPage';
+import { ClientHubPage } from './pages/ClientHubPage';
 
 export const App: React.FC = () => {
   return (
@@ -26,6 +28,13 @@ export const App: React.FC = () => {
         {/* Rutas Públicas de Comensal / NFC Tag */}
         <Route path="/" element={<ResolverPage />} />
         <Route path="/t/:tagCode" element={<ResolverPage />} />
+
+        {/* Hub del Comensal PWA, 1-Click Reorder y Autofacturacion (DT-18) */}
+        <Route path="/mi-cuenta" element={<ClientHubPage />} />
+        <Route path="/club" element={<ClientHubPage />} />
+
+        {/* Turnero Maestro de Plaza Publica / Food Court 4K (DT-15) */}
+        <Route path="/turnero-plaza" element={<TurneroPlazaPage />} />
 
         {/* Pasaporte Web PWA para Comensales (SPEC-006) */}
         <Route path="/pasaporte" element={<WebPassportPage />} />

@@ -354,3 +354,132 @@ export interface TerritoryMetric {
   zones: TerritoryZone[];
   hourlyHeatmap: { hour: string; scans: number; peak: boolean }[];
 }
+
+
+// ==========================================
+// Módulos Fase 2: Split Bill & Corte Z
+// ==========================================
+
+export type SplitMode = 'equal' | 'itemized' | 'custom';
+export type TableSessionStatus = 'open' | 'payment_pending' | 'partially_paid' | 'closed';
+
+export interface TableSessionParticipant {
+  guest_token: string;
+  guest_name: string;
+  joined_at: string;
+  paid_amount?: number;
+  payment_method?: 'cash' | 'card' | 'digital';
+}
+
+export interface TableSession {
+  id: string;
+  restaurant_id: string;
+  table_number: number;
+  status: TableSessionStatus;
+  participants: TableSessionParticipant[];
+  split_mode?: SplitMode;
+  total_amount: number;
+  paid_amount: number;
+  opened_at: string;
+  closed_at?: string | null;
+}
+
+export type DailyCashCloseStatus = 'balanced' | 'with_discrepancy' | 'reviewed_by_owner';
+
+export interface DailyCashClose {
+  id: string;
+  restaurant_id: string;
+  shift_date: string;
+  closed_by_staff_id?: string | null;
+  closed_by_name: string;
+  initial_cash_float: number;
+  gross_sales: number;
+  net_sales: number;
+  cash_sales: number;
+  card_sales: number;
+  discounts_total: number;
+  tips_total: number;
+  cash_counted: number;
+  cash_difference: number;
+  discrepancy_reason?: string | null;
+  status: DailyCashCloseStatus;
+  created_at: string;
+}
+
+export type CorporateOrderStatus = 'pending' | 'confirmed' | 'cooking' | 'in_transit' | 'delivered' | 'cancelled' | 'no_show';
+export type CorporatePaymentMethod = 'cash' | 'card' | 'digital';
+
+export interface CorporateOrder {
+  id: string;
+  restaurant_id: string;
+  folio: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string | null;
+  delivery_mode: 'pickup' | 'office_delivery';
+  building_name?: string | null;
+  floor_office?: string | null;
+  delivery_instructions?: string | null;
+  handshake_pin: string;
+  payment_method: CorporatePaymentMethod;
+  cash_change_for?: number | null;
+  items: OrderItem[];
+  total_amount: number;
+  status: CorporateOrderStatus;
+  verified_at?: string | null;
+  created_at: string;
+}
+
+// ==========================================
+// Módulos Fase 4: Portal Comensal, CFDI & Cashback
+// ==========================================
+
+export type TaxRegimeCFDI40 =
+  | '601' // General de Ley Personas Morales
+  | '605' // Sueldos y Salarios
+  | '606' // Arrendamiento
+  | '612' // Personas Físicas con Actividades Empresariales y Profesionales
+  | '621' // Incorporación Fiscal
+  | '626'; // Régimen Simplificado de Confianza (RESICO)
+
+export type UseCFDI40 =
+  | 'G01' // Adquisición de mercancías
+  | 'G03' // Gastos en general
+  | 'S01' // Sin efectos fiscales
+  | 'CP01'; // Pagos
+
+export interface TaxProfileCFDI40 {
+  rfc: string;
+  legal_name: string;
+  zip_code: string;
+  tax_regime: TaxRegimeCFDI40;
+  use_cfdi: UseCFDI40;
+  email: string;
+}
+
+export interface CashbackTransaction {
+  id: string;
+  amount: number;
+  type: 'earned' | 'redeemed';
+  order_folio?: string;
+  restaurant_name: string;
+  created_at: string;
+}
+
+export interface CashbackAccount {
+  phone: string;
+  balance: number;
+  total_earned: number;
+  vip_level: 'bronce' | 'plata' | 'oro' | 'diamante';
+  transactions: CashbackTransaction[];
+}
+
+export interface FoodieFavorite {
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  item_name: string;
+  price: number;
+  order_count: number;
+  last_ordered_at: string;
+}

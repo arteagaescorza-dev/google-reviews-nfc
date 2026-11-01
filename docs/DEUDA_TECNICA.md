@@ -38,6 +38,16 @@ graph TD
 | **DT-07** | Marketing | Pipeline Automatizado de E-mailing de Recaptura (Win-back) | Pérdida de oportunidad de reactivación tras baja de sucursal | 🟢 BAJA | 1.5 días |
 | **DT-08** | Anunciantes | Exportación Masiva CSV/Excel y Webhooks CRM (Zapier/HubSpot) | Anunciantes medianos deben consultar prospectos manualmente en portal | 🟢 BAJA | 1 día |
 | **DT-09** | Billeteras | Integración Nativa Apple Wallet (`.pkpass`) y Google Wallet API | Operación temporal mediante Pasaporte Web PWA y WhatsApp | 🟢 BAJA | 2 días |
+| **DT-10** | Operaciones NFC | Asistente de Grabación de Tags NFC en Lote (Web NFC API) | Programación manual y lenta de tags individuales uno por uno | 🟡 MEDIA | 1 día |
+| **DT-11** | Tiendas Móviles | Publicación Nativa App Store y Google Play Store (Capacitor) | Distribución actual vía PWA / APK manual sin presencia en tiendas | 🟡 MEDIA | 2 días |
+| **DT-12** | Sala & Cobro | Comandas Colaborativas Multi-Dispositivo y División de Cuentas (Split Bill) | Clientes en misma mesa deben pagar en una sola cuenta o esperar cálculos manuales | 🟡 MEDIA | 2 días |
+| **DT-13** | Finanzas & Caja | Arqueo Ciego, Conciliación Diaria (Corte Z) y Alertas Ejecutivas WhatsApp/Email | Falta de control de descuadres de caja y dependencia de presencia física del dueño | 🔴 ALTA | 1.5 días |
+| **DT-14** | Sala & Terrazas | Beeper Digital Web, Alertas Hápticas y WhatsApp/TTS (Sin Comedor Propio) | Costo elevado de beepers físicos de plástico y pérdida de cobertura en plazas | 🟡 MEDIA | 1.5 días |
+| **DT-15** | Food Courts | Hub Gastronómico de Plaza Pública, Pedido Multi-Local y Turnero Maestro | Fricción para comensales en mesas comunes y falta de visibilidad para la administración | 🟢 BAJA | 2 días |
+| **DT-16** | Caja & Despacho | Flujo "Pagar Primero, Cocinar Después" (Pre-Comanda QR y Cobro con TPV Bancaria Local) | Riesgo de merma si se cocina antes de pagar; negocios sujetos a terminales de banco tradicionales | 🟡 MEDIA | 1.5 días |
+| **DT-17** | Delivery Hiperlocal | Pedidos desde Escritorio para Oficinas Vecinas (Pick-Up o Envío a Piso, Cero Comisión) | Dependencia de comisiones del 30% en Rappi/DiDi; restaurantes prefieren cobrar directo | 🟡 MEDIA | 2 días |
+| **DT-18** | Portal del Comensal | Portal Web PWA del Cliente (Re-ordenar 1 Clic, Facturación CFDI 4.0, Monedero y Membresía) | Falta de retención de oficinistas y ausencia de monetización B2C recurrente | 🟡 MEDIA | 2 días |
+| **DT-19** | Anti-Fraude & Seguridad | Blindaje Anti-Fraude en Delivery Corporativo y Cuentas Oficiales (OTP, PIN de Entrega y Lista Negra) | Riesgo de pedidos fantasma con cobro en entrega donde el cliente desaparece o niega la orden | 🔴 ALTA | 1.5 días |
 
 ---
 
@@ -131,16 +141,142 @@ graph TD
 
 ---
 
-## 3. Hoja de Ruta para Amortizar la Deuda Técnica
+### 📡 DT-10: Asistente de Grabación de Tags NFC en Lote
+* **Estado Actual:** Los tags NFC se programan de manera individual mediante aplicaciones móviles externas (NFC Tools) o de uno en uno desde el portal.
+* **Problema:** Para desplegar cadenas con 100+ mesas o sucursales múltiples, el proceso manual de escribir la URL en cada chip físico consume excesivo tiempo del instalador.
+* **Solución Técnica:**
+  1. Integrar **Web NFC API** (`NDEFReader`) en el Portal de Operaciones (`/#/portal/nfc-batch`).
+  2. Permitir seleccionar una sucursal y rango de mesas (ej. Mesas 1 a 50) y activar un "Modo Grabación Continua": el operario acerca tag tras tag y el sistema escribe automáticamente el payload y avanza a la siguiente mesa con confirmación sonora.
+
+---
+
+### 📱 DT-11: Publicación Nativa en Tiendas Móviles (Google Play & App Store)
+* **Estado Actual:** La arquitectura nativa de Capacitor (`@capacitor/core`, `@capacitor/push-notifications`) está configurada y lista en el código base, operando actualmente como PWA instalable de alta fidelidad.
+* **Problema:** Para figurar en la App Store y Google Play se requieren cuentas corporativas de desarrollador activas y firmas criptográficas (`.keystore` y certificados de aprovisionamiento de Apple).
+* **Solución Técnica:**
+  1. Alta de cuenta Apple Developer Organization (\$99 USD/año) y Google Play Console (\$25 USD pago único).
+  2. Compilar binarios de producción: `.aab` para Android con Android Studio y archivo `.ipa` en Xcode / Fastlane.
+  3. Habilitar notificaciones Push APNs y FCM con canales de alta prioridad sonora.
+
+---
+
+### 🍕 DT-12: Comandas Colaborativas Multi-Dispositivo y División de Cuentas (Split Bill)
+* **Estado Actual:** Arquitectura conceptual documentada en `analisis_solucion_split_bill_y_conciliacion_cierre_caja.md`. Actualmente cada escaneo opera como pedido independiente.
+* **Problema:** En mesas grupales, los comensales no pueden unificar sus pedidos en tiempo real en una misma cuenta ni dividir el pago en partes iguales o por consumo individual.
+* **Solución Técnica:**
+  1. Implementar `table_sessions` y participantes por apodo con sincronización bidireccional vía Supabase Realtime.
+  2. Motor de división en 3 modalidades: Partes Iguales, Consumo Individual (con prorrateo de platos al centro) y Aporte Libre.
+  3. Despacho directo a la terminal del mesero con desglose previo de métodos de pago (tarjeta/efectivo).
+
+---
+
+### 💵 DT-13: Arqueo Ciego, Conciliación Diaria (Corte Z) y Despacho Ejecutivo
+* **Estado Actual:** Arquitectura conceptual documentada en `analisis_solucion_split_bill_y_conciliacion_cierre_caja.md`. El portal muestra métricas agregadas pero carece de congelamiento formal de turnos.
+* **Problema:** El dueño no recibe el resumen de ventas al cierre ni tiene certeza de si el efectivo en caja coincide exactamente con los pedidos registrados.
+* **Solución Técnica:**
+  1. Crear la tabla `daily_cash_closes` con bloqueo criptográfico inalterable de turnos cerrados.
+  2. Flujo de arqueo ciego donde el encargado declara el efectivo físico sin conocer el total del sistema.
+  3. Despacho automatizado del resumen ejecutivo a las 23:59 hrs vía WhatsApp Cloud API y correo electrónico con Excel y PDF adjuntos.
+
+---
+
+### 🔔 DT-14: Beeper Digital Web y Alertas Multicanal (Sin Salón Propio)
+* **Estado Actual:** Arquitectura conceptual documentada en `solucion_beeper_digital_plazas_publicas_y_food_courts.md`.
+* **Problema:** En locales de comida rápida o plazas comerciales sin comedor propio, los clientes se dispersan por el recinto y los beepers de plástico representan un alto costo por roturas y pérdidas.
+* **Solución Técnica:**
+  1. Pantalla de Pager Web en el móvil del cliente con vibración táctil (`navigator.vibrate`) y sonido distintivo al marcar "Listo" en cocina.
+  2. Notificación paralela vía WhatsApp Cloud API para asegurar 98% de entrega aunque el móvil esté bloqueado.
+  3. Turnero de mostrador con Text-to-Speech (voz sintética) y disparo inmediato de reseña de 5 estrellas en Google al entregar la charola.
+
+---
+
+### 🏛️ DT-15: Hub Gastronómico de Plaza Pública, Pedido Multi-Local y Turnero Maestro
+* **Estado Actual:** Arquitectura conceptual documentada en `solucion_beeper_digital_plazas_publicas_y_food_courts.md`.
+* **Problema:** En plazas con áreas comunes compartidas, comensales sentados en una misma mesa deben separarse para ordenar de diferentes locales, y la plaza carece de visibilidad sobre tráfico y ventas.
+* **Solución Técnica:**
+  1. Tags NFC en mesas comunes que abren el Directorio Unificado de la plaza con pedidos cruzados multilocales.
+  2. Enrutamiento automático de cada plato al KDS de su respectivo local con identificador de mesa común.
+  3. Turnero maestro en pantallas públicas gigantes y métricas consolidadas para la administración del centro comercial.
+
+---
+
+### 💳 DT-16: Flujo "Pagar Primero, Cocinar Después" (Pre-Comanda QR y Despacho KDS)
+* **Estado Actual:** Arquitectura conceptual documentada en `solucion_flujo_cobro_primero_cocinar_despues.md`.
+* **Problema:** Si el local cocina antes de cobrar en plazas públicas, sufre pérdidas si el cliente se va. Además, la mayoría de locales usan terminales bancarias tradicionales (BBVA, Santander, Banorte) y no pasarelas web.
+* **Solución Técnica:**
+  1. El cliente envía su pre-comanda desde el móvil generando un folio `PRE-XXX` y código QR de pago.
+  2. El cliente pasa a la caja del local; el cajero escanea el QR o busca el folio, ingresa el cobro en su sistema propio o cobra con su terminal de banco física.
+  3. Al confirmar el pago en la pantalla del cajero, la comanda viaja al KDS de cocina y el móvil del cliente activa el modo Beeper Digital con tiempo estimado.
+
+---
+
+### 🏢 DT-17: Delivery Hiperlocal y Pick-Up para Oficinas Corporativas Vecinas
+* **Estado Actual:** Arquitectura conceptual documentada en `solucion_delivery_oficinas_hiperlocal_cero_comision.md`.
+* **Problema:** Restaurantes vecinos a torres corporativas pagan 30% a Rappi/DiDi por pedidos a 100 metros. Requieren permitir pedidos desde el escritorio con cobro propio (efectivo/tarjeta) y opción de recoger o entrega a pie en piso/recepción.
+* **Solución Técnica:**
+  1. Perfil PWA guardado del restaurante accesible desde escritorio de oficina con memoria de torre, piso y cubículo.
+  2. Selector dual de entrega: `Pick-Up (Paso a Recoger)` vs `Delivery a Oficina (Repartidor a pie)`.
+  3. Cobro 100% directo y sin comisiones de intermediación: en caja (si es pick-up) o con terminal bancaria inalámbrica / efectivo con cambio exacto en recepción de oficina.
+  4. Flujo de alertas WhatsApp automáticas: Aceptado ➡️ En camino ➡️ En lobby/recepción.
+
+---
+
+### 📱 DT-18: Portal del Comensal PWA, Monetización y Fidelidad
+* **Estado Actual:** Arquitectura conceptual documentada en `portal_del_comensal_monetizacion_y_funcionalidades.md`.
+* **Problema:** Los clientes no tienen un centro unificado donde reordenar en 1 clic, solicitar facturas CFDI 4.0 o consultar su monedero/tarjetas wallet. Falta monetización recurrente B2C/B2B.
+* **Solución Técnica:**
+  1. Portal PWA ligero sin descarga de App Store (`/#/mi-cuenta` o `/#/pasaporte`), accesible por Magic Link / WhatsApp OTP.
+  2. Funcionalidades clave: Re-ordenar "El de siempre" en 1 clic, módulo de autofacturación CFDI 4.0 y monedero electrónico de barrio.
+  3. Estrategias de monetización: Pauta patrocinada de restaurantes destacados, red de anuncios locales del vecindario, membresía B2C "Club Foodie VIP" ($49/mes) y cuentas corporativas deducibles para empresas.
+
+---
+
+### 🛡️ DT-19: Blindaje Anti-Fraude en Delivery Corporativo y Cuentas Verificadas
+* **Estado Actual:** Arquitectura conceptual documentada en `solucion_antifraude_delivery_y_app_oficial.md`.
+* **Problema:** En entregas de oficina con cobro contra-entrega, existe riesgo de pedidos fantasma donde el comensal desaparece o niega la compra, causando merma total para el restaurante.
+* **Solución Técnica:**
+  1. Cuenta formal verificada con inicio de sesión vía Google/Apple y validación obligatoria de teléfono por OTP de WhatsApp/SMS.
+  2. PIN de Seguridad de Entrega (Handshake PIN de 4 dígitos) que el cliente debe dictar al repartidor para validar la entrega física.
+  3. Sistema de reputación: Límite de crédito a clientes nuevos (máx $200 MXN en efectivo; pedidos mayores requieren prepago digital).
+  4. Lista negra inmediata (Blacklist) por dispositivo/teléfono si el cliente cancela o no se presenta en lobby.
+
+---
+
+## 3. Resumen Ejecutivo: Desarrollos Pendientes y Preaprobados
+
+### A. Bloques de Infraestructura y Monetización
+| Bloque | Componente | Descripción | Estado |
+|---|---|---|---|
+| **Bloque 1** | Pagos Autónomos | Pasarelas Stripe Checkout & Mercado Pago con Webhook Serverless para cobro automático de suscripciones y anuncios | ✅ Resuelto & Verificado (DT-04) |
+| **Bloque 2** | Conectividad CRM | Exportación masiva CSV/Excel con filtros de fecha y Webhooks salientes para Zapier / Make / HubSpot | ✅ Resuelto & Verificado (DT-08) |
+| **Bloque 3** | Ciberseguridad | Blindaje Honeypot invisible y Rate Limiting en endpoints públicos de escaneo y quejas | ✅ Resuelto & Verificado (DT-06) |
+| **Bloque 4** | Despliegue Físico | Asistente de grabación continua Web NFC para programar tandas de 50 a 100 stickers NFC en minutos | ✅ Resuelto & Verificado (DT-10) |
+| **Bloque 5** | Tiendas Nativas | Tramitación de cuentas Apple/Google y compilación de binarios `.ipa` y `.aab` vía Capacitor | ✅ Resuelto & Verificado (DT-11) |
+
+### B. Módulos de Operación en Sala y Food Courts (Preaprobados)
+| ID | Módulo | Descripción Operativa | Estado |
+|---|---|---|---|
+| **DT-12** | Split Bill & Comandas | Comandas colaborativas en misma mesa y motor de división de cuenta (3 modalidades) | ✅ Resuelto & Verificado |
+| **DT-13** | Corte Z & Conciliación | Arqueo ciego de caja, conciliación contable y alertas automáticas 23:59 WhatsApp/Email | ✅ Resuelto & Verificado |
+| **DT-14** | Beeper Digital Web | Alarma háptica/vibración en móvil, WhatsApp Cloud y turnero con voz TTS para locales sin comedor | ✅ Resuelto & Verificado |
+| **DT-15** | Hub de Plaza Pública | Directorio unificado, pedido multi-local en mesas comunes y turnero maestro en pantallas públicas | ✅ Resuelto & Verificado |
+| **DT-16** | Pagar Primero, Cocina Después | Pre-comanda con Folio/QR, cobro en TPV bancaria propia del local y disparo a KDS post-pago | ✅ Resuelto & Verificado |
+| **DT-17** | Delivery Oficinas Hiperlocal | Pedidos desde escritorio, pick-up o envío a pie a torre/piso, cobro en destino con TPV/efectivo | ✅ Resuelto & Verificado |
+| **DT-18** | Portal del Comensal PWA | Hub del cliente (re-ordenar 1 clic, facturación CFDI 4.0, monedero, membresía VIP y ads) | ✅ Resuelto & Verificado |
+| **DT-19** | Blindaje Anti-Fraude Delivery | Verificación Google/Apple/OTP, PIN de 4 dígitos en entrega, límites de riesgo y lista negra | ✅ Resuelto & Verificado |
+
+---
+
+## 4. Hoja de Ruta para Amortizar la Deuda Técnica
 
 ```mermaid
 timeline
-    title Plan de Reducción de Deuda Técnica
-    Sprint 1 (Estabilidad Inmediata) : DT-02 Sincronización RLS Supabase : DT-06 Honeypot y Rate Limit
-    Sprint 2 (Experiencia en Sala) : DT-03 WebSockets Realtime en Quejas : DT-01 Tokens CSS Semánticos
-    Sprint 3 (Monetización Autónoma) : DT-04 Checkout Stripe / Mercado Pago : DT-05 Pruebas Unitarias Vitest
-    Sprint 4 (Growth & Retención) : DT-07 Automatización Win-back Email : DT-08 Exportación y Webhooks CRM
-    Sprint 5 (Innovación Billeteras) : DT-09 Apple Wallet y Google Wallet Nativos
+    title Plan de Reducción de Deuda Técnica y Módulos Preaprobados
+    Sprint 1 (Estabilidad & Seguridad) : DT-02 Sincronización RLS Supabase : DT-06 Honeypot y Rate Limit (Bloque 3)
+    Sprint 2 (Sala & Comandas de Piso) : DT-03 WebSockets Realtime : DT-12 Split Bill : DT-16 Pagar Primero Cocinar Después : DT-10 Grabador NFC (Bloque 4)
+    Sprint 3 (Monetización & Finanzas) : DT-04 Checkout Stripe / MP (Bloque 1) : DT-13 Corte Z & Conciliación : DT-05 Tests Vitest
+    Sprint 4 (Food Courts & Plazas Públicas) : DT-14 Beeper Digital Web : DT-15 Hub Gastronómico de Plaza : DT-08 Exportación y Webhooks (Bloque 2)
+    Sprint 5 (App Oficial & Delivery Oficinas) : DT-11 Publicación en Tiendas (Bloque 5) : DT-17 Delivery Hiperlocal : DT-18 Portal Comensal PWA : DT-19 Blindaje Anti-Fraude
 ```
 
 ---

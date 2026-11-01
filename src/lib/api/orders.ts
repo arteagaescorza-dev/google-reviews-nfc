@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { MenuItem, TableOrder, TableOrderStatus, TableCall, StaffMember } from '../../types';
+import type { MenuItem, TableOrder, TableOrderStatus, TableCall, StaffMember, TableSession, DailyCashClose, CorporateOrder } from '../../types';
 import { STORAGE_KEYS, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
 export const ordersApi = {
@@ -569,5 +569,219 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
     const updated = current.filter((s) => s.id !== id);
     setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
     return { success: true };
+  },
+
+  // ==========================================
+  // MÓDULO DT-12: COMANDAS COLABORATIVAS & SPLIT BILL
+  // ==========================================
+  async getTableSession(restaurantId: string, tableNumber: number): Promise<TableSession | null> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('table_sessions')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .eq('table_number', tableNumber)
+          .neq('status', 'closed')
+          .order('opened_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!error && data) return data as TableSession;
+      } catch (err: any) {
+        console.warn('Error obteniendo table_session de Supabase:', err.message);
+      }
+    }
+
+    const sessions = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, []);
+    return sessions.find(
+      (s) => s.restaurant_id === restaurantId && s.table_number === tableNumber && s.status !== 'closed'
+    ) || null;
+  },
+
+  async joinOrCreateTableSession(
+    restaurantId: string,
+    tableNumber: number,
+    guestName: string,
+    guestToken?: string
+  ): Promise<TableSession> {
+    const token = guestToken || 'guest-' + Date.now();
+    const existing = await ordersApi.getTableSession(restaurantId, tableNumber);
+
+    if (existing) {
+      const alreadyJoined = existing.participants.some((p) => p.guest_token === token);
+      if (!alreadyJoined) {
+        const updatedParticipants = [
+          ...existing.participants,
+          { guest_token: token, guest_name: guestName, joined_at: new Date().toISOString() },
+        ];
+        return ordersApi.updateTableSession(existing.id, { participants: updatedParticipants });
+      }
+      return existing;
+    }
+
+    // Crear nueva sesión de mesa
+    const newSession: TableSession = {
+      id: 'sess-' + Date.now(),
+      restaurant_id: restaurantId,
+      table_number: tableNumber,
+      status: 'open',
+      participants: [
+        { guest_token: token, guest_name: guestName, joined_at: new Date().toISOString() },
+      ],
+      total_amount: 0,
+      paid_amount: 0,
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+    };
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('table_sessions')
+          .insert([sanitizeSupabasePayload(newSession)])
+          .select()
+          .single();
+
+        if (!error && data) return data as TableSession;
+      } catch (err: any) {
+        console.warn('Error creando table_session en Supabase:', err.message);
+      }
+    }
+
+    const current = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, []);
+    setLocalItem(STORAGE_KEYS.TABLE_SESSIONS, [newSession, ...current]);
+    return newSession;
+  },
+
+  async updateTableSession(id: string, updates: Partial<TableSession>): Promise<TableSession> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !id.startsWith('sess-')) {
+      try {
+        const { data, error } = await supabase
+          .from('table_sessions')
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (!error && data) return data as TableSession;
+      } catch (err: any) {
+        console.warn('Error actualizando table_session en Supabase:', err.message);
+      }
+    }
+
+    const current = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, []);
+    const updated = current.map((s) => (s.id === id ? { ...s, ...updates } : s));
+    setLocalItem(STORAGE_KEYS.TABLE_SESSIONS, updated);
+    return updated.find((s) => s.id === id)!;
+  },
+
+  // ==========================================
+  // MÓDULO DT-13: CORTES DE CAJA Y ARQUEO Z
+  // ==========================================
+  async getDailyCashCloses(restaurantId: string): Promise<DailyCashClose[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('daily_cash_closes')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('shift_date', { ascending: false });
+
+        if (!error && data) return data as DailyCashClose[];
+      } catch (err: any) {
+        console.warn('Error obteniendo daily_cash_closes de Supabase:', err.message);
+      }
+    }
+
+    const closes = getLocalItem<DailyCashClose[]>(STORAGE_KEYS.DAILY_CASH_CLOSES, []);
+    return closes.filter((c) => c.restaurant_id === restaurantId);
+  },
+
+  async submitDailyCashClose(
+    closeData: Omit<DailyCashClose, 'id' | 'created_at'>
+  ): Promise<{ success: boolean; data?: DailyCashClose; error?: string }> {
+    const newClose: DailyCashClose = {
+      ...closeData,
+      id: 'close-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('daily_cash_closes')
+          .insert([sanitizeSupabasePayload(newClose)])
+          .select()
+          .single();
+
+        if (!error && data) return { success: true, data: data as DailyCashClose };
+        if (error) throw error;
+      } catch (err: any) {
+        console.warn('Error guardando daily_cash_close en Supabase:', err.message);
+      }
+    }
+
+    const current = getLocalItem<DailyCashClose[]>(STORAGE_KEYS.DAILY_CASH_CLOSES, []);
+    setLocalItem(STORAGE_KEYS.DAILY_CASH_CLOSES, [newClose, ...current]);
+    return { success: true, data: newClose };
+  },
+
+  // ==========================================
+  // MÓDULO DT-17 & DT-19: PEDIDOS CORPORATIVOS
+  // ==========================================
+  async getCorporateOrders(restaurantId: string): Promise<CorporateOrder[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('corporate_orders')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) return data as CorporateOrder[];
+      } catch (err: any) {
+        console.warn('Error obteniendo corporate_orders de Supabase:', err.message);
+      }
+    }
+
+    const orders = getLocalItem<CorporateOrder[]>(STORAGE_KEYS.CORPORATE_ORDERS, []);
+    return orders.filter((o) => o.restaurant_id === restaurantId);
+  },
+
+  async createCorporateOrder(
+    orderData: Omit<CorporateOrder, 'id' | 'created_at'>
+  ): Promise<{ success: boolean; data?: CorporateOrder; error?: string }> {
+    const newOrder: CorporateOrder = {
+      ...orderData,
+      id: 'corp-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('corporate_orders')
+          .insert([sanitizeSupabasePayload(newOrder)])
+          .select()
+          .single();
+
+        if (!error && data) return { success: true, data: data as CorporateOrder };
+        if (error) throw error;
+      } catch (err: any) {
+        console.warn('Error guardando corporate_order en Supabase:', err.message);
+      }
+    }
+
+    const current = getLocalItem<CorporateOrder[]>(STORAGE_KEYS.CORPORATE_ORDERS, []);
+    setLocalItem(STORAGE_KEYS.CORPORATE_ORDERS, [newOrder, ...current]);
+    return { success: true, data: newOrder };
   }
 };

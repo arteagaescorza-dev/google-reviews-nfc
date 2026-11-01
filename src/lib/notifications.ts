@@ -178,6 +178,7 @@ export function setupRealtimeAlerts(
         (payload) => {
           const fb = payload.new;
           if (fb && fb.rating <= 3) {
+            playAlertSound('warning');
             sendLocalNotification(
               `🚨 Queja en Mesa (★ ${fb.rating})`,
               `Comensal en mesa reporta: "${fb.comments?.slice(0, 70)}..." Atiéndelo de inmediato.`,
@@ -193,6 +194,7 @@ export function setupRealtimeAlerts(
         (payload) => {
           const call = payload.new;
           if (call && call.status === 'active') {
+            playAlertSound('chime');
             const callTypeLabel = call.call_type === 'waiter' ? 'solicita mesero' : 'pide la cuenta';
             sendLocalNotification(
               `🔔 Llamada de Servicio: ${call.table_number}`,

@@ -6,7 +6,17 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
+    hostname: 'app.googleresenas.com',
     cleartext: false,
+  },
+  android: {
+    buildOptions: {
+      keystorePath: 'release-key.keystore',
+      keystoreAlias: 'google-resenas-key',
+    },
+  },
+  ios: {
+    scheme: 'GoogleResenasPortal',
   },
   plugins: {
     PushNotifications: {

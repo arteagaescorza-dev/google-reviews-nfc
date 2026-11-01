@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   ShieldCheck,
   RefreshCw,
+  Download,
 } from 'lucide-react';
+import { downloadLeadsCsv } from '../lib/export';
 
 export const AdminAdsPage: React.FC = () => {
   const [ads, setAds] = useState<Ad[]>([]);
@@ -28,6 +30,15 @@ export const AdminAdsPage: React.FC = () => {
     setAds(adList);
     setRestaurants(resList);
     setLoading(false);
+  };
+
+  const handleExportLeads = async () => {
+    try {
+      const coupons = await api.getCoupons();
+      downloadLeadsCsv(coupons, 'leads-anunciantes-red.csv');
+    } catch (e) {
+      console.error('Error exportando leads:', e);
+    }
   };
 
   useEffect(() => {
@@ -87,6 +98,14 @@ export const AdminAdsPage: React.FC = () => {
             title="Refrescar métricas"
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleExportLeads}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+            title="Descargar prospectos capturados en CSV compatible con Excel"
+          >
+            <Download className="w-4 h-4 text-purple-600" />
+            <span className="hidden sm:inline">Exportar Leads CSV</span>
           </button>
           <button
             onClick={handleCreateNew}

@@ -15,6 +15,7 @@ import {
   MapPin,
   Download,
   ExternalLink,
+  User,
 } from 'lucide-react';
 
 export const WebPassportPage: React.FC = () => {
@@ -78,15 +79,26 @@ export const WebPassportPage: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowPwaTip(!showPwaTip)}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-700 transition-colors"
-            title="Guardar en Pantalla de Inicio"
-          >
-            <Smartphone className="w-4 h-4 text-amber-400" />
-            <span className="hidden sm:inline">Guardar App</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/mi-cuenta"
+              className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center gap-1.5 border border-amber-500/30 transition-colors"
+              title="Mi Cuenta y Monedero"
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Mi Cuenta</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setShowPwaTip(!showPwaTip)}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-700 transition-colors"
+              title="Guardar en Pantalla de Inicio"
+            >
+              <Smartphone className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">Guardar App</span>
+            </button>
+          </div>
         </div>
 
         {/* Tip de instalación en pantalla de inicio */}
