@@ -12,6 +12,12 @@ import type {
   TierType,
   OrganizationManager,
   StoreManagerRole,
+  RestaurantTable,
+  RestaurantTableStatus,
+  StaffShift,
+  ManagerRetentionCoupon,
+  ManagerShiftReport,
+  KitchenStation,
 } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
@@ -121,6 +127,14 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [organizationManagers, setOrganizationManagers] = useState<OrganizationManager[]>([]);
+  const [restaurantTables, setRestaurantTables] = useState<RestaurantTable[]>([]);
+  const [staffShifts, setStaffShifts] = useState<StaffShift[]>([]);
+  const [managerCoupons, setManagerCoupons] = useState<ManagerRetentionCoupon[]>([]);
+  const [managerShiftReports, setManagerShiftReports] = useState<ManagerShiftReport[]>([]);
+  const [newMgrNameByOrg, setNewMgrNameByOrg] = useState<Record<string, string>>({});
+  const [newMgrEmailByOrg, setNewMgrEmailByOrg] = useState<Record<string, string>>({});
+  const [newMgrPinByOrg, setNewMgrPinByOrg] = useState<Record<string, string>>({});
+  const [newMgrRoleByOrg, setNewMgrRoleByOrg] = useState<Record<string, StoreManagerRole>>({});
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -175,17 +189,33 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [resList, orgList, brandList, verticalList, tagList, staffList, fbList, mgrList] =
-      await Promise.all([
-        api.getRestaurants(),
-        api.getOrganizations(),
-        api.getOrganizationBrands(),
-        api.getBusinessVerticals(),
-        api.getTags(),
-        api.getStaffMembers(),
-        api.getFeedbacks(),
-        api.getOrganizationManagers(),
-      ]);
+    const [
+      resList,
+      orgList,
+      brandList,
+      verticalList,
+      tagList,
+      staffList,
+      fbList,
+      mgrList,
+      tablesList,
+      shiftsList,
+      couponsList,
+      reportsList,
+    ] = await Promise.all([
+      api.getRestaurants(),
+      api.getOrganizations(),
+      api.getOrganizationBrands(),
+      api.getBusinessVerticals(),
+      api.getTags(),
+      api.getStaffMembers(),
+      api.getFeedbacks(),
+      api.getOrganizationManagers(),
+      api.getRestaurantTables(),
+      api.getStaffShifts(),
+      api.getManagerRetentionCoupons(),
+      api.getManagerShiftReports(),
+    ]);
     setRestaurants(resList);
     setOrganizations(orgList);
     setOrganizationBrands(brandList);
@@ -194,6 +224,10 @@ export const AdminRestaurantsPage: React.FC = () => {
     setStaffMembers(staffList);
     setFeedbacks(fbList);
     setOrganizationManagers(mgrList);
+    setRestaurantTables(tablesList);
+    setStaffShifts(shiftsList);
+    setManagerCoupons(couponsList);
+    setManagerShiftReports(reportsList);
     setLoading(false);
   };
 
@@ -414,6 +448,38 @@ export const AdminRestaurantsPage: React.FC = () => {
     await api.updateStaffMember(staff.id, { role: newRole });
   };
 
+  const handleToggleStaffStation = async (staff: StaffMember, station: KitchenStation) => {
+    const currentStations: KitchenStation[] =
+      staff.allowed_stations && staff.allowed_stations.length > 0
+        ? staff.allowed_stations
+        : staff.role === 'barista'
+        ? ['barista']
+        : ['cocina'];
+    const exists = currentStations.includes(station);
+    const nextStations: KitchenStation[] = exists
+      ? currentStations.filter((st) => st !== station)
+      : [...currentStations, station];
+    const safeStations: KitchenStation[] = nextStations.length > 0 ? nextStations : ['cocina'];
+
+    setStaffMembers((prev) =>
+      prev.map((s) => (s.id === staff.id ? { ...s, allowed_stations: safeStations } : s))
+    );
+    await api.updateStaffMember(staff.id, { allowed_stations: safeStations });
+  };
+
+  const handleChangeHostessTableStatus = async (
+    table: RestaurantTable,
+    newStatus: RestaurantTableStatus
+  ) => {
+    if (newStatus === 'en_limpieza') {
+      await api.requestTableCleaning(table.restaurant_id, table);
+    } else {
+      await api.updateRestaurantTableStatus(table.id, newStatus);
+    }
+    const refreshedTables = await api.getRestaurantTables();
+    setRestaurantTables(refreshedTables);
+  };
+
   // ==========================================
   // Renderizador del Panel de Control de Sucursal (Nivel 3 por Categorías)
   // ==========================================
@@ -423,6 +489,26 @@ export const AdminRestaurantsPage: React.FC = () => {
     const { capabilities, kdsStations, staff, tierFeatures, feedbacksCount, pendingFeedbacksCount } = branchNode;
     const isWaiterTerminalOn =
       waiterTerminalByBranch[res.id] !== undefined ? waiterTerminalByBranch[res.id] : true;
+
+    // Datos cruzados de Fase B y Fase C para esta sucursal
+    const branchTables = restaurantTables.filter(
+      (t) => t.restaurant_id === res.id || (res.id === restaurants[0]?.id && t.restaurant_id === 'res-1')
+    );
+    const totalBranchCapacity = branchTables.reduce((acc, t) => acc + (t.capacity || 0), 0);
+    const freeTablesCount = branchTables.filter((t) => t.status === 'libre').length;
+    const occupiedTablesCount = branchTables.filter((t) => t.status === 'ocupada').length;
+    const cleaningTablesCount = branchTables.filter((t) => t.status === 'en_limpieza').length;
+
+    const branchShifts = staffShifts.filter(
+      (sh) => sh.restaurant_id === res.id || (res.id === restaurants[0]?.id && sh.restaurant_id === 'res-1')
+    );
+    const branchCoupons = managerCoupons.filter(
+      (cp) => cp.restaurant_id === res.id || (res.id === restaurants[0]?.id && cp.restaurant_id === 'res-1')
+    );
+    const branchReports = managerShiftReports.filter(
+      (rp) => rp.restaurant_id === res.id || (res.id === restaurants[0]?.id && rp.restaurant_id === 'res-1')
+    );
+    const latestReport = branchReports[0];
 
     // Ordenar personal por categoría de rol: Hostess -> Meseros -> Barista -> Jefe de Cocina -> Capitán
     const roleOrder: Record<string, number> = {
@@ -452,16 +538,29 @@ export const AdminRestaurantsPage: React.FC = () => {
       'Add-On': 'bg-slate-900 text-white border-slate-900',
     };
 
+    const orgKey = res.organization_id || 'org-1';
+    const matchedBrand = organizationBrands.find(
+      (b) => b.id === res.brand_id || (b.organization_id === res.organization_id && b.name === res.brand_name)
+    );
+
     return (
       <tr className="bg-slate-50/80 border-b-2 border-slate-200">
         <td colSpan={5} className="p-0">
           <div className="py-4 px-4 sm:px-8 lg:px-12 space-y-4">
             {/* Cabecera del Panel de Control de la Sucursal */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-                  <Sliders className="w-3.5 h-3.5" />
-                </div>
+              <div className="flex items-center gap-2.5">
+                {matchedBrand?.logo_url ? (
+                  <img
+                    src={matchedBrand.logo_url}
+                    alt={res.brand_name}
+                    className="w-8 h-8 rounded-xl object-cover border border-slate-200 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center flex-shrink-0">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                )}
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
@@ -470,35 +569,42 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
                       Giro: {capabilities.verticalLabel}
                     </span>
+                    {latestReport && (
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                        Último Corte ({latestReport.shift_type}): ${Number(latestReport.total_sales).toFixed(0)} MXN · {latestReport.tables_served} mesas
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    Controles ordenados por categoría con interruptores en tiempo real (solo se muestran las categorías que aplican a esta sucursal).
+                    Controles ordenados por categoría con interruptores en tiempo real, aforo de Hostess, estaciones KDS, turnos a 60 días y gerencia.
                   </p>
                 </div>
               </div>
 
               {/* Acceso Rápido a Solicitudes de Quejas desde cabecera del Panel */}
-              <Link
-                to={`/admin/feedback?restaurant=${res.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors self-start sm:self-center"
-              >
-                <MessageSquareWarning className="w-3.5 h-3.5 text-rose-600" />
-                <span>Solicitudes de Quejas ({feedbacksCount})</span>
-                {pendingFeedbacksCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold">
-                    {pendingFeedbacksCount} nuevas
-                  </span>
-                )}
-              </Link>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <Link
+                  to={`/admin/feedback?restaurant=${res.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors"
+                >
+                  <MessageSquareWarning className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Solicitudes de Quejas ({feedbacksCount})</span>
+                  {pendingFeedbacksCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold">
+                      {pendingFeedbacksCount} nuevas
+                    </span>
+                  )}
+                </Link>
+              </div>
             </div>
 
-            {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & MÓDULOS DE LA SUCURSAL */}
+            {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & CUPONES DE QUEJAS DEL GERENTE */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
               <div className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
-                    Categoría 1: Funcionalidades por Nivel Contratado (Tier {res.tier || 2})
+                    Categoría 1: Funcionalidades por Nivel Contratado (Tier {res.tier || 2}) & Cupones de Quejas
                   </span>
                 </div>
                 <span className="text-[10px] font-bold text-blue-700">
@@ -526,6 +632,24 @@ export const AdminRestaurantsPage: React.FC = () => {
                       <span className="text-[11px] text-slate-500 block mt-0.5">
                         {feature.description}
                       </span>
+
+                      {/* Desglose en vivo de Cupones de Quejas del Gerente con Límite Mensual dentro de Tier 2 */}
+                      {feature.key === 'tier_2_reputation_shield' && branchCoupons.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-extrabold uppercase text-rose-700">
+                            Cupones del Gerente por Quejas:
+                          </span>
+                          {branchCoupons.map((cp) => (
+                            <span
+                              key={cp.id}
+                              className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold"
+                              title={`Creado por ${cp.manager_name}: ${cp.discount_description}`}
+                            >
+                              {cp.coupon_code} ({cp.discount_percentage}% · Uso mensual: {cp.used_this_month}/{cp.monthly_limit})
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
@@ -551,23 +675,39 @@ export const AdminRestaurantsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* CATEGORÍA 2: HARDWARE NFC & PLACAS EN MESA */}
+            {/* CATEGORÍA 2: HARDWARE NFC, MESAS DE HOSTESS & CAPACIDAD DE COMENSALES */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <div className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <QrCode className="w-3.5 h-3.5 text-purple-600" />
                   <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider">
-                    Categoría 2: Hardware NFC & Placas en {capabilities.unitPlural}
+                    Categoría 2: Hardware NFC, {capabilities.unitPlural} de Hostess & Capacidad de Comensales
                   </span>
+                  {branchTables.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-purple-200 text-purple-900 text-[10px] font-extrabold">
+                      Aforo: {branchTables.length} mesas ({totalBranchCapacity} comensales) · {freeTablesCount} Libres · {occupiedTablesCount} Ocupadas · {cleaningTablesCount} En Limpieza
+                    </span>
+                  )}
                 </div>
-                <span className="text-[10px] font-bold text-purple-700">
-                  {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} prendidas
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-purple-700">
+                    {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas prendidas
+                  </span>
+                  <a
+                    href={`#/portal/hostess?branch=${res.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold transition-colors"
+                  >
+                    <span>Abrir Hostess</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
               </div>
 
-              {branchTags.length === 0 ? (
+              {branchTags.length === 0 && branchTables.length === 0 ? (
                 <div className="px-4 py-3 text-[11px] text-slate-500 flex items-center justify-between">
-                  <span>No hay placas físicas asignadas a esta sucursal todavía.</span>
+                  <span>No hay placas físicas ni mesas registradas en esta sucursal todavía.</span>
                   <Link
                     to={`/admin/tags?restaurant=${res.id}`}
                     className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold hover:bg-purple-100"
@@ -577,25 +717,84 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 text-xs">
-                  {branchTags.map((tag) => {
+                  {branchTags.map((tag, idx) => {
                     const isTagOn = tag.is_active !== false;
+                    // Cruzar con la mesa de Hostess por identificador o posición
+                    const matchedTable =
+                      branchTables.find(
+                        (tb) =>
+                          tag.table_identifier &&
+                          (tb.table_number.toLowerCase() === tag.table_identifier.toLowerCase() ||
+                            tag.table_identifier.toLowerCase().includes(tb.table_number.toLowerCase()))
+                      ) || branchTables[idx];
+
+                    const matchedTableMetric = latestReport?.table_metrics?.find(
+                      (tm) =>
+                        (tag.table_identifier &&
+                          tm.table_number.toLowerCase() === tag.table_identifier.toLowerCase()) ||
+                        (matchedTable &&
+                          tm.table_number.toLowerCase() === matchedTable.table_number.toLowerCase())
+                    );
+
                     return (
                       <div
                         key={tag.id}
                         className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-purple-50/20"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
                           <span className="font-mono font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {tag.tag_code}
                           </span>
-                          <span className="font-bold text-slate-700">
+                          <span className="font-bold text-slate-800">
                             {tag.table_identifier
                               ? `${capabilities.unitLabel}: ${tag.table_identifier}`
+                              : matchedTable
+                              ? matchedTable.table_number
                               : `${capabilities.unitLabel} General`}
                           </span>
+
+                          {/* Capacidad de comensales y Estado en vivo desde Hostess */}
+                          {matchedTable && (
+                            <>
+                              <span className="px-2 py-0.5 rounded-md bg-violet-50 border border-violet-200 text-violet-800 text-[10px] font-bold">
+                                {matchedTable.capacity} comensales
+                              </span>
+                              <select
+                                value={matchedTable.status}
+                                onChange={(e) =>
+                                  handleChangeHostessTableStatus(
+                                    matchedTable,
+                                    e.target.value as RestaurantTableStatus
+                                  )
+                                }
+                                title="Cambiar estado de la mesa en Hostess o solicitar limpieza al mesero"
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border cursor-pointer ${
+                                  matchedTable.status === 'libre'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : matchedTable.status === 'ocupada'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : matchedTable.status === 'en_limpieza'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                                }`}
+                              >
+                                <option value="libre">Estado: Desocupada / Libre</option>
+                                <option value="ocupada">Estado: Ocupada</option>
+                                <option value="en_limpieza">Estado: En Limpieza (Notifica a Mesero)</option>
+                                <option value="desactivada">Estado: Desactivada</option>
+                              </select>
+                            </>
+                          )}
+
                           <span className="text-[11px] text-slate-400">
-                            ({tag.scan_count || 0} escaneos acumulados)
+                            ({tag.scan_count || 0} escaneos)
                           </span>
+
+                          {matchedTableMetric && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                              Turno: {matchedTableMetric.orders_count} órd · ${Number(matchedTableMetric.total_amount).toFixed(0)} MXN
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-3 self-end sm:self-center">
@@ -626,14 +825,14 @@ export const AdminRestaurantsPage: React.FC = () => {
               )}
             </div>
 
-            {/* CATEGORÍA 3: PANTALLAS DE COCINA / KDS (Solo aplica si capabilities.supportsKds === true) */}
+            {/* CATEGORÍA 3: PANTALLAS DE COCINA / KDS (Jefe de Cocina vs Barista) */}
             {capabilities.supportsKds && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
                 <div className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ChefHat className="w-3.5 h-3.5 text-orange-600" />
                     <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
-                      Categoría 3: Pantallas de Cocina Activas & Estaciones KDS
+                      Categoría 3: Pantallas de Cocina Activas & Estaciones KDS (Jefe de Cocina y Barista)
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-orange-700">
@@ -642,62 +841,101 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
 
                 <div className="divide-y divide-slate-100 text-xs">
-                  {kdsStations.map((station) => (
-                    <div
-                      key={station.id}
-                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-orange-50/20"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-                          <span className="font-bold text-slate-900">{station.name}</span>
+                  {kdsStations.map((station) => {
+                    const isBaristaStation =
+                      station.id.includes('barra') ||
+                      station.id.includes('barista') ||
+                      station.name.toLowerCase().includes('barra') ||
+                      station.name.toLowerCase().includes('café') ||
+                      station.name.toLowerCase().includes('repostería');
+
+                    const assignedOperators = sortedStaff.filter((op) => {
+                      const opStations =
+                        op.allowed_stations && op.allowed_stations.length > 0
+                          ? op.allowed_stations
+                          : op.role === 'barista'
+                          ? ['barista']
+                          : op.role === 'kitchen'
+                          ? ['cocina']
+                          : [];
+                      return isBaristaStation
+                        ? opStations.includes('barista') || op.role === 'barista'
+                        : opStations.includes('cocina') || op.role === 'kitchen';
+                    });
+
+                    return (
+                      <div
+                        key={station.id}
+                        className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-orange-50/20"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                            <span className="font-bold text-slate-900">{station.name}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+                                isBaristaStation
+                                  ? 'bg-teal-50 text-teal-800 border-teal-200'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200'
+                              }`}
+                            >
+                              {isBaristaStation
+                                ? 'Rol Exclusivo: Barista (Barra, Coctelería, Repostería & Café)'
+                                : 'Rol Exclusivo: Jefe de Cocina (Estaciones KDS)'}
+                            </span>
+                            {assignedOperators.length > 0 && (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                Operadores: {assignedOperators.map((o) => o.name).join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block pl-5 mt-0.5">
+                            {station.description}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-slate-500 block pl-5">
-                          {station.description}
-                        </span>
-                      </div>
 
-                      <div className="flex items-center gap-3 self-end sm:self-center">
-                        <StatusBadgeAndSwitch
-                          isOn={station.isActive}
-                          onToggle={() =>
-                            handleToggleKdsStation(res.id, station.id, station.isActive)
-                          }
-                          title={`Prender o apagar ${station.name}`}
-                        />
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <StatusBadgeAndSwitch
+                            isOn={station.isActive}
+                            onToggle={() =>
+                              handleToggleKdsStation(res.id, station.id, station.isActive)
+                            }
+                            title={`Prender o apagar ${station.name}`}
+                          />
 
-                        <a
-                          href={station.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                            station.isActive
-                              ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
-                              : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
-                          }`}
-                        >
-                          <span>Abrir KDS</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                          <a
+                            href={station.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                              station.isActive
+                                ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                            }`}
+                          >
+                            <span>Abrir KDS</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* CATEGORÍA 4: PANTALLAS DE MESEROS & PERSONAL CON PIN (Solo aplica si capabilities.supportsFloorStaff === true) */}
+            {/* CATEGORÍA 4: PANTALLAS DE MESEROS, HOSTESS, ROLES, TURNOS (60 DÍAS) & MÉTRICAS POR EMPLEADO */}
             {capabilities.supportsFloorStaff && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-                <div className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex items-center justify-between">
+                <div className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                     <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
-                      Categoría 4: Pantallas de Meseros & Personal Operativo con PIN
+                      Categoría 4: Personal Operativo con PIN, Pantallas KDS, Turnos (60 Días) & Métricas
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-700">
-                    {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores prendidos
+                    {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores prendidos · {branchShifts.length} turnos programados
                   </span>
                 </div>
 
@@ -708,11 +946,11 @@ export const AdminRestaurantsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Monitor className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                         <span className="font-extrabold text-slate-900">
-                          Terminal Móvil de Sala (Recepción de Llamadas de Mesa & Alertas)
+                          Terminal Móvil de Sala (Recepción de Llamadas de Mesa, Alertas de Limpieza & Quejas)
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 block pl-5">
-                        Pantalla de piso para atender llamados de cuenta, platos listos de cocina y quejas 1-3 estrellas.
+                        Recibe llamadas de cuenta, platos listos de cocina y solicitudes de limpieza enviadas por la Hostess.
                       </span>
                     </div>
 
@@ -745,11 +983,11 @@ export const AdminRestaurantsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
                         <span className="font-extrabold text-slate-900">
-                          Pantalla de Hostess & Recepción (Gestión de Mesas, Aforo y Solicitud de Limpieza)
+                          Pantalla de Hostess & Recepción (Gestión de Mesas, Aforo de Comensales y Solicitud de Limpieza)
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 block pl-5">
-                        Permite crear mesas por sucursal, controlar mesas libres/ocupadas y enviar alertas de limpieza al mesero.
+                        Permite crear mesas por sucursal, dar seguimiento a ocupadas/desocupadas y enviar solicitud de limpieza al mesero.
                       </span>
                     </div>
 
@@ -766,68 +1004,132 @@ export const AdminRestaurantsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Filas de Personal Operativo ordenadas por categoría de rol */}
-                  {sortedStaff.map((member) => (
-                    <div
-                      key={member.id}
-                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20"
-                    >
-                      <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-                        <span className="font-bold text-slate-900">{member.name}</span>
+                  {/* Filas de Personal Operativo con Rol, Incidencia en Pantallas KDS, Turno a 60 días y Métricas */}
+                  {sortedStaff.map((member) => {
+                    const memberStations: KitchenStation[] =
+                      member.allowed_stations && member.allowed_stations.length > 0
+                        ? member.allowed_stations
+                        : member.role === 'barista'
+                        ? ['barista']
+                        : ['cocina'];
 
-                        {/* Selector Interactivo de Rol / Puesto Operativo */}
-                        <select
-                          value={member.role}
-                          onChange={(e) =>
-                            handleChangeStaffRole(member, e.target.value as StaffRole)
-                          }
-                          title={`Cambiar puesto operativo de ${member.name}`}
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${
-                            roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          <option value="hostess" className="bg-white text-slate-900 font-bold">
-                            Hostess / Recepción de Mesas
-                          </option>
-                          <option value="waiter" className="bg-white text-slate-900 font-bold">
-                            Mesero de Sala
-                          </option>
-                          <option value="barista" className="bg-white text-slate-900 font-bold">
-                            Barista (Barra, Coctelería, Repostería & Café)
-                          </option>
-                          <option value="kitchen" className="bg-white text-slate-900 font-bold">
-                            Jefe de Cocina (KDS Cocina)
-                          </option>
-                          <option value="manager" className="bg-white text-slate-900 font-bold">
-                            Capitán / Gerente de Piso
-                          </option>
-                        </select>
+                    const nextShift = branchShifts.find(
+                      (sh) =>
+                        sh.staff_id === member.id ||
+                        sh.staff_name.toLowerCase() === member.name.toLowerCase()
+                    );
 
-                        <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
-                          PIN: {member.pin_code}
-                        </span>
+                    const empMetric = latestReport?.employee_metrics?.find(
+                      (em) => em.staff_name.toLowerCase() === member.name.toLowerCase()
+                    );
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <span className="font-bold text-slate-900">{member.name}</span>
+
+                          {/* Selector Interactivo de Rol / Puesto Operativo */}
+                          <select
+                            value={member.role}
+                            onChange={(e) =>
+                              handleChangeStaffRole(member, e.target.value as StaffRole)
+                            }
+                            title={`Cambiar puesto operativo de ${member.name}`}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${
+                              roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            <option value="hostess" className="bg-white text-slate-900 font-bold">
+                              Hostess / Recepción de Mesas
+                            </option>
+                            <option value="waiter" className="bg-white text-slate-900 font-bold">
+                              Mesero de Sala
+                            </option>
+                            <option value="barista" className="bg-white text-slate-900 font-bold">
+                              Barista (Barra, Coctelería, Repostería & Café)
+                            </option>
+                            <option value="kitchen" className="bg-white text-slate-900 font-bold">
+                              Jefe de Cocina (KDS Cocina)
+                            </option>
+                            <option value="manager" className="bg-white text-slate-900 font-bold">
+                              Capitán / Gerente de Piso
+                            </option>
+                          </select>
+
+                          <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                            PIN: {member.pin_code}
+                          </span>
+
+                          {/* Selector de incidencia sobre pantallas KDS (Cocina vs Barra/Barista) */}
+                          {(member.role === 'kitchen' || member.role === 'barista' || member.role === 'manager') && (
+                            <div className="inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-lg border border-slate-200">
+                              <span className="text-[9px] font-extrabold text-slate-500 uppercase">
+                                Pantallas:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStaffStation(member, 'cocina')}
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                  memberStations.includes('cocina')
+                                    ? 'bg-amber-600 text-white'
+                                    : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                Cocina KDS
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStaffStation(member, 'barista')}
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                  memberStations.includes('barista')
+                                    ? 'bg-teal-600 text-white'
+                                    : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                Barra & Café
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Próximo Turno Programado (hasta 2 meses) */}
+                          {nextShift && (
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] font-bold">
+                              Turno {nextShift.shift_type}: {nextShift.shift_date} ({nextShift.start_time}–{nextShift.end_time})
+                            </span>
+                          )}
+
+                          {/* Métricas del Empleado en el último corte de turno */}
+                          {empMetric && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+                              Corte: {empMetric.tables_served} mesas · ${Number(empMetric.sales_generated).toFixed(0)} · Prop: ${Number(empMetric.tips_estimated).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <StatusBadgeAndSwitch
+                            isOn={member.is_active}
+                            onToggle={() => handleToggleStaffActive(member)}
+                            title={`Prender o apagar acceso PIN de ${member.name}`}
+                          />
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-3 self-end sm:self-center">
-                        <StatusBadgeAndSwitch
-                          isOn={member.is_active}
-                          onToggle={() => handleToggleStaffActive(member)}
-                          title={`Prender o apagar acceso PIN de ${member.name}`}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* CATEGORÍA 5: TABLA DE GERENTES DE LA ORGANIZACIÓN & ROL EN ESTA SUCURSAL */}
+            {/* CATEGORÍA 5: TABLA DE GERENTES DE LA ORGANIZACIÓN, ROL EN SUCURSAL & CORTES DE CAJA */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
               <div className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-200/70 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                   <span className="text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
-                    Categoría 5: Tabla de Gerentes de la Organización & Acceso a esta Sucursal
+                    Categoría 5: Tabla de Gerentes de la Organización, Acceso a Sucursal & Cortes de Turno
                   </span>
                 </div>
                 <a
@@ -836,9 +1138,88 @@ export const AdminRestaurantsPage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
                 >
-                  <span>Abrir Pantalla de Gerente</span>
+                  <span>Abrir Consola de Gerente</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
+              </div>
+
+              {/* Alta rápida de Gerente en la Tabla de la Organización */}
+              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200/70 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-[10px] font-extrabold uppercase text-slate-500">
+                  + Nuevo Gerente en Organización:
+                </span>
+                <input
+                  type="text"
+                  value={newMgrNameByOrg[orgKey] || ''}
+                  onChange={(e) =>
+                    setNewMgrNameByOrg((prev) => ({ ...prev, [orgKey]: e.target.value }))
+                  }
+                  placeholder="Nombre completo"
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-800"
+                />
+                <input
+                  type="email"
+                  value={newMgrEmailByOrg[orgKey] || ''}
+                  onChange={(e) =>
+                    setNewMgrEmailByOrg((prev) => ({ ...prev, [orgKey]: e.target.value }))
+                  }
+                  placeholder="correo@empresa.com"
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-800"
+                />
+                <select
+                  value={newMgrRoleByOrg[orgKey] || 'gerente_tienda'}
+                  onChange={(e) =>
+                    setNewMgrRoleByOrg((prev) => ({
+                      ...prev,
+                      [orgKey]: e.target.value as StoreManagerRole,
+                    }))
+                  }
+                  className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-800"
+                >
+                  <option value="gerente_tienda">Gerente de Tienda</option>
+                  <option value="capitan_piso">Capitán / Gerente de Piso</option>
+                </select>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={newMgrPinByOrg[orgKey] || ''}
+                  onChange={(e) =>
+                    setNewMgrPinByOrg((prev) => ({
+                      ...prev,
+                      [orgKey]: e.target.value.replace(/\D/g, ''),
+                    }))
+                  }
+                  placeholder="PIN 4"
+                  className="w-16 px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-mono font-bold text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const mgrName = (newMgrNameByOrg[orgKey] || '').trim();
+                    if (!mgrName) return;
+                    const role = newMgrRoleByOrg[orgKey] || 'gerente_tienda';
+                    await api.saveOrganizationManager({
+                      organization_id: orgKey,
+                      name: mgrName,
+                      email:
+                        (newMgrEmailByOrg[orgKey] || '').trim() ||
+                        `${mgrName.toLowerCase().replace(/\s+/g, '.')}@gerencia.local`,
+                      pin_code: newMgrPinByOrg[orgKey] || '1234',
+                      manager_role: role,
+                      assigned_branch_ids: [res.id],
+                      branch_roles: { [res.id]: role },
+                      is_active: true,
+                    });
+                    const refreshed = await api.getOrganizationManagers();
+                    setOrganizationManagers(refreshed);
+                    setNewMgrNameByOrg((prev) => ({ ...prev, [orgKey]: '' }));
+                    setNewMgrEmailByOrg((prev) => ({ ...prev, [orgKey]: '' }));
+                    setNewMgrPinByOrg((prev) => ({ ...prev, [orgKey]: '' }));
+                  }}
+                  className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors"
+                >
+                  Registrar y Asignar
+                </button>
               </div>
 
               <div className="divide-y divide-slate-100 text-xs">
@@ -903,6 +1284,45 @@ export const AdminRestaurantsPage: React.FC = () => {
                     );
                   })}
               </div>
+
+              {/* Sub-bloque B: Últimos Cortes de Caja por Turno enviados al Dueño */}
+              {branchReports.length > 0 && (
+                <div className="px-4 py-3 bg-indigo-50/30 border-t border-indigo-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-950">
+                      Últimos Cortes de Caja por Turno Enviados al Dueño ({branchReports.length})
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700">
+                      Sincronizado con Pantalla General del Dueño
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {branchReports.slice(0, 2).map((rep) => (
+                      <div
+                        key={rep.id}
+                        className="p-2.5 rounded-xl bg-white border border-slate-200/80 flex items-center justify-between gap-2 text-[11px]"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 block">
+                            Turno {rep.shift_type.toUpperCase()} ({rep.shift_date}) · Gerente: {rep.manager_name}
+                          </span>
+                          <span className="text-slate-500">
+                            Mesero en corte: {rep.waiter_name} · {rep.tables_served} mesas atendidas
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-emerald-700 block">
+                            ${Number(rep.total_sales).toFixed(2)} MXN
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-700">
+                            Propinas: ${Number(rep.tips_collected).toFixed(0)} · Desc: ${Number(rep.discounts_authorized).toFixed(0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </td>
