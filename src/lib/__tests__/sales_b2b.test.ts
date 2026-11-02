@@ -103,3 +103,4 @@ describe('Módulo 2: Ventas y Pipeline Comercial B2B (Bento Grid Light)', () => 
     expect(execMetrics.finances.adRevenue).toBeGreaterThan(0);
   });
 });
+
