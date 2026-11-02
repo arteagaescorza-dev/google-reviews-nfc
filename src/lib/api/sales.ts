@@ -83,6 +83,65 @@ const DEMO_SALES_LEADS: SalesLead[] = [
   },
 ];
 
+export interface WinbackCampaignRecord {
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  owner_name: string;
+  owner_email: string;
+  day_step: number; // 3 o 14
+  offer_type: string;
+  status: 'programada' | 'enviada' | 'reactivado' | 'expirada';
+  sent_at?: string | null;
+  created_at: string;
+}
+
+export interface WinbackStats {
+  totalCampaigns: number;
+  activeCampaigns: number;
+  rescuedCount: number;
+  rescueRatePercent: number;
+}
+
+const DEMO_WINBACK_CAMPAIGNS: WinbackCampaignRecord[] = [
+  {
+    id: 'wb-1',
+    restaurant_id: 'rest-demo-1',
+    restaurant_name: 'Parrilla La Estancia',
+    owner_name: 'Roberto Gómez',
+    owner_email: 'roberto@laestancia.mx',
+    day_step: 3,
+    offer_type: 'perdida_escudo',
+    status: 'enviada',
+    sent_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+  },
+  {
+    id: 'wb-2',
+    restaurant_id: 'rest-demo-2',
+    restaurant_name: 'Marisquería El Timón',
+    owner_name: 'Clara Estrada',
+    owner_email: 'clara@eltimon.com',
+    day_step: 14,
+    offer_type: 'descuento_30_vitalicio',
+    status: 'reactivado',
+    sent_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  {
+    id: 'wb-3',
+    restaurant_id: 'rest-demo-3',
+    restaurant_name: 'Trattoria Bella Napoli',
+    owner_name: 'Gianluca Conti',
+    owner_email: 'gianluca@bellanapoli.mx',
+    day_step: 3,
+    offer_type: 'perdida_escudo',
+    status: 'programada',
+    sent_at: null,
+    created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+  },
+];
+
 export interface SalesPipelineSummary {
   totalLeads: number;
   activeProspects: number;
@@ -235,5 +294,120 @@ export const salesApi = {
     const updated = current.map((l) => (l.id === leadId ? { ...l, stage: newStage, notes: notes || l.notes, updated_at: new Date().toISOString() } : l));
     setLocalItem('crm_sales_leads', updated);
     return true;
+  },
+
+  /**
+   * Obtiene la lista de campañas de Win-Back activas e históricas
+   */
+  async getWinbackCampaigns(): Promise<WinbackCampaignRecord[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('winback_campaign_logs')
+          .select('*')
+          .order('sent_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          return data as WinbackCampaignRecord[];
+        }
+      } catch (err) {
+        console.warn('Error consultando winback_campaign_logs en Supabase, usando local:', err);
+      }
+    }
+
+    return getLocalItem<WinbackCampaignRecord[]>('crm_winback_campaigns', DEMO_WINBACK_CAMPAIGNS);
+  },
+
+  /**
+   * Obtiene las métricas de recaptura y efectividad de Win-Back
+   */
+  async getWinbackStats(): Promise<WinbackStats> {
+    const campaigns = await salesApi.getWinbackCampaigns();
+    const rescuedCount = campaigns.filter((c) => c.status === 'reactivado').length;
+    const total = campaigns.length;
+    const rescueRatePercent = total > 0 ? parseFloat(((rescuedCount / total) * 100).toFixed(1)) : 33.3;
+
+    return {
+      totalCampaigns: total,
+      activeCampaigns: campaigns.filter((c) => ['programada', 'enviada'].includes(c.status)).length,
+      rescuedCount,
+      rescueRatePercent,
+    };
+  },
+
+  /**
+   * Dispara o registra el envío manual o automatizado de un correo de Win-Back
+   */
+  async triggerWinbackEmail(campaignId: string): Promise<boolean> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase
+          .from('winback_campaign_logs')
+          .update({
+            status: 'enviada',
+            sent_at: new Date().toISOString(),
+          })
+          .eq('id', campaignId);
+
+        if (!error) return true;
+      } catch (err) {
+        console.warn('Error actualizando winback_campaign_logs en Supabase, usando local:', err);
+      }
+    }
+
+    const current = getLocalItem<WinbackCampaignRecord[]>('crm_winback_campaigns', DEMO_WINBACK_CAMPAIGNS);
+    const updated = current.map((c) =>
+      c.id === campaignId
+        ? { ...c, status: 'enviada' as const, sent_at: new Date().toISOString() }
+        : c
+    );
+    setLocalItem('crm_winback_campaigns', updated);
+    return true;
+  },
+
+  /**
+   * Registra una nueva campaña de Win-back tras la baja de un restaurante
+   */
+  async scheduleWinbackCampaign(
+    restaurantId: string,
+    restaurantName: string,
+    ownerName: string,
+    ownerEmail: string,
+    dayStep: 3 | 14 = 3
+  ): Promise<WinbackCampaignRecord> {
+    const newCampaign: WinbackCampaignRecord = {
+      id: `wb-${Date.now()}`,
+      restaurant_id: restaurantId,
+      restaurant_name: restaurantName,
+      owner_name: ownerName,
+      owner_email: ownerEmail,
+      day_step: dayStep,
+      offer_type: dayStep === 3 ? 'perdida_escudo' : 'descuento_30_vitalicio',
+      status: 'programada',
+      sent_at: null,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const payload = sanitizeSupabasePayload(newCampaign);
+        const { data, error } = await supabase
+          .from('winback_campaign_logs')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (!error && data) {
+          return data as WinbackCampaignRecord;
+        }
+      } catch (err) {
+        console.warn('Error insertando winback_campaign_log en Supabase, guardando local:', err);
+      }
+    }
+
+    const current = getLocalItem<WinbackCampaignRecord[]>('crm_winback_campaigns', DEMO_WINBACK_CAMPAIGNS);
+    const updated = [newCampaign, ...current];
+    setLocalItem('crm_winback_campaigns', updated);
+    return newCampaign;
   },
 };

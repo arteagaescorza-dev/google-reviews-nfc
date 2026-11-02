@@ -6,6 +6,7 @@ import {
   Store,
   QrCode,
   Cpu,
+  Briefcase,
   Megaphone,
   LifeBuoy,
   LogOut,
@@ -21,6 +22,7 @@ import {
 const NAV_ITEMS = [
   { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
   { to: '/admin/hardware', label: 'Hardware & Bodega', icon: Cpu },
+  { to: '/admin/ventas', label: 'Ventas & Pipeline', icon: Briefcase },
   { to: '/admin/tags', label: 'Tags NFC & Mesas', icon: QrCode },
   { to: '/admin/restaurants', label: 'Restaurantes', icon: Store },
   { to: '/admin/finanzas', label: 'Finanzas & EBITDA', icon: DollarSign },

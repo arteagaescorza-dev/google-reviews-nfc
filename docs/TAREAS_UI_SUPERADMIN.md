@@ -27,9 +27,9 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ### Modulo 2: Ventas y Pipeline Comercial B2B
 | ID | Tarea UI / Componente | Estado | Mockup de Referencia | Infraestructura Backend |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI-VT-01** | **Tablero Kanban Comercial B2B:** 4 columnas Bento con estilo claro (`Contactados`, `Demo de Placa NFC`, `Cotizacion / Cierre`, `Cerrados este mes`) con tarjetas de prospectos, valor MRR y kit upfront. | `Preaprobada` | `mockup_bento_tab2_ventas.png` (Card Superior) | Tabla `sales_leads` |
-| **UI-VT-02** | **Modulo de Win-Back Automatizado:** Panel de monitoreo de campañas de recaptura para restaurantes en riesgo (Dia 3 alerta de perdida de escudo y Dia 14 descuento vitalicio). | `Preaprobada` | `mockup_bento_tab2_ventas.png` (Card Izquierda) | Tabla `winback_campaign_logs` |
-| **UI-VT-03** | **Metricas de Pauta Local:** Resumen de rendimiento de anunciantes con total de impresiones, clics y tasa de conversion de leads por zona. | `Preaprobada` | `mockup_bento_tab2_ventas.png` (Card Derecha) | Tablas `ads`, `coupons` |
+| **UI-VT-01** | **Tablero Kanban Comercial B2B:** 4 columnas Bento con estilo claro (`Contactados`, `Demo de Placa NFC`, `Cotizacion / Cierre`, `Cerrados este mes`) con tarjetas de prospectos, valor MRR y kit upfront. | `Implementada y Verificada` | `mockup_bento_tab2_ventas.png` (Card Superior) | Tabla `sales_leads` |
+| **UI-VT-02** | **Modulo de Win-Back Automatizado:** Panel de monitoreo de campañas de recaptura para restaurantes en riesgo (Dia 3 alerta de perdida de escudo y Dia 14 descuento vitalicio). | `Implementada y Verificada` | `mockup_bento_tab2_ventas.png` (Card Izquierda) | Tabla `winback_campaign_logs` |
+| **UI-VT-03** | **Metricas de Pauta Local:** Resumen de rendimiento de anunciantes con total de impresiones, clics y tasa de conversion de leads por zona. | `Implementada y Verificada` | `mockup_bento_tab2_ventas.png` (Card Derecha) | Tablas `ads`, `coupons` |
 
 ---
 

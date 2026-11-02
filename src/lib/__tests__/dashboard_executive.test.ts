@@ -114,3 +114,4 @@ describe('Módulo 4: Centro de Mando Ejecutivo (Bento Grid Light)', () => {
     expect(refreshedEvents[0].title).toBe('Escaneo de Prueba en Mesa 9');
   });
 });
+
