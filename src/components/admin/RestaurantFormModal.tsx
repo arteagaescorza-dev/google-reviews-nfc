@@ -90,6 +90,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [address, setAddress] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
+  const [openingTime, setOpeningTime] = useState('08:00');
+  const [closingTime, setClosingTime] = useState('23:00');
+  const [operatingDays, setOperatingDays] = useState('Lun - Dom');
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -138,6 +141,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor(restaurant.brand_color || '#2563eb');
       setAddress(restaurant.address || '');
       setManagerPhone(restaurant.manager_phone || '');
+      setOpeningTime(restaurant.opening_time || '08:00');
+      setClosingTime(restaurant.closing_time || '23:00');
+      setOperatingDays(restaurant.operating_days || 'Lun - Dom');
       setOrganizationId(restaurant.organization_id || '');
       setLinks(restaurant.links || []);
     } else {
@@ -156,6 +162,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor('#2563eb');
       setAddress('');
       setManagerPhone('');
+      setOpeningTime('08:00');
+      setClosingTime('23:00');
+      setOperatingDays('Lun - Dom');
       setLinks([]);
     }
     setErrorMsg('');
@@ -340,6 +349,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       brand_color: brandColor,
       address: address.trim() || null,
       manager_phone: managerPhone.trim() || null,
+      opening_time: openingTime || '08:00',
+      closing_time: closingTime || '23:00',
+      operating_days: operatingDays || 'Lun - Dom',
       organization_id: organizationId || null,
       links,
       is_active: true,
@@ -716,6 +728,57 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
             </div>
+          </div>
+
+          {/* Horario Operativo de la Sucursal (útil para el Gerente y turnos) */}
+          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Horario Operativo de la Sucursal (Base para Turnos)
+              </label>
+              <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/70 px-2 py-0.5 rounded-md">
+                Útil para Gerente de Tienda
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Hora de Apertura
+                </label>
+                <input
+                  type="time"
+                  value={openingTime}
+                  onChange={(e) => setOpeningTime(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Hora de Cierre
+                </label>
+                <input
+                  type="time"
+                  value={closingTime}
+                  onChange={(e) => setClosingTime(e.target.value)}
+                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Días Operativos
+                </label>
+                <input
+                  type="text"
+                  value={operatingDays}
+                  onChange={(e) => setOperatingDays(e.target.value)}
+                  placeholder="Lun - Dom, Mar - Dom, etc."
+                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500">
+              El Gerente de Tienda utilizará este horario para calcular las horas de entrada y salida al programar los turnos matutinos, vespertinos y nocturnos.
+            </p>
           </div>
 
           {/* Sección de Linktree para Tier 3 o superior */}

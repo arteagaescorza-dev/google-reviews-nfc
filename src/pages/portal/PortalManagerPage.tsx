@@ -912,6 +912,35 @@ export const PortalManagerPage: React.FC = () => {
                 <strong className="text-emerald-300">{maxDateIso}</strong>.
               </p>
 
+              {/* Tarjeta de Información de Horario Operativo de la Sucursal */}
+              {(() => {
+                const targetBranchObj = sameOrgBranches.find(
+                  (b) => b.id === (shiftTargetBranchId || selectedBranchId)
+                );
+                const opOpen = targetBranchObj?.opening_time || '08:00';
+                const opClose = targetBranchObj?.closing_time || '23:00';
+                const opDays = targetBranchObj?.operating_days || 'Lun - Dom';
+
+                return (
+                  <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-indigo-300 uppercase tracking-wider text-[10px]">
+                        Horario Oficial de la Sucursal
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-200 font-bold text-[10px]">
+                        {opDays}
+                      </span>
+                    </div>
+                    <p className="text-white font-black text-sm">
+                      {opOpen} — {opClose}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Al seleccionar un turno, los horarios de entrada y salida se ajustan a la apertura y cierre de esta sucursal.
+                    </p>
+                  </div>
+                );
+              })()}
+
               <form onSubmit={handleCreateShift} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
@@ -981,18 +1010,24 @@ export const PortalManagerPage: React.FC = () => {
                     onChange={(e) => {
                       const t = e.target.value as StaffShiftType;
                       setShiftType(t);
+                      const targetBranchObj = sameOrgBranches.find(
+                        (b) => b.id === (shiftTargetBranchId || selectedBranchId)
+                      );
+                      const opOpen = targetBranchObj?.opening_time || '08:00';
+                      const opClose = targetBranchObj?.closing_time || '23:00';
+
                       if (t === 'matutino') {
-                        setShiftStartTime('08:00');
+                        setShiftStartTime(opOpen);
                         setShiftEndTime('16:00');
                       } else if (t === 'vespertino') {
                         setShiftStartTime('14:00');
                         setShiftEndTime('22:00');
                       } else if (t === 'nocturno_cierre') {
                         setShiftStartTime('18:00');
-                        setShiftEndTime('01:00');
+                        setShiftEndTime(opClose);
                       } else {
-                        setShiftStartTime('09:00');
-                        setShiftEndTime('20:00');
+                        setShiftStartTime(opOpen);
+                        setShiftEndTime(opClose);
                       }
                     }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"

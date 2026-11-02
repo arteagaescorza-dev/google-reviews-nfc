@@ -31,6 +31,9 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
   const [address, setAddress] = useState('');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
   const [branchPhone, setBranchPhone] = useState('');
+  const [openingTime, setOpeningTime] = useState('08:00');
+  const [closingTime, setClosingTime] = useState('23:00');
+  const [operatingDays, setOperatingDays] = useState('Lun - Dom');
   const [tagCount, setTagCount] = useState<number>(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -67,6 +70,9 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
         google_review_url: googleReviewUrl.trim(),
         address: address.trim() || undefined,
         manager_phone: branchPhone.trim() || undefined,
+        opening_time: openingTime || '08:00',
+        closing_time: closingTime || '23:00',
+        operating_days: operatingDays || 'Lun - Dom',
         tier: 3,
         is_active: true,
         is_ad_free: false,
@@ -246,6 +252,43 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
                   onChange={setBranchPhone}
                   compact
                 />
+              </div>
+            </div>
+
+            {/* Horario Operativo para Turnos de Personal */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Horario Operativo de la Sucursal (Para Turnos de Personal)
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Apertura</span>
+                  <input
+                    type="time"
+                    value={openingTime}
+                    onChange={(e) => setOpeningTime(e.target.value)}
+                    className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Cierre</span>
+                  <input
+                    type="time"
+                    value={closingTime}
+                    onChange={(e) => setClosingTime(e.target.value)}
+                    className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Días</span>
+                  <input
+                    type="text"
+                    value={operatingDays}
+                    onChange={(e) => setOperatingDays(e.target.value)}
+                    placeholder="Lun - Dom"
+                    className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
               </div>
             </div>
 

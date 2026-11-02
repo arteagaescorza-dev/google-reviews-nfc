@@ -144,6 +144,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
   const [tier, setTier] = useState<TierType>(2);
   const [isAdFree, setIsAdFree] = useState(false);
   const [managerPhone, setManagerPhone] = useState('');
+  const [openingTime, setOpeningTime] = useState('08:00');
+  const [closingTime, setClosingTime] = useState('23:00');
+  const [operatingDays, setOperatingDays] = useState('Lun - Dom');
   const [address, setAddress] = useState('');
   const [branchBrandColor, setBranchBrandColor] = useState('#2563eb');
 
@@ -445,6 +448,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       brand_color: branchBrandColor || targetBrand.brand_color || '#2563eb',
       address: address.trim() || null,
       manager_phone: managerPhone.trim() || activeOrg.owner_phone || null,
+      opening_time: openingTime || '08:00',
+      closing_time: closingTime || '23:00',
+      operating_days: operatingDays || 'Lun - Dom',
       links: [],
       is_active: true,
     };
@@ -1216,6 +1222,43 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                     placeholder="Av. Hidalgo #120, Col. Centro"
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
                   />
+                </div>
+              </div>
+
+              {/* Horario Operativo para Planeación de Turnos */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  Horario Operativo de la Sucursal (Base para Turnos)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Apertura</span>
+                    <input
+                      type="time"
+                      value={openingTime}
+                      onChange={(e) => setOpeningTime(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Cierre</span>
+                    <input
+                      type="time"
+                      value={closingTime}
+                      onChange={(e) => setClosingTime(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">Días</span>
+                    <input
+                      type="text"
+                      value={operatingDays}
+                      onChange={(e) => setOperatingDays(e.target.value)}
+                      placeholder="Lun - Dom"
+                      className="w-full px-2 py-1.5 text-xs rounded-lg border border-slate-200 bg-white font-medium"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

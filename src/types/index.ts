@@ -170,6 +170,9 @@ export interface Restaurant {
   links: LinkItem[];
   address?: string | null;
   manager_phone?: string | null;
+  opening_time?: string | null;
+  closing_time?: string | null;
+  operating_days?: string | null;
   is_active: boolean;
   blocked_ad_ids?: string[];
   last_veto_date?: string | null;

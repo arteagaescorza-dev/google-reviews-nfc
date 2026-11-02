@@ -406,6 +406,30 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
     return { success: true, data: newBrand };
   },
 
+  /**
+   * Elimina una marca comercial de la organización.
+   */
+  async deleteOrganizationBrand(brandId: string): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !brandId.startsWith('brand-')) {
+      try {
+        const { error } = await supabase.from('organization_brands').delete().eq('id', brandId);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    const brands = getLocalItem<OrganizationBrand[]>(
+      STORAGE_KEYS.ORGANIZATION_BRANDS,
+      INITIAL_DEMO_DATA.organizationBrands
+    );
+    const updated = brands.filter((b) => b.id !== brandId);
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_BRANDS, updated);
+    return { success: true };
+  },
+
   // ==========================================
   // MÓDULO FASE C: TABLA DE GERENTES POR ORGANIZACIÓN Y ASIGNACIÓN POR SUCURSAL
   // ==========================================
@@ -422,7 +446,17 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         }
         const { data, error } = await query;
         if (!error && data && data.length > 0) {
-          return data as OrganizationManager[];
+          const localItems = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, []);
+          const mergedMap = new Map<string, OrganizationManager>();
+          (data as OrganizationManager[]).forEach((m) => mergedMap.set(m.id, m));
+          localItems.forEach((m) => {
+            if (!mergedMap.has(m.id)) {
+              if (!organizationId || m.organization_id === organizationId || m.organization_id === 'org-1') {
+                mergedMap.set(m.id, m);
+              }
+            }
+          });
+          return Array.from(mergedMap.values());
         }
       } catch (e) {
         console.warn('Error cargando organization_managers de Supabase:', e);
