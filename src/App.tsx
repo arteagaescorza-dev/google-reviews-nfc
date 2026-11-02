@@ -7,6 +7,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminRestaurantsPage } from './pages/AdminRestaurantsPage';
 import { AdminTagsPage } from './pages/AdminTagsPage';
+import { AdminHardwarePage } from './pages/AdminHardwarePage';
 import { AdminAdsPage } from './pages/AdminAdsPage';
 import { AdminFinancesPage } from './pages/AdminFinancesPage';
 import { AdminSupportPage } from './pages/AdminSupportPage';
@@ -47,6 +48,7 @@ export const App: React.FC = () => {
         <Route path="/portal" element={<PortalAuthGuard />}>
           <Route index element={<PortalDashboardPage />} />
         </Route>
+
         {/* Terminales de Sala y Cocina */}
         <Route path="/portal/cocina" element={<PortalKitchenPage />} />
         <Route path="/portal/mesero" element={<PortalStaffPage />} />
@@ -58,6 +60,7 @@ export const App: React.FC = () => {
         <Route path="/admin" element={<AdminAuthGuard />}>
           <Route element={<AdminLayout />}>
             <Route index element={<AdminDashboardPage />} />
+            <Route path="hardware" element={<AdminHardwarePage />} />
             <Route path="restaurants" element={<AdminRestaurantsPage />} />
             <Route path="tags" element={<AdminTagsPage />} />
             <Route path="ads" element={<AdminAdsPage />} />

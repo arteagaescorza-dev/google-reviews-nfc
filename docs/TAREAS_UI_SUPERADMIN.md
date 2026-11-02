@@ -17,10 +17,10 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ### Modulo 1: Stock de Hardware, Lotes de Imprenta y Activador In-Situ
 | ID | Tarea UI / Componente | Estado | Mockup de Referencia | Infraestructura Backend |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI-HW-01** | **Bento Cards de Insumos en Bodega:** 3 tarjetas superiores para Chips NTAG virgenes, Viniles adhesivos impresos y Semaforo de punto de reorden optimo. | `Preaprobada` | `mockup_bento_tab3_hardware.png` (Fila 1) | Tabla `hardware_inventory` |
-| **UI-HW-02** | **Generador de Pliegos para Imprenta:** Interfaz con selector de unidades (100, 250, 500), rango automatico de folios (ej. TAG-0501 a TAG-0750) y boton de descarga de vector PDF/SVG con guias de corte y suaje circular. | `Preaprobada` | `mockup_bento_tab3_hardware.png` (Card Central) | Tabla `print_batches` |
-| **UI-HW-03** | **Activador Express en Mesa (In-Situ):** Asistente paso a paso para el instalador (1. Escanear QR del vinil -> 2. Asignar restaurante y mesa -> 3. Grabar chip NFC en 3s). Descuenta stock automaticamente. | `Preaprobada` | `mockup_bento_tab3_hardware.png` (Card Inferior) | RPC `activate_table_tag_in_situ` |
-| **UI-HW-04** | **Gestor de Reposicion por Desgaste:** Flujo para sustituir tags desgastados por desengrasante o sol, transfiriendo la mesa al nuevo codigo sin perder trazabilidad. | `Preaprobada` | `mockup_bento_tab4_finanzas.png` (Card Inferior) | RPC `replace_damaged_table_tag` |
+| **UI-HW-01** | **Bento Cards de Insumos en Bodega:** 3 tarjetas superiores para Chips NTAG virgenes, Viniles adhesivos impresos y Semaforo de punto de reorden optimo. | `Implementada y Verificada` | `mockup_bento_tab3_hardware.png` (Fila 1) | Tabla `hardware_inventory` |
+| **UI-HW-02** | **Generador de Pliegos para Imprenta:** Interfaz con selector de unidades (100, 250, 500), rango automatico de folios (ej. TAG-0501 a TAG-0750) y boton de descarga de vector PDF/SVG con guias de corte y suaje circular. | `Implementada y Verificada` | `mockup_bento_tab3_hardware.png` (Card Central) | Tabla `print_batches` |
+| **UI-HW-03** | **Activador Express en Mesa (In-Situ):** Asistente paso a paso para el instalador (1. Escanear QR del vinil -> 2. Asignar restaurante y mesa -> 3. Grabar chip NFC en 3s). Descuenta stock automaticamente. | `Implementada y Verificada` | `mockup_bento_tab3_hardware.png` (Card Inferior) | RPC `activate_table_tag_in_situ` |
+| **UI-HW-04** | **Gestor de Reposicion por Desgaste:** Flujo para sustituir tags desgastados por desengrasante o sol, transfiriendo la mesa al nuevo codigo sin perder trazabilidad. | `Implementada y Verificada` | `mockup_bento_tab4_finanzas.png` (Card Inferior) | RPC `replace_damaged_table_tag` |
 
 ---
 
