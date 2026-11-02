@@ -1,4 +1,13 @@
-import { VERTICAL_CONFIG, type Restaurant, type Tag, type Organization, type StaffMember, type BusinessType } from '../types';
+import {
+  VERTICAL_CONFIG,
+  type Restaurant,
+  type Tag,
+  type Organization,
+  type StaffMember,
+  type BusinessType,
+  type TierType,
+  type Feedback,
+} from '../types';
 
 export interface RestaurantKpiMetrics {
   totalBranches: number;
@@ -24,6 +33,22 @@ export interface KdsStationConfig {
   isActive: boolean;
 }
 
+export type TierFeatureKey =
+  | 'tier_1_redirect'
+  | 'tier_2_reputation_shield'
+  | 'tier_3_digital_menu_wifi'
+  | 'tier_4_ad_network_analytics'
+  | 'addon_ad_free';
+
+export interface TierFeatureConfig {
+  key: TierFeatureKey;
+  tierLevel: TierType | 'addon';
+  badgeLabel: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+}
+
 export interface BranchControlCapabilities {
   businessType: BusinessType;
   verticalLabel: string;
@@ -39,6 +64,9 @@ export interface BranchNode {
   staff: StaffMember[];
   capabilities: BranchControlCapabilities;
   kdsStations: KdsStationConfig[];
+  tierFeatures: TierFeatureConfig[];
+  feedbacksCount: number;
+  pendingFeedbacksCount: number;
 }
 
 export interface OrganizationNode {
@@ -81,6 +109,72 @@ export function getBranchCapabilities(restaurant: Restaurant): BranchControlCapa
     supportsKds: cfg.showKds,
     supportsFloorStaff: cfg.showFloorStaff,
   };
+}
+
+/**
+ * Construye la matriz de funcionalidades por Tier (1 a 4 + Add-On Marca Blanca) para el Panel de Control de la sucursal.
+ * Por defecto se prenden las funcionalidades cuyo nivel sea <= al Tier contratado de la sucursal,
+ * permitiendo además overrides individuales mediante los switches del panel.
+ */
+export function getTierFeaturesForBranch(
+  restaurant: Restaurant,
+  overrides: Record<string, boolean> = {}
+): TierFeatureConfig[] {
+  const currentTier: TierType = restaurant.tier || 2;
+  const isBranchActive = restaurant.is_active !== false;
+
+  const definitions: Omit<TierFeatureConfig, 'isActive'>[] = [
+    {
+      key: 'tier_1_redirect',
+      tierLevel: 1,
+      badgeLabel: 'Tier 1',
+      name: 'Enlace Directo & Bucle Viral en Mesa',
+      description: 'Redirección instantánea a Google Reviews con semillero viral de placas ($100 MXN).',
+    },
+    {
+      key: 'tier_2_reputation_shield',
+      tierLevel: 2,
+      badgeLabel: 'Tier 2',
+      name: 'Filtro Inteligente de Reputación (Escudo 1 a 3 Estrellas)',
+      description: 'Calificaciones de 4-5 estrellas van a Google; quejas de 1-3 estrellas se retienen en buzón privado.',
+    },
+    {
+      key: 'tier_3_digital_menu_wifi',
+      tierLevel: 3,
+      badgeLabel: 'Tier 3',
+      name: 'Menú Digital Interactivo + Linktree + Wi-Fi 1-Toque',
+      description: 'Carta digital con carrito a cocina, botones de redes sociales y conexión Wi-Fi automática.',
+    },
+    {
+      key: 'tier_4_ad_network_analytics',
+      tierLevel: 4,
+      badgeLabel: 'Tier 4',
+      name: 'Bolsa Publicitaria Local ($500 MXN) & Analítica por Mesa',
+      description: 'Saldo mensual para pautar cupones cruzados en comercios aliados y mapa de calor por mesa.',
+    },
+    {
+      key: 'addon_ad_free',
+      tierLevel: 'addon',
+      badgeLabel: 'Add-On',
+      name: 'Escudo Marca Blanca (Ad-Free • 0% Anuncios)',
+      description: 'Bloquea toda publicidad de terceros en las pantallas de las mesas de esta sucursal.',
+    },
+  ];
+
+  return definitions.map((def) => {
+    if (def.key === 'addon_ad_free') {
+      return {
+        ...def,
+        isActive: overrides[def.key] !== undefined ? overrides[def.key] : Boolean(restaurant.is_ad_free),
+      };
+    }
+
+    const defaultByTier = isBranchActive && typeof def.tierLevel === 'number' && currentTier >= def.tierLevel;
+    return {
+      ...def,
+      isActive: overrides[def.key] !== undefined ? overrides[def.key] : defaultByTier,
+    };
+  });
 }
 
 /**
@@ -159,7 +253,7 @@ export function calculateRestaurantKpis(restaurants: Restaurant[], tags: Tag[]):
   const tierBreakdown = {
     tier1: restaurants.filter((r) => (r.tier || 2) === 1).length,
     tier2: restaurants.filter((r) => (r.tier || 2) === 2).length,
-    tier3: restaurants.filter((r) => (r.tier || 2) === 3).length,
+    tier3: restaurants.filter((r) => (r.tier || 2) >= 3).length,
   };
 
   return {
@@ -203,6 +297,7 @@ export function filterRestaurants(
       if (selectedTier === 'tier_1' && (r.tier || 2) !== 1) return false;
       if (selectedTier === 'tier_2' && (r.tier || 2) !== 2) return false;
       if (selectedTier === 'tier_3' && (r.tier || 2) !== 3) return false;
+      if (selectedTier === 'tier_4' && (r.tier || 2) !== 4) return false;
       if (selectedTier === 'active' && r.is_active === false) return false;
       if (selectedTier === 'paused' && r.is_active !== false) return false;
     }
@@ -223,8 +318,8 @@ export function filterRestaurants(
 /**
  * Construye la estructura jerárquica en Árbol de 3 Niveles:
  * Nivel 1: Organización (Empresa Matriz / Corporativo)
- * Nivel 2: Sucursales (Locales Físicos con dirección y menús)
- * Nivel 3: Panel de Control de Sucursal por Categorías (Módulos, Placas NFC, Pantallas KDS, Pantallas de Meseros)
+ * Nivel 2: Sucursales (Locales Físicos con selector de Tier y acceso a quejas)
+ * Nivel 3: Panel de Control de Sucursal por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS, Pantallas de Meseros)
  */
 export function buildOrganizationTree(
   organizations: Organization[],
@@ -234,7 +329,9 @@ export function buildOrganizationTree(
   selectedOrgFilter: string = 'all',
   selectedTierFilter: string = 'all',
   staffMembers: StaffMember[] = [],
-  kdsStateByBranch: Record<string, Record<string, boolean>> = {}
+  kdsStateByBranch: Record<string, Record<string, boolean>> = {},
+  feedbacks: Feedback[] = [],
+  tierFeatureOverridesByBranch: Record<string, Record<string, boolean>> = {}
 ): TreeViewData {
   // Mapa de tags agrupados por restaurant_id
   const tagsByRestaurant: Record<string, Tag[]> = {};
@@ -244,6 +341,17 @@ export function buildOrganizationTree(
         tagsByRestaurant[tag.restaurant_id] = [];
       }
       tagsByRestaurant[tag.restaurant_id].push(tag);
+    }
+  });
+
+  // Mapa de quejas agrupadas por restaurant_id
+  const feedbacksByRestaurant: Record<string, Feedback[]> = {};
+  feedbacks.forEach((fb) => {
+    if (fb.restaurant_id) {
+      if (!feedbacksByRestaurant[fb.restaurant_id]) {
+        feedbacksByRestaurant[fb.restaurant_id] = [];
+      }
+      feedbacksByRestaurant[fb.restaurant_id].push(fb);
     }
   });
 
@@ -272,6 +380,7 @@ export function buildOrganizationTree(
       if (selectedTierFilter === 'tier_1' && (res.tier || 2) !== 1) return;
       if (selectedTierFilter === 'tier_2' && (res.tier || 2) !== 2) return;
       if (selectedTierFilter === 'tier_3' && (res.tier || 2) !== 3) return;
+      if (selectedTierFilter === 'tier_4' && (res.tier || 2) !== 4) return;
       if (selectedTierFilter === 'active' && res.is_active === false) return;
       if (selectedTierFilter === 'paused' && res.is_active !== false) return;
     }
@@ -281,6 +390,8 @@ export function buildOrganizationTree(
     const kdsStations = capabilities.supportsKds
       ? getDefaultKdsStations(res.id, kdsStateByBranch[res.id] || {})
       : [];
+    const tierFeatures = getTierFeaturesForBranch(res, tierFeatureOverridesByBranch[res.id] || {});
+    const branchFeedbacks = feedbacksByRestaurant[res.id] || [];
 
     const branchNode: BranchNode = {
       restaurant: res,
@@ -288,6 +399,9 @@ export function buildOrganizationTree(
       staff: branchStaff,
       capabilities,
       kdsStations,
+      tierFeatures,
+      feedbacksCount: branchFeedbacks.length,
+      pendingFeedbacksCount: branchFeedbacks.filter((f) => f.status === 'new').length,
     };
 
     if (res.organization_id) {

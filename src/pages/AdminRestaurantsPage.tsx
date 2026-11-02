@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
-import type { Restaurant, Organization, Tag, StaffMember } from '../types';
+import type { Restaurant, Organization, Tag, StaffMember, Feedback, TierType } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
@@ -9,6 +9,7 @@ import {
   calculateRestaurantKpis,
   buildOrganizationTree,
   type BranchNode,
+  type TierFeatureConfig,
 } from '../lib/restaurants_bento';
 import {
   Store,
@@ -32,12 +33,14 @@ import {
   UserCheck,
   Sliders,
   Monitor,
-  Power,
+  Layers,
+  MessageSquareWarning,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const KDS_STORAGE_KEY = 'nfc_kds_stations_state_v1';
 const WAITER_TERM_STORAGE_KEY = 'nfc_waiter_terminal_state_v1';
+const TIER_FEATURES_STORAGE_KEY = 'nfc_tier_features_overrides_v1';
 
 interface StatusBadgeAndSwitchProps {
   isOn: boolean;
@@ -101,9 +104,10 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estado persistente de Pantallas KDS y Terminales de Meseros por sucursal
+  // Estado persistente de Pantallas KDS, Terminales de Meseros y Overrides de Funcionalidades Tier
   const [kdsStateByBranch, setKdsStateByBranch] = useState<Record<string, Record<string, boolean>>>(() => {
     try {
       const raw = localStorage.getItem(KDS_STORAGE_KEY);
@@ -116,6 +120,17 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [waiterTerminalByBranch, setWaiterTerminalByBranch] = useState<Record<string, boolean>>(() => {
     try {
       const raw = localStorage.getItem(WAITER_TERM_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [tierFeatureOverridesByBranch, setTierFeatureOverridesByBranch] = useState<
+    Record<string, Record<string, boolean>>
+  >(() => {
+    try {
+      const raw = localStorage.getItem(TIER_FEATURES_STORAGE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};
@@ -141,16 +156,18 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [resList, orgList, tagList, staffList] = await Promise.all([
+    const [resList, orgList, tagList, staffList, fbList] = await Promise.all([
       api.getRestaurants(),
       api.getOrganizations(),
       api.getTags(),
       api.getStaffMembers(),
+      api.getFeedbacks(),
     ]);
     setRestaurants(resList);
     setOrganizations(orgList);
     setTags(tagList);
     setStaffMembers(staffList);
+    setFeedbacks(fbList);
     setLoading(false);
   };
 
@@ -172,7 +189,9 @@ export const AdminRestaurantsPage: React.FC = () => {
       selectedOrgFilter,
       selectedTierFilter,
       staffMembers,
-      kdsStateByBranch
+      kdsStateByBranch,
+      feedbacks,
+      tierFeatureOverridesByBranch
     );
   }, [
     organizations,
@@ -183,6 +202,8 @@ export const AdminRestaurantsPage: React.FC = () => {
     selectedTierFilter,
     staffMembers,
     kdsStateByBranch,
+    feedbacks,
+    tierFeatureOverridesByBranch,
   ]);
 
   const handleEdit = (r: Restaurant) => {
@@ -230,8 +251,26 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   // ==========================================
-  // Controladores de Switches Prendido / Apagado
+  // Controladores de Selector de Tier y Switches Prendido / Apagado
   // ==========================================
+
+  const handleChangeBranchTier = async (res: Restaurant, newTier: TierType) => {
+    setRestaurants((prev) =>
+      prev.map((item) => (item.id === res.id ? { ...item, tier: newTier } : item))
+    );
+    // Limpiar overrides manuales de tier para esta sucursal para que refleje limpiamente el nuevo nivel contratado
+    setTierFeatureOverridesByBranch((prev) => {
+      const next = { ...prev };
+      delete next[res.id];
+      try {
+        localStorage.setItem(TIER_FEATURES_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return next;
+    });
+    await api.saveRestaurant({ id: res.id, tier: newTier });
+  };
 
   const handleToggleBranchActive = async (res: Restaurant) => {
     const nextState = res.is_active === false;
@@ -241,12 +280,33 @@ export const AdminRestaurantsPage: React.FC = () => {
     await api.toggleRestaurantActive(res.id, nextState);
   };
 
-  const handleToggleBranchAdFree = async (res: Restaurant) => {
-    const nextAdFree = !res.is_ad_free;
-    setRestaurants((prev) =>
-      prev.map((item) => (item.id === res.id ? { ...item, is_ad_free: nextAdFree } : item))
-    );
-    await api.saveRestaurant({ id: res.id, is_ad_free: nextAdFree });
+  const handleToggleTierFeature = async (res: Restaurant, feature: TierFeatureConfig) => {
+    const nextVal = !feature.isActive;
+
+    if (feature.key === 'addon_ad_free') {
+      setRestaurants((prev) =>
+        prev.map((item) => (item.id === res.id ? { ...item, is_ad_free: nextVal } : item))
+      );
+      await api.saveRestaurant({ id: res.id, is_ad_free: nextVal });
+      return;
+    }
+
+    setTierFeatureOverridesByBranch((prev) => {
+      const currentBranchOverrides = prev[res.id] || {};
+      const updated = {
+        ...prev,
+        [res.id]: {
+          ...currentBranchOverrides,
+          [feature.key]: nextVal,
+        },
+      };
+      try {
+        localStorage.setItem(TIER_FEATURES_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return updated;
+    });
   };
 
   const handleToggleTagActive = async (tag: Tag) => {
@@ -305,8 +365,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   const renderBranchControlPanel = (branchNode: BranchNode) => {
     const res = branchNode.restaurant;
     const branchTags = branchNode.tags;
-    const { capabilities, kdsStations, staff } = branchNode;
-    const isBranchOn = res.is_active !== false;
+    const { capabilities, kdsStations, staff, tierFeatures, feedbacksCount, pendingFeedbacksCount } = branchNode;
     const isWaiterTerminalOn =
       waiterTerminalByBranch[res.id] !== undefined ? waiterTerminalByBranch[res.id] : true;
 
@@ -322,6 +381,14 @@ export const AdminRestaurantsPage: React.FC = () => {
       manager: 'Capitán / Gerente de Piso',
     };
 
+    const tierBadgeColors: Record<string, string> = {
+      'Tier 1': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'Tier 2': 'bg-blue-50 text-blue-700 border-blue-200',
+      'Tier 3': 'bg-purple-50 text-purple-700 border-purple-200',
+      'Tier 4': 'bg-amber-50 text-amber-800 border-amber-200',
+      'Add-On': 'bg-slate-900 text-white border-slate-900',
+    };
+
     return (
       <tr className="bg-slate-50/80 border-b-2 border-slate-200">
         <td colSpan={5} className="p-0">
@@ -333,7 +400,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                   <Sliders className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
                       Panel de Control Operativo — {res.brand_name} ({res.branch_name})
                     </span>
@@ -346,58 +413,78 @@ export const AdminRestaurantsPage: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Acceso Rápido a Solicitudes de Quejas desde cabecera del Panel */}
+              <Link
+                to={`/admin/feedback?restaurant=${res.id}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors self-start sm:self-center"
+              >
+                <MessageSquareWarning className="w-3.5 h-3.5 text-rose-600" />
+                <span>Solicitudes de Quejas ({feedbacksCount})</span>
+                {pendingFeedbacksCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold">
+                    {pendingFeedbacksCount} nuevas
+                  </span>
+                )}
+              </Link>
             </div>
 
-            {/* CATEGORÍA 1: MÓDULOS Y SERVICIOS GENERALES DE LA SUCURSAL (Aplica a todas) */}
+            {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & MÓDULOS DE LA SUCURSAL */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+              <div className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Power className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
-                    Categoría 1: Servicios & Módulos de la Sucursal
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
+                    Categoría 1: Funcionalidades por Nivel Contratado (Tier {res.tier || 2})
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-500">2 controles aplicables</span>
+                <span className="text-[10px] font-bold text-blue-700">
+                  {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} funcionalidades prendidas
+                </span>
               </div>
 
               <div className="divide-y divide-slate-100 text-xs">
-                {/* Fila 1.1: Estado Operativo General de la Sucursal */}
-                <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60">
-                  <div className="min-w-0">
-                    <span className="font-bold text-slate-900 block">
-                      Servicio Interactivo en {capabilities.unitPlural} (Filtro Reputacional & Menú)
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Si se apaga, las placas NFC redirigen directo a Google Maps sin pasar por el filtro de quejas.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 self-end sm:self-center">
-                    <StatusBadgeAndSwitch
-                      isOn={isBranchOn}
-                      onToggle={() => handleToggleBranchActive(res)}
-                      title="Prender o apagar el servicio interactivo de la sucursal"
-                    />
-                  </div>
-                </div>
+                {tierFeatures.map((feature) => (
+                  <div
+                    key={feature.key}
+                    className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/20"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+                            tierBadgeColors[feature.badgeLabel] || 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {feature.badgeLabel}
+                        </span>
+                        <span className="font-bold text-slate-900">{feature.name}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block mt-0.5">
+                        {feature.description}
+                      </span>
+                    </div>
 
-                {/* Fila 1.2: Modalidad Marca Blanca Ad-Free */}
-                <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60">
-                  <div className="min-w-0">
-                    <span className="font-bold text-slate-900 block">
-                      Escudo Marca Blanca (Ad-Free • Sin Publicidad Cruzada)
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Prendido bloquea anuncios de terceros en las mesas; apagado permite pauta subsidiada de la red.
-                    </span>
+                    <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
+                      {feature.key === 'tier_2_reputation_shield' && (
+                        <Link
+                          to={`/admin/feedback?restaurant=${res.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors"
+                          title="Abrir buzón de quejas retenidas de esta sucursal"
+                        >
+                          <MessageSquareWarning className="w-3 h-3 text-rose-600" />
+                          <span>Ver Quejas ({feedbacksCount})</span>
+                        </Link>
+                      )}
+
+                      <StatusBadgeAndSwitch
+                        isOn={feature.isActive}
+                        onToggle={() => handleToggleTierFeature(res, feature)}
+                        title={`Prender o apagar ${feature.name}`}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 self-end sm:self-center">
-                    <StatusBadgeAndSwitch
-                      isOn={Boolean(res.is_ad_free)}
-                      onToggle={() => handleToggleBranchAdFree(res)}
-                      title="Prender o apagar Marca Blanca sin anuncios"
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -749,7 +836,7 @@ export const AdminRestaurantsPage: React.FC = () => {
             <div className="text-sm font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs">T1: {kpis.tierBreakdown.tier1}</span>
               <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-xs">T2: {kpis.tierBreakdown.tier2}</span>
-              <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 text-xs">T3: {kpis.tierBreakdown.tier3}</span>
+              <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 text-xs">T3+: {kpis.tierBreakdown.tier3}</span>
             </div>
             <div className="mt-2 text-[11px] font-semibold text-slate-500">
               {kpis.tierBreakdown.tier2 + kpis.tierBreakdown.tier3} locales con filtro 5 estrellas
@@ -804,7 +891,8 @@ export const AdminRestaurantsPage: React.FC = () => {
             <option value="all">Todos los Paquetes</option>
             <option value="tier_1">Tier 1: Enlace Directo</option>
             <option value="tier_2">Tier 2: Filtro Inteligente</option>
-            <option value="tier_3">Tier 3: Linktree de Marca</option>
+            <option value="tier_3">Tier 3: Menú Digital + Linktree</option>
+            <option value="tier_4">Tier 4: Red Publicitaria & Analítica</option>
             <option value="ad_free">Marca Blanca (Ad-Free)</option>
             <option value="with_ads">Red de Anuncios</option>
             <option value="active">Solo Locales Prendidos</option>
@@ -856,11 +944,11 @@ export const AdminRestaurantsPage: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 min-w-[270px]">Entidad & Jerarquía</th>
-                  <th className="py-3.5 px-4 min-w-[210px]">Titular / Ubicación</th>
-                  <th className="py-3.5 px-4 min-w-[180px]">Estado & Interruptor</th>
-                  <th className="py-3.5 px-4 min-w-[190px]">Panel de Control (Nivel 3)</th>
-                  <th className="py-3.5 px-4 min-w-[190px] text-right">Acciones Ejecutivas</th>
+                  <th className="py-3.5 px-4 min-w-[290px]">Entidad, Jerarquía & Nivel Contratado</th>
+                  <th className="py-3.5 px-4 min-w-[200px]">Titular / Ubicación</th>
+                  <th className="py-3.5 px-4 min-w-[170px]">Estado & Interruptor</th>
+                  <th className="py-3.5 px-4 min-w-[180px]">Panel de Control (Nivel 3)</th>
+                  <th className="py-3.5 px-4 min-w-[240px] text-right">Acciones & Quejas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -1020,7 +1108,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                             <React.Fragment key={res.id}>
                               {/* Fila Nivel 2: Sucursal */}
                               <tr className="bg-white hover:bg-blue-50/20 border-b border-slate-100 transition-colors">
-                                {/* Col 1: Conector de árbol e Identidad de Sucursal */}
+                                {/* Col 1: Conector de árbol, Identidad y Selector del Nivel Contratado (Tier) */}
                                 <td className="py-3 px-4 pl-8 sm:pl-10">
                                   <div className="flex items-center gap-2.5">
                                     <span className="text-slate-300 font-mono text-sm select-none">&bull;</span>
@@ -1040,7 +1128,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                       </div>
                                     )}
 
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1.5">
                                         <span className="font-extrabold text-slate-900 text-xs truncate">
                                           {res.brand_name}
@@ -1049,10 +1137,31 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           ({res.branch_name})
                                         </span>
                                       </div>
-                                      <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${tierInfo.badgeColor}`}>
-                                          {tierInfo.name}
-                                        </span>
+
+                                      {/* Selector Interactivo del Nivel Contratado (Tier 1 a 4) */}
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        <select
+                                          value={res.tier || 2}
+                                          onChange={(e) =>
+                                            handleChangeBranchTier(res, Number(e.target.value) as TierType)
+                                          }
+                                          title="Cambiar el nivel de paquete contratado por esta sucursal"
+                                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${tierInfo.badgeColor}`}
+                                        >
+                                          <option value={1} className="bg-white text-slate-900 font-bold">
+                                            {TIERS[1].name}
+                                          </option>
+                                          <option value={2} className="bg-white text-slate-900 font-bold">
+                                            {TIERS[2].name}
+                                          </option>
+                                          <option value={3} className="bg-white text-slate-900 font-bold">
+                                            {TIERS[3].name}
+                                          </option>
+                                          <option value={4} className="bg-white text-slate-900 font-bold">
+                                            {TIERS[4].name}
+                                          </option>
+                                        </select>
+
                                         <span className="text-[10px] text-slate-400 font-semibold">
                                           • {branchNode.capabilities.verticalLabel}
                                         </span>
@@ -1109,7 +1218,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                         ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                                         : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
                                     }`}
-                                    title="Abrir Panel de Control por Categorías (Placas NFC, Pantallas KDS y Meseros)"
+                                    title="Abrir Panel de Control por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS y Meseros)"
                                   >
                                     <Sliders className="w-3.5 h-3.5" />
                                     <span>Panel de Control</span>
@@ -1131,9 +1240,22 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   </button>
                                 </td>
 
-                                {/* Col 5: Botonera de Sucursal */}
+                                {/* Col 5: Botonera de Sucursal + Botón Directo a Solicitudes de Quejas */}
                                 <td className="py-3 px-4 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
+                                    <Link
+                                      to={`/admin/feedback?restaurant=${res.id}`}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                                        branchNode.pendingFeedbacksCount > 0
+                                          ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                      title="Ver solicitudes de quejas retenidas (1 a 3 estrellas) de esta sucursal"
+                                    >
+                                      <MessageSquareWarning className="w-3 h-3" />
+                                      <span>Quejas ({branchNode.feedbacksCount})</span>
+                                    </Link>
+
                                     <a
                                       href={res.google_review_url}
                                       target="_blank"
@@ -1196,6 +1318,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     {treeData.independentBranches.map((branchNode) => {
                       const res = branchNode.restaurant;
                       const branchTags = branchNode.tags;
+                      const tierInfo = TIERS[res.tier || 2];
                       const isPanelExpanded = !!expandedBranchPanels[res.id];
                       const isBranchOn = res.is_active !== false;
 
@@ -1203,9 +1326,33 @@ export const AdminRestaurantsPage: React.FC = () => {
                         <React.Fragment key={res.id}>
                           <tr className="bg-white hover:bg-slate-50 border-b border-slate-100">
                             <td className="py-3 px-4 pl-8">
-                              <div className="flex items-center gap-2">
-                                <span className="text-slate-300">&bull;</span>
-                                <span className="font-bold text-slate-900">{res.name}</span>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-300">&bull;</span>
+                                  <span className="font-bold text-slate-900">{res.name}</span>
+                                </div>
+                                <div className="pl-3">
+                                  <select
+                                    value={res.tier || 2}
+                                    onChange={(e) =>
+                                      handleChangeBranchTier(res, Number(e.target.value) as TierType)
+                                    }
+                                    className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer ${tierInfo.badgeColor}`}
+                                  >
+                                    <option value={1} className="bg-white text-slate-900">
+                                      {TIERS[1].name}
+                                    </option>
+                                    <option value={2} className="bg-white text-slate-900">
+                                      {TIERS[2].name}
+                                    </option>
+                                    <option value={3} className="bg-white text-slate-900">
+                                      {TIERS[3].name}
+                                    </option>
+                                    <option value={4} className="bg-white text-slate-900">
+                                      {TIERS[4].name}
+                                    </option>
+                                  </select>
+                                </div>
                               </div>
                             </td>
                             <td className="py-3 px-4 text-slate-500">{res.address || 'Sin dirección'}</td>
@@ -1225,12 +1372,20 @@ export const AdminRestaurantsPage: React.FC = () => {
                               </button>
                             </td>
                             <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => handleEdit(res)}
-                                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
-                              >
-                                Vincular Empresa
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Link
+                                  to={`/admin/feedback?restaurant=${res.id}`}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold"
+                                >
+                                  Quejas ({branchNode.feedbacksCount})
+                                </Link>
+                                <button
+                                  onClick={() => handleEdit(res)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+                                >
+                                  Vincular Empresa
+                                </button>
+                              </div>
                             </td>
                           </tr>
                           {isPanelExpanded && renderBranchControlPanel(branchNode)}

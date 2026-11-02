@@ -12,6 +12,7 @@ import { AdminSalesPage } from './pages/AdminSalesPage';
 import { AdminAdsPage } from './pages/AdminAdsPage';
 import { AdminFinancesPage } from './pages/AdminFinancesPage';
 import { AdminSupportPage } from './pages/AdminSupportPage';
+import { AdminFeedbackPage } from './pages/AdminFeedbackPage';
 import { AdminCoveragePage } from './pages/AdminCoveragePage';
 import { PortalKitchenPage } from './pages/portal/PortalKitchenPage';
 import { PortalStaffPage } from './pages/portal/PortalStaffPage';
@@ -69,8 +70,7 @@ export const App: React.FC = () => {
             <Route path="finanzas" element={<AdminFinancesPage />} />
             <Route path="cobertura" element={<AdminCoveragePage />} />
             <Route path="soporte" element={<AdminSupportPage />} />
-            {/* Alias de retrocompatibilidad */}
-            <Route path="feedback" element={<Navigate to="/admin/soporte" replace />} />
+            <Route path="feedback" element={<AdminFeedbackPage />} />
           </Route>
         </Route>
 

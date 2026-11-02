@@ -211,4 +211,58 @@ describe('UI-EX-01: Sucursales & Restaurantes en Bento Grid Light', () => {
     expect(dentalBranch?.kdsStations.length).toBe(0);
     expect(dentalBranch?.staff.length).toBe(0);
   });
+
+  it('debe calcular los switches de funcionalidades de cada Tier y el conteo de solicitudes de quejas por sucursal', () => {
+    const tree = buildOrganizationTree(
+      mockOrganizations,
+      mockRestaurants,
+      mockTags,
+      '',
+      'all',
+      'all',
+      [],
+      {},
+      [
+        {
+          id: 'fb-1',
+          restaurant_id: 'res-1',
+          rating: 2,
+          comments: 'Tardó la pizza',
+          status: 'new',
+          notified_to_owner: true,
+          created_at: '',
+        },
+        {
+          id: 'fb-2',
+          restaurant_id: 'res-1',
+          rating: 1,
+          comments: 'Fría',
+          status: 'reviewed',
+          notified_to_owner: true,
+          created_at: '',
+        },
+      ],
+      {
+        'res-2': { tier_3_digital_menu_wifi: true }, // Override manual en sucursal Tier 2
+      }
+    );
+
+    const org1 = tree.organizations.find((o) => o.organization.id === 'org-1');
+    const branch1 = org1?.branches.find((b) => b.restaurant.id === 'res-1'); // Tier 3, Ad-Free true
+    const branch2 = org1?.branches.find((b) => b.restaurant.id === 'res-2'); // Tier 2, con override de Tier 3
+
+    // Sucursal 1 (Tier 3): tiene 2 quejas (1 nueva) y prendidos Tier 1, Tier 2, Tier 3 y Add-On Ad-Free
+    expect(branch1?.feedbacksCount).toBe(2);
+    expect(branch1?.pendingFeedbacksCount).toBe(1);
+    expect(branch1?.tierFeatures.find((f) => f.key === 'tier_1_redirect')?.isActive).toBe(true);
+    expect(branch1?.tierFeatures.find((f) => f.key === 'tier_2_reputation_shield')?.isActive).toBe(true);
+    expect(branch1?.tierFeatures.find((f) => f.key === 'tier_3_digital_menu_wifi')?.isActive).toBe(true);
+    expect(branch1?.tierFeatures.find((f) => f.key === 'tier_4_ad_network_analytics')?.isActive).toBe(false);
+    expect(branch1?.tierFeatures.find((f) => f.key === 'addon_ad_free')?.isActive).toBe(true);
+
+    // Sucursal 2 (Tier 2 con override manual en Tier 3):
+    expect(branch2?.feedbacksCount).toBe(0);
+    expect(branch2?.tierFeatures.find((f) => f.key === 'tier_2_reputation_shield')?.isActive).toBe(true);
+    expect(branch2?.tierFeatures.find((f) => f.key === 'tier_3_digital_menu_wifi')?.isActive).toBe(true);
+  });
 });
