@@ -456,7 +456,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                           />
 
                           <a
-                            href={`/?t=${tag.tag_code}`}
+                            href={`#/?t=${tag.tag_code}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
