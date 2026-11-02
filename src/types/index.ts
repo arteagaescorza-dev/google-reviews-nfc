@@ -640,3 +640,95 @@ export interface FoodieFavorite {
   order_count: number;
   last_ordered_at: string;
 }
+
+// ==========================================
+// Módulos Fase C: Gerente de Tienda, Capitán de Piso, Turnos (60 Días) y Cupones con Límite Mensual
+// ==========================================
+
+export type StoreManagerRole = 'gerente_tienda' | 'capitan_piso';
+
+export interface OrganizationManager {
+  id: string;
+  organization_id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  pin_code: string;
+  manager_role: StoreManagerRole;
+  assigned_branch_ids: string[];
+  branch_roles?: Record<string, StoreManagerRole | 'sin_acceso'>;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type StaffShiftType = 'matutino' | 'vespertino' | 'nocturno_cierre' | 'completo';
+
+export interface StaffShift {
+  id: string;
+  restaurant_id: string;
+  staff_id: string;
+  staff_name: string;
+  staff_role: StaffRole;
+  shift_date: string; // YYYY-MM-DD (hasta 60 días de anticipación)
+  shift_type: StaffShiftType;
+  start_time: string;
+  end_time: string;
+  assigned_station?: KitchenStation;
+  assigned_tables?: string[];
+  notes?: string | null;
+  created_by_manager?: string | null;
+  created_at: string;
+}
+
+export interface ManagerRetentionCoupon {
+  id: string;
+  restaurant_id: string;
+  manager_name: string;
+  coupon_code: string;
+  title: string;
+  discount_description: string;
+  discount_percentage: number;
+  monthly_limit: number;
+  used_this_month: number;
+  month_key: string; // YYYY-MM
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TableShiftMetric {
+  table_number: string;
+  orders_count: number;
+  total_amount: number;
+  average_ticket: number;
+}
+
+export interface EmployeeShiftMetric {
+  staff_name: string;
+  role: StaffRole;
+  tables_served: number;
+  sales_generated: number;
+  tips_estimated: number;
+  calls_attended: number;
+}
+
+export interface ManagerShiftReport {
+  id: string;
+  organization_id?: string | null;
+  restaurant_id: string;
+  branch_name: string;
+  manager_name: string;
+  waiter_name: string;
+  shift_type: StaffShiftType;
+  shift_date: string;
+  tables_served: number;
+  total_sales: number;
+  cash_sales: number;
+  card_sales: number;
+  tips_collected: number;
+  discounts_authorized: number;
+  table_metrics: TableShiftMetric[];
+  employee_metrics: EmployeeShiftMetric[];
+  sent_to_owner: boolean;
+  created_at: string;
+}
+

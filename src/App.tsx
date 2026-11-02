@@ -17,6 +17,7 @@ import { AdminCoveragePage } from './pages/AdminCoveragePage';
 import { PortalKitchenPage } from './pages/portal/PortalKitchenPage';
 import { PortalStaffPage } from './pages/portal/PortalStaffPage';
 import { PortalHostessPage } from './pages/portal/PortalHostessPage';
+import { PortalManagerPage } from './pages/portal/PortalManagerPage';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
@@ -52,10 +53,11 @@ export const App: React.FC = () => {
           <Route index element={<PortalDashboardPage />} />
         </Route>
 
-        {/* Terminales de Sala, Recepción (Hostess) y Cocina */}
+        {/* Terminales de Sala, Recepción (Hostess), Gerencia y Cocina */}
         <Route path="/portal/cocina" element={<PortalKitchenPage />} />
         <Route path="/portal/mesero" element={<PortalStaffPage />} />
         <Route path="/portal/hostess" element={<PortalHostessPage />} />
+        <Route path="/portal/gerente" element={<PortalManagerPage />} />
 
         {/* Autenticación Administrativa */}
         <Route path="/admin/login" element={<AdminLoginPage />} />

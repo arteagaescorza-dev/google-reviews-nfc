@@ -30,6 +30,10 @@ export const STORAGE_KEYS = {
   DAILY_CASH_CLOSES: 'nfc_demo_daily_cash_closes',
   CORPORATE_ORDERS: 'nfc_demo_corporate_orders',
   RESTAURANT_TABLES: 'nfc_demo_restaurant_tables',
+  ORGANIZATION_MANAGERS: 'nfc_demo_organization_managers',
+  STAFF_SHIFTS: 'nfc_demo_staff_shifts',
+  MANAGER_RETENTION_COUPONS: 'nfc_demo_manager_retention_coupons',
+  MANAGER_SHIFT_REPORTS: 'nfc_demo_manager_shift_reports',
 };
 
 export const VIRAL_SEED_AD: Ad = {

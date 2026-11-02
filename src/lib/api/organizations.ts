@@ -6,6 +6,8 @@ import type {
   Restaurant,
   BusinessVertical,
   OrganizationBrand,
+  OrganizationManager,
+  StoreManagerRole,
 } from '../../types';
 import { STORAGE_KEYS, INITIAL_DEMO_DATA, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
@@ -402,5 +404,189 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
     };
     setLocalItem(STORAGE_KEYS.ORGANIZATION_BRANDS, [...brands, newBrand]);
     return { success: true, data: newBrand };
+  },
+
+  // ==========================================
+  // MÓDULO FASE C: TABLA DE GERENTES POR ORGANIZACIÓN Y ASIGNACIÓN POR SUCURSAL
+  // ==========================================
+  async getOrganizationManagers(organizationId?: string): Promise<OrganizationManager[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('organization_managers')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (organizationId && !organizationId.startsWith('org-')) {
+          query = query.eq('organization_id', organizationId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as OrganizationManager[];
+        }
+      } catch (e) {
+        console.warn('Error cargando organization_managers de Supabase:', e);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const targetOrgId = organizationId || 'org-1';
+    const defaultManagers: OrganizationManager[] = [
+      {
+        id: 'mgr-1',
+        organization_id: targetOrgId,
+        name: 'Lic. Mauricio Salinas (Gerente General de Sucursal)',
+        email: 'mauricio.gerente@restaurante.mx',
+        phone: '+525544332211',
+        pin_code: '8888',
+        manager_role: 'gerente_tienda',
+        assigned_branch_ids: ['res-1', 'res-2'],
+        branch_roles: {
+          'res-1': 'gerente_tienda',
+          'res-2': 'gerente_tienda',
+        },
+        is_active: true,
+        created_at: nowIso,
+      },
+      {
+        id: 'mgr-2',
+        organization_id: targetOrgId,
+        name: 'Sofía Valdés (Capitana / Gerente de Piso)',
+        email: 'sofia.piso@restaurante.mx',
+        phone: '+525566778899',
+        pin_code: '9999',
+        manager_role: 'capitan_piso',
+        assigned_branch_ids: ['res-1'],
+        branch_roles: {
+          'res-1': 'capitan_piso',
+        },
+        is_active: true,
+        created_at: nowIso,
+      },
+    ];
+
+    const list = getLocalItem<OrganizationManager[]>(
+      STORAGE_KEYS.ORGANIZATION_MANAGERS,
+      defaultManagers
+    );
+    if (!organizationId) return list;
+    const filtered = list.filter(
+      (m) => m.organization_id === organizationId || m.organization_id === 'org-1'
+    );
+    return filtered.length > 0 ? filtered : defaultManagers;
+  },
+
+  async saveOrganizationManager(
+    manager: Partial<OrganizationManager>
+  ): Promise<{ success: boolean; data?: OrganizationManager; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const orgId = manager.organization_id || 'org-1';
+
+    if (!isDemo && isSupabaseConfigured && !orgId.startsWith('org-')) {
+      try {
+        if (manager.id && !manager.id.startsWith('mgr-')) {
+          const clean = sanitizeSupabasePayload(manager, false);
+          const { data, error } = await supabase
+            .from('organization_managers')
+            .update(clean)
+            .eq('id', manager.id)
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as OrganizationManager };
+        } else {
+          const clean = sanitizeSupabasePayload(
+            {
+              organization_id: orgId,
+              name: manager.name || 'Nuevo Gerente',
+              email: manager.email || null,
+              phone: manager.phone || null,
+              pin_code: manager.pin_code || '8888',
+              manager_role: manager.manager_role || 'gerente_tienda',
+              assigned_branch_ids: manager.assigned_branch_ids || [],
+              branch_roles: manager.branch_roles || {},
+              is_active: manager.is_active ?? true,
+            },
+            true
+          );
+          const { data, error } = await supabase
+            .from('organization_managers')
+            .insert([clean])
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as OrganizationManager };
+        }
+      } catch (err: any) {
+        console.warn('Error guardando organization_manager en Supabase, usando respaldo local:', err.message);
+      }
+    }
+
+    const current = await organizationsApi.getOrganizationManagers();
+    if (manager.id) {
+      const updated = current.map((m) =>
+        m.id === manager.id ? ({ ...m, ...manager } as OrganizationManager) : m
+      );
+      setLocalItem(STORAGE_KEYS.ORGANIZATION_MANAGERS, updated);
+      return { success: true, data: updated.find((m) => m.id === manager.id) };
+    }
+
+    const created: OrganizationManager = {
+      id: 'mgr-' + Date.now(),
+      organization_id: orgId,
+      name: manager.name || 'Gerente de Tienda',
+      email: manager.email || null,
+      phone: manager.phone || null,
+      pin_code: manager.pin_code || '8888',
+      manager_role: manager.manager_role || 'gerente_tienda',
+      assigned_branch_ids: manager.assigned_branch_ids || [],
+      branch_roles: manager.branch_roles || {},
+      is_active: manager.is_active ?? true,
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_MANAGERS, [...current, created]);
+    return { success: true, data: created };
+  },
+
+  async assignManagerToBranch(
+    managerId: string,
+    branchId: string,
+    role: StoreManagerRole | 'sin_acceso',
+    organizationId?: string
+  ): Promise<{ success: boolean; data?: OrganizationManager }> {
+    const allManagers = await organizationsApi.getOrganizationManagers(organizationId);
+    const target = allManagers.find((m) => m.id === managerId);
+    if (!target) return { success: false };
+
+    const nextBranchRoles = { ...(target.branch_roles || {}), [branchId]: role };
+    const nextAssignedBranches =
+      role === 'sin_acceso'
+        ? (target.assigned_branch_ids || []).filter((id) => id !== branchId)
+        : Array.from(new Set([...(target.assigned_branch_ids || []), branchId]));
+
+    return organizationsApi.saveOrganizationManager({
+      ...target,
+      manager_role: role === 'sin_acceso' ? target.manager_role : role,
+      assigned_branch_ids: nextAssignedBranches,
+      branch_roles: nextBranchRoles,
+    });
+  },
+
+  async deleteOrganizationManager(managerId: string): Promise<{ success: boolean }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !managerId.startsWith('mgr-')) {
+      try {
+        await supabase.from('organization_managers').delete().eq('id', managerId);
+      } catch (e) {
+        console.warn('Error eliminando organization_manager en Supabase:', e);
+      }
+    }
+    const current = await organizationsApi.getOrganizationManagers();
+    setLocalItem(
+      STORAGE_KEYS.ORGANIZATION_MANAGERS,
+      current.filter((m) => m.id !== managerId)
+    );
+    return { success: true };
+  },
+  _noop() {
+    return null;
   },
 };

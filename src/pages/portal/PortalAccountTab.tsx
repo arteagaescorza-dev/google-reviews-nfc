@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad, StaffMember, StaffRole } from '../../types';
+import type { Organization, Restaurant, OrganizationMember, MemberRole, BillingInfo, SupportTicket, Ad, StaffMember, StaffRole, OrganizationManager, StoreManagerRole } from '../../types';
 import { CreateCampaignModal } from '../../components/portal/CreateCampaignModal';
 import { api } from '../../lib/api';
 import { getNotificationPermission, requestNotificationPermission, sendLocalNotification, playAlertSound } from '../../lib/notifications';
@@ -138,6 +138,11 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
 
   // Estado Equipo
   const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [orgManagers, setOrgManagers] = useState<OrganizationManager[]>([]);
+  const [newOrgMgrName, setNewOrgMgrName] = useState('');
+  const [newOrgMgrEmail, setNewOrgMgrEmail] = useState('');
+  const [newOrgMgrPin, setNewOrgMgrPin] = useState('1234');
+  const [newOrgMgrRole, setNewOrgMgrRole] = useState<StoreManagerRole>('gerente_tienda');
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -297,6 +302,8 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const loadMembers = async () => {
     setLoadingMembers(true);
     const list = await api.getOrganizationMembers(organization.id);
+    const mgrs = await api.getOrganizationManagers(organization.id);
+    setOrgManagers(mgrs);
     setMembers(list);
     setLoadingMembers(false);
   };
@@ -816,6 +823,114 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
           )}
         </div>
 
+        {/* BLOQUE 3A-BIS: Tabla de Gerentes de la Organización */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Tabla de Gerentes de la Organización</h3>
+                <p className="text-[11px] text-slate-400">Gerentes de Tienda y Capitanes de Piso asignables por sucursal</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <input
+              type="text"
+              value={newOrgMgrName}
+              onChange={(e) => setNewOrgMgrName(e.target.value)}
+              placeholder="Nombre del Gerente"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800"
+            />
+            <input
+              type="email"
+              value={newOrgMgrEmail}
+              onChange={(e) => setNewOrgMgrEmail(e.target.value)}
+              placeholder="correo@organizacion.com"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800"
+            />
+            <select
+              value={newOrgMgrRole}
+              onChange={(e) => setNewOrgMgrRole(e.target.value as StoreManagerRole)}
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800"
+            >
+              <option value="gerente_tienda">Gerente de Tienda</option>
+              <option value="capitan_piso">Capitán / Gerente de Piso</option>
+            </select>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                maxLength={4}
+                value={newOrgMgrPin}
+                onChange={(e) => setNewOrgMgrPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="PIN 4"
+                className="w-20 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-mono font-bold text-slate-800"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newOrgMgrName.trim()) return;
+                  const saved = await api.saveOrganizationManager({
+                    organization_id: organization.id,
+                    name: newOrgMgrName.trim(),
+                    email: newOrgMgrEmail.trim() || `${newOrgMgrName.toLowerCase().replace(/\s+/g, '.')}@gerencia.local`,
+                    pin_code: newOrgMgrPin || '1234',
+                    manager_role: newOrgMgrRole,
+                    assigned_branch_ids: restaurants[0]?.id ? [restaurants[0].id] : [],
+                    is_active: true,
+                  });
+                  if (saved.success) {
+                    const updated = await api.getOrganizationManagers(organization.id);
+                    setOrgManagers(updated);
+                    setNewOrgMgrName('');
+                    setNewOrgMgrEmail('');
+                  }
+                }}
+                className="flex-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors"
+              >
+                + Alta
+              </button>
+            </div>
+          </div>
+
+          {orgManagers.length === 0 ? (
+            <p className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-2xl border border-slate-100">
+              Aún no hay gerentes registrados en la tabla de esta organización.
+            </p>
+          ) : (
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
+              {orgManagers.map((mgr) => (
+                <div key={mgr.id} className="p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800 block">{mgr.name}</span>
+                    <span className="text-[11px] text-slate-500">
+                      {mgr.email} · PIN: <strong className="font-mono">{mgr.pin_code}</strong> · Sucursales asignadas: {(mgr.assigned_branch_ids || []).length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={mgr.manager_role}
+                      onChange={async (e) => {
+                        const nextRole = e.target.value as StoreManagerRole;
+                        await api.saveOrganizationManager({ ...mgr, manager_role: nextRole });
+                        const updated = await api.getOrganizationManagers(organization.id);
+                        setOrgManagers(updated);
+                      }}
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-indigo-700"
+                    >
+                      <option value="gerente_tienda">Gerente de Tienda</option>
+                      <option value="capitan_piso">Capitán / Gerente de Piso</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* BLOQUE 3B: Personal de Sala y Cocina (PIN de 4 Dígitos) */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -896,6 +1011,15 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
             >
               <Users className="w-3.5 h-3.5 text-violet-600" />
               <span>Pantalla Hostess</span>
+            </a>
+            <a
+              href={`#/portal/gerente?branch=${selectedStaffBranchId || restaurants[0]?.id || ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-700 hover:text-indigo-700 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Consola Gerente</span>
             </a>
           </div>
 
@@ -1475,6 +1599,50 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                     <span className="text-slate-400 font-mono text-[10px]">
                       Tier {r.tier || 2}
                     </span>
+                  </div>
+
+                  {/* Selector de Gerente de Tienda por Sucursal (Dueño) */}
+                  <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Gerente Asignado a Sucursal
+                      </span>
+                      <a
+                        href={`#/portal/gerente?branch=${r.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
+                      >
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Consola Gerente</span>
+                      </a>
+                    </div>
+                    <select
+                      value={orgManagers.find((m) => (m.assigned_branch_ids || []).includes(r.id))?.id || ''}
+                      onChange={async (e) => {
+                        const selectedMgrId = e.target.value;
+                        for (const mgr of orgManagers) {
+                          const currentlyAssigned = (mgr.assigned_branch_ids || []).includes(r.id);
+                          if (mgr.id === selectedMgrId && !currentlyAssigned) {
+                            await api.assignManagerToBranch(mgr.id, r.id, mgr.manager_role);
+                          } else if (mgr.id !== selectedMgrId && currentlyAssigned) {
+                            await api.assignManagerToBranch(mgr.id, r.id, 'sin_acceso');
+                          }
+                        }
+                        const updated = await api.getOrganizationManagers(organization.id);
+                        setOrgManagers(updated);
+                        setBranchActionToast(`Gerente de tienda actualizado para ${r.branch_name || r.name}.`);
+                        setTimeout(() => setBranchActionToast(null), 3500);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-800"
+                    >
+                      <option value="">-- Seleccionar Gerente de la Organización --</option>
+                      {orgManagers.map((mgr) => (
+                        <option key={mgr.id} value={mgr.id}>
+                          {mgr.name} ({mgr.manager_role === 'gerente_tienda' ? 'Gerente de Tienda' : 'Capitán / Piso'} · PIN {mgr.pin_code})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Acciones de Gestión de Sucursal */}

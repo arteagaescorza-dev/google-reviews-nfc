@@ -11,6 +11,10 @@ import type {
   RestaurantTable,
   RestaurantTableStatus,
   KitchenStation,
+  StaffShift,
+  ManagerRetentionCoupon,
+  ManagerShiftReport,
+  Feedback,
 } from '../../types';
 import { STORAGE_KEYS, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
@@ -1108,5 +1112,438 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
       table: tableRes.data,
       call: callRes.data,
     };
+  },
+
+  // ==========================================
+  // MÓDULO FASE C: GERENTE DE TIENDA — TURNOS (HASTA 2 MESES), CUPONES CON LÍMITE MENSUAL Y CORTES DE TURNO
+  // ==========================================
+  async getStaffShifts(restaurantId?: string): Promise<StaffShift[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase.from('staff_shifts').select('*').order('shift_date', { ascending: true });
+        if (restaurantId && !restaurantId.startsWith('res-')) {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as StaffShift[];
+        }
+      } catch (e) {
+        console.warn('Error obteniendo staff_shifts de Supabase:', e);
+      }
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const targetResId = restaurantId || 'res-1';
+    const defaultShifts: StaffShift[] = [
+      {
+        id: 'shift-1',
+        restaurant_id: targetResId,
+        staff_id: 'staff-1',
+        staff_name: 'Marco Antonio (Mesero)',
+        staff_role: 'waiter',
+        shift_date: todayStr,
+        shift_type: 'matutino',
+        start_time: '08:00',
+        end_time: '16:00',
+        assigned_station: 'all',
+        assigned_tables: ['Mesa 1', 'Mesa 2', 'Mesa 3'],
+        notes: 'Salón principal',
+        created_by_manager: 'Lic. Mauricio Salinas',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'shift-2',
+        restaurant_id: targetResId,
+        staff_id: 'staff-2',
+        staff_name: 'Chef Roberto (Jefe de Cocina)',
+        staff_role: 'kitchen',
+        shift_date: todayStr,
+        shift_type: 'completo',
+        start_time: '09:00',
+        end_time: '18:00',
+        assigned_station: 'cocina',
+        assigned_tables: [],
+        notes: 'Estación Cocina Caliente KDS',
+        created_by_manager: 'Lic. Mauricio Salinas',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'shift-3',
+        restaurant_id: targetResId,
+        staff_id: 'staff-5',
+        staff_name: 'Diego Herrera (Barista & Barra)',
+        staff_role: 'barista',
+        shift_date: tomorrowStr,
+        shift_type: 'vespertino',
+        start_time: '14:00',
+        end_time: '22:00',
+        assigned_station: 'barista',
+        assigned_tables: [],
+        notes: 'Barra, Coctelería, Repostería y Café',
+        created_by_manager: 'Lic. Mauricio Salinas',
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    const list = getLocalItem<StaffShift[]>(STORAGE_KEYS.STAFF_SHIFTS, defaultShifts);
+    if (!restaurantId) return list;
+    return list.filter((s) => s.restaurant_id === restaurantId || s.restaurant_id === 'res-1');
+  },
+
+  async createStaffShift(
+    shift: Omit<StaffShift, 'id' | 'created_at'>
+  ): Promise<{ success: boolean; data?: StaffShift; error?: string }> {
+    // Validar que la fecha del turno no exceda los 62 días (2 meses de anticipación)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = new Date(`${shift.shift_date}T00:00:00`);
+    const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays > 62) {
+      return {
+        success: false,
+        error: 'Los turnos solo pueden programarse con un máximo de 2 meses (60 días) de anticipación.',
+      };
+    }
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const resId = shift.restaurant_id || 'res-1';
+    if (!isDemo && isSupabaseConfigured && !resId.startsWith('res-')) {
+      try {
+        const clean = sanitizeSupabasePayload(shift, true);
+        const { data, error } = await supabase
+          .from('staff_shifts')
+          .insert([clean])
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as StaffShift };
+      } catch (err: any) {
+        console.warn('Error insertando staff_shift en Supabase, usando respaldo local:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getStaffShifts();
+    const created: StaffShift = {
+      ...shift,
+      id: 'shift-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.STAFF_SHIFTS, [...current, created]);
+    return { success: true, data: created };
+  },
+
+  async deleteStaffShift(shiftId: string): Promise<{ success: boolean }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !shiftId.startsWith('shift-')) {
+      try {
+        await supabase.from('staff_shifts').delete().eq('id', shiftId);
+      } catch (e) {
+        console.warn('Error eliminando staff_shift en Supabase:', e);
+      }
+    }
+    const current = await ordersApi.getStaffShifts();
+    setLocalItem(
+      STORAGE_KEYS.STAFF_SHIFTS,
+      current.filter((s) => s.id !== shiftId)
+    );
+    return { success: true };
+  },
+
+  async getManagerRetentionCoupons(restaurantId?: string): Promise<ManagerRetentionCoupon[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('manager_retention_coupons')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (restaurantId && !restaurantId.startsWith('res-')) {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as ManagerRetentionCoupon[];
+        }
+      } catch (e) {
+        console.warn('Error obteniendo manager_retention_coupons de Supabase:', e);
+      }
+    }
+
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    const targetResId = restaurantId || 'res-1';
+    const defaultCoupons: ManagerRetentionCoupon[] = [
+      {
+        id: 'mcoup-1',
+        restaurant_id: targetResId,
+        manager_name: 'Lic. Mauricio Salinas',
+        coupon_code: 'GERENCIA-20',
+        title: 'Descuento de Cortesía por Servicio (20% OFF)',
+        discount_description: '20% de descuento en cuenta actual o próxima visita',
+        discount_percentage: 20,
+        monthly_limit: 15,
+        used_this_month: 3,
+        month_key: currentMonthKey,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'mcoup-2',
+        restaurant_id: targetResId,
+        manager_name: 'Lic. Mauricio Salinas',
+        coupon_code: 'POSTRE-VIP',
+        title: 'Postre o Coctel de Cortesía en Próxima Visita',
+        discount_description: '1 Postre o Coctel sin costo autorizado por Gerencia',
+        discount_percentage: 100,
+        monthly_limit: 25,
+        used_this_month: 5,
+        month_key: currentMonthKey,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    const list = getLocalItem<ManagerRetentionCoupon[]>(
+      STORAGE_KEYS.MANAGER_RETENTION_COUPONS,
+      defaultCoupons
+    );
+    if (!restaurantId) return list;
+    return list.filter((c) => c.restaurant_id === restaurantId || c.restaurant_id === 'res-1');
+  },
+
+  async createManagerRetentionCoupon(
+    coupon: Omit<ManagerRetentionCoupon, 'id' | 'created_at' | 'used_this_month' | 'month_key'>
+  ): Promise<{ success: boolean; data?: ManagerRetentionCoupon; error?: string }> {
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const resId = coupon.restaurant_id || 'res-1';
+
+    if (!isDemo && isSupabaseConfigured && !resId.startsWith('res-')) {
+      try {
+        const clean = sanitizeSupabasePayload(
+          {
+            ...coupon,
+            used_this_month: 0,
+            month_key: monthKey,
+          },
+          true
+        );
+        const { data, error } = await supabase
+          .from('manager_retention_coupons')
+          .insert([clean])
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as ManagerRetentionCoupon };
+      } catch (err: any) {
+        console.warn('Error insertando manager_retention_coupon en Supabase:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getManagerRetentionCoupons();
+    const created: ManagerRetentionCoupon = {
+      ...coupon,
+      id: 'mcoup-' + Date.now(),
+      used_this_month: 0,
+      month_key: monthKey,
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.MANAGER_RETENTION_COUPONS, [created, ...current]);
+    return { success: true, data: created };
+  },
+
+  async authorizeComplaintDiscountOrCoupon(params: {
+    feedbackId: string;
+    restaurantId: string;
+    couponId?: string;
+    customDiscountText?: string;
+    managerName: string;
+  }): Promise<{ success: boolean; error?: string; coupon?: ManagerRetentionCoupon }> {
+    const allCoupons = await ordersApi.getManagerRetentionCoupons(params.restaurantId);
+    let selectedCoupon: ManagerRetentionCoupon | undefined;
+
+    if (params.couponId) {
+      selectedCoupon = allCoupons.find((c) => c.id === params.couponId);
+      if (!selectedCoupon) {
+        return { success: false, error: 'El cupón seleccionado no existe.' };
+      }
+      if (selectedCoupon.used_this_month >= selectedCoupon.monthly_limit) {
+        return {
+          success: false,
+          error: `Se alcanzó el límite mensual (${selectedCoupon.monthly_limit}) para el cupón ${selectedCoupon.coupon_code}.`,
+        };
+      }
+
+      const nextUsed = selectedCoupon.used_this_month + 1;
+      selectedCoupon = { ...selectedCoupon, used_this_month: nextUsed };
+
+      const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+      if (!isDemo && isSupabaseConfigured && !selectedCoupon.id.startsWith('mcoup-')) {
+        try {
+          await supabase
+            .from('manager_retention_coupons')
+            .update({ used_this_month: nextUsed })
+            .eq('id', selectedCoupon.id);
+        } catch (e) {
+          console.warn('Error actualizando contador de cupón en Supabase:', e);
+        }
+      }
+
+      const fullList = await ordersApi.getManagerRetentionCoupons();
+      const updatedCoupons = fullList.map((c) =>
+        c.id === selectedCoupon!.id ? selectedCoupon! : c
+      );
+      setLocalItem(STORAGE_KEYS.MANAGER_RETENTION_COUPONS, updatedCoupons);
+    }
+
+    const authorizationSummary = selectedCoupon
+      ? `Autorizado por Gerente (${params.managerName}): Cupón ${selectedCoupon.coupon_code} - ${selectedCoupon.discount_description}`
+      : `Autorizado por Gerente (${params.managerName}): ${params.customDiscountText || 'Descuento directo en cuenta'}`;
+
+    // Actualizar estado de la queja a resuelta con nota de autorización del gerente
+    const feedbacks = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, []);
+    const updatedFeedbacks = feedbacks.map((f) =>
+      f.id === params.feedbackId
+        ? {
+            ...f,
+            status: 'resolved' as const,
+            internal_notes: authorizationSummary,
+          }
+        : f
+    );
+    setLocalItem(STORAGE_KEYS.FEEDBACK, updatedFeedbacks);
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !params.feedbackId.startsWith('fb-')) {
+      try {
+        await supabase
+          .from('feedbacks')
+          .update({ status: 'resolved', internal_notes: authorizationSummary })
+          .eq('id', params.feedbackId);
+      } catch (e) {
+        console.warn('Error actualizando feedback en Supabase:', e);
+      }
+    }
+
+    return { success: true, coupon: selectedCoupon };
+  },
+
+  async getManagerShiftReports(
+    restaurantId?: string,
+    organizationId?: string
+  ): Promise<ManagerShiftReport[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('manager_shift_reports')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (restaurantId && !restaurantId.startsWith('res-')) {
+          query = query.eq('restaurant_id', restaurantId);
+        } else if (organizationId && !organizationId.startsWith('org-')) {
+          query = query.eq('organization_id', organizationId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as ManagerShiftReport[];
+        }
+      } catch (e) {
+        console.warn('Error obteniendo manager_shift_reports de Supabase:', e);
+      }
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const defaultReports: ManagerShiftReport[] = [
+      {
+        id: 'mrep-1',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Marco Antonio (Mesero)',
+        shift_type: 'matutino',
+        shift_date: todayStr,
+        tables_served: 14,
+        total_sales: 8450,
+        cash_sales: 2950,
+        card_sales: 5500,
+        tips_collected: 1180,
+        discounts_authorized: 190,
+        table_metrics: [
+          { table_number: 'Mesa 1', orders_count: 4, total_amount: 2450, average_ticket: 612 },
+          { table_number: 'Mesa 2', orders_count: 3, total_amount: 1850, average_ticket: 616 },
+          { table_number: 'Mesa 4', orders_count: 7, total_amount: 4150, average_ticket: 592 },
+        ],
+        employee_metrics: [
+          {
+            staff_name: 'Marco Antonio (Mesero)',
+            role: 'waiter',
+            tables_served: 14,
+            sales_generated: 8450,
+            tips_estimated: 1180,
+            calls_attended: 19,
+          },
+          {
+            staff_name: 'Chef Roberto (Jefe de Cocina)',
+            role: 'kitchen',
+            tables_served: 14,
+            sales_generated: 5900,
+            tips_estimated: 0,
+            calls_attended: 14,
+          },
+          {
+            staff_name: 'Diego Herrera (Barista & Barra)',
+            role: 'barista',
+            tables_served: 11,
+            sales_generated: 2550,
+            tips_estimated: 0,
+            calls_attended: 11,
+          },
+        ],
+        sent_to_owner: true,
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    const list = getLocalItem<ManagerShiftReport[]>(
+      STORAGE_KEYS.MANAGER_SHIFT_REPORTS,
+      defaultReports
+    );
+    if (restaurantId) {
+      return list.filter((r) => r.restaurant_id === restaurantId || r.restaurant_id === 'res-1');
+    }
+    return list;
+  },
+
+  async createManagerShiftReport(
+    report: Omit<ManagerShiftReport, 'id' | 'created_at'>
+  ): Promise<{ success: boolean; data?: ManagerShiftReport; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const resId = report.restaurant_id || 'res-1';
+
+    if (!isDemo && isSupabaseConfigured && !resId.startsWith('res-')) {
+      try {
+        const clean = sanitizeSupabasePayload(report, true);
+        const { data, error } = await supabase
+          .from('manager_shift_reports')
+          .insert([clean])
+          .select()
+          .single();
+        if (!error && data) return { success: true, data: data as ManagerShiftReport };
+      } catch (err: any) {
+        console.warn('Error insertando manager_shift_report en Supabase:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getManagerShiftReports();
+    const created: ManagerShiftReport = {
+      ...report,
+      id: 'mrep-' + Date.now(),
+      sent_to_owner: true,
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.MANAGER_SHIFT_REPORTS, [created, ...current]);
+    return { success: true, data: created };
   },
 };
