@@ -30,7 +30,7 @@ graph TD
 | ID | Área | Descripción del Ítem | Impacto Operativo | Severidad | Esfuerzo Estimado |
 |---|---|---|---|---|---|
 | **DT-01** | Frontend | Estandarización de Tokens CSS Semánticos (3 Capas) | Inconsistencias visuales y mantenimiento lento en CSS | 🟡 MEDIA | 1 día |
-| **DT-02** | Base de Datos | Sincronización RLS y Migraciones en Supabase Producción | Riesgo de desalineación entre `schema.sql` local y BD remota | 🔴 ALTA | 0.5 días |
+| **DT-02** | Base de Datos | Sincronización RLS y Migraciones en Supabase Producción | Todas las 23 tablas sincronizadas con RLS activo en Supabase Cloud | [RESUELTO] | 0.5 días |
 | **DT-03** | Tiempo Real | Conexión WebSocket Realtime en Buzón de Quejas | El gerente debe refrescar la pantalla manualmente para ver quejas | 🟡 MEDIA | 1 día |
 | **DT-04** | Integraciones | Automatización de Pasarela de Pagos (Stripe / Mercado Pago) | Fricción comercial por cobro manual asistido por WhatsApp | 🔴 ALTA | 2 días |
 | **DT-05** | Testing | Suite de Pruebas Unitarias e Integración (Vitest) | Riesgo de regresión en cálculos ponderados y fallbacks | 🟡 MEDIA | 1.5 días |
@@ -62,9 +62,9 @@ graph TD
 
 ---
 
-### 🗄️ DT-02: Sincronización RLS en Supabase Producción
-* **Estado Actual:** El archivo `supabase/schema.sql` contiene las tablas `organization_members`, `billing_info` en `organizations`, notas internas `internal_notes` en `feedback`, y funciones helper RLS (`get_user_organization_ids`, `is_superadmin`).
-* **Problema:** El despliegue de GitHub Actions corre automáticamente para el frontend estático, pero la base de datos de producción requiere que el secreto `SUPABASE_DB_URL` esté configurado en el repositorio para aplicar cambios vía `psql`, o bien ejecutarse manualmente desde el Supabase SQL Editor.
+### DT-02: Sincronización RLS en Supabase Producción [RESUELTO]
+* **Estado Actual:** Resuelto y sincronizado. Las 23 tablas del sistema cuentan con RLS activo e índices de rendimiento en Supabase Cloud mediante la migración versionada `supabase/migrations/20261102_operations_and_delivery_sync.sql`.
+* **Impacto:** Cero discrepancias entre local y BD remota; schema cache de Supabase resuelve todas las entidades sin advertencias.
 * **Solución Técnica:**
   1. Verificar que el workflow `.github/workflows/deploy.yml` cuente con el secreto `SUPABASE_DB_URL`.
   2. Mantener un directorio formal de migraciones versionadas (`supabase/migrations/`) en lugar de depender únicamente de un archivo monolítico `schema.sql`.
