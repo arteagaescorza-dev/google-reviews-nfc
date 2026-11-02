@@ -13,6 +13,7 @@ interface RestaurantFormModalProps {
   restaurant?: Restaurant | null;
   organizations: Organization[];
   onOrganizationCreated?: (org: Organization) => void;
+  preselectedOrgId?: string;
 }
 
 function parseWifiString(url: string): { ssid: string; pass: string } {
@@ -42,6 +43,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   restaurant,
   organizations,
   onOrganizationCreated,
+  preselectedOrgId,
 }) => {
   const [localOrgs, setLocalOrgs] = useState<Organization[]>(organizations);
   const [showNewOrgModal, setShowNewOrgModal] = useState(false);
@@ -105,11 +107,11 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor('#2563eb');
       setAddress('');
       setManagerPhone('');
-      setOrganizationId(localOrgs[0]?.id || organizations[0]?.id || '');
+      setOrganizationId(preselectedOrgId || localOrgs[0]?.id || organizations[0]?.id || '');
       setLinks([]);
     }
     setErrorMsg('');
-  }, [restaurant, isOpen, organizations]);
+  }, [restaurant, isOpen, organizations, preselectedOrgId]);
 
   if (!isOpen) return null;
 
