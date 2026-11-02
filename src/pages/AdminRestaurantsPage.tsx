@@ -22,6 +22,7 @@ import type {
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
+import { OrganizationEditModal } from '../components/admin/OrganizationEditModal';
 import { TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -56,6 +57,8 @@ import {
   Tag as TagIcon,
   Check,
   Trash2,
+  Filter,
+  RotateCcw,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -309,6 +312,8 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrgFilter, setSelectedOrgFilter] = useState('all');
   const [selectedTierFilter, setSelectedTierFilter] = useState('all');
+  const [selectedVerticalFilter, setSelectedVerticalFilter] = useState('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'active' | 'paused' | 'with_complaints'>('all');
 
   // Estado de colapsado en el Árbol Tabular
   const [collapsedOrgs, setCollapsedOrgs] = useState<Record<string, boolean>>({});
@@ -327,6 +332,10 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [isNewOrgModalOpen, setIsNewOrgModalOpen] = useState(false);
   const [wizardInitialOrg, setWizardInitialOrg] = useState<Organization | null>(null);
   const [wizardInitialBrand, setWizardInitialBrand] = useState<OrganizationBrand | null>(null);
+
+  // Modal para Editar Organización Matriz
+  const [isEditOrgModalOpen, setIsEditOrgModalOpen] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -394,7 +403,9 @@ export const AdminRestaurantsPage: React.FC = () => {
       feedbacks,
       tierFeatureOverridesByBranch,
       organizationBrands,
-      businessVerticals
+      businessVerticals,
+      selectedVerticalFilter,
+      selectedStatusFilter
     );
   }, [
     organizations,
@@ -409,6 +420,8 @@ export const AdminRestaurantsPage: React.FC = () => {
     tierFeatureOverridesByBranch,
     organizationBrands,
     businessVerticals,
+    selectedVerticalFilter,
+    selectedStatusFilter,
   ]);
 
   const handleEdit = (r: Restaurant) => {
@@ -479,6 +492,33 @@ export const AdminRestaurantsPage: React.FC = () => {
         5: collapse,
       },
     }));
+  };
+
+  const handleOpenEditOrg = (org: Organization) => {
+    setEditingOrg(org);
+    setIsEditOrgModalOpen(true);
+  };
+
+  const handleDeleteOrganization = async (orgId: string, orgName: string) => {
+    const confirmation = window.confirm(
+      `¿Estás seguro de ELIMINAR la organización "${orgName}"?\n\n¡ATENCIÓN! Esta acción es irreversible y eliminará todas sus marcas comerciales y sucursales supeditadas.`
+    );
+    if (!confirmation) return;
+
+    const res = await api.deleteOrganization(orgId);
+    if (res.success) {
+      await loadData();
+    } else {
+      alert(res.error || 'No se pudo eliminar la organización.');
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedOrgFilter('all');
+    setSelectedTierFilter('all');
+    setSelectedVerticalFilter('all');
+    setSelectedStatusFilter('all');
   };
 
   const handleDeleteRestaurantPermanent = async (restaurantId: string, name: string) => {
@@ -808,13 +848,13 @@ export const AdminRestaurantsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & CUPONES DE QUEJAS DEL GERENTE */}
+            {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & CUPONES DE QUEJAS */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
               <div
                 onClick={() => toggleBranchCategory(res.id, 1)}
-                className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between cursor-pointer hover:bg-blue-100/60 transition-colors select-none"
+                className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-blue-100/60 transition-colors select-none"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {collapsedCategoriesByBranch[res.id]?.[1] ? (
                     <ChevronRight className="w-3.5 h-3.5 text-blue-700" />
                   ) : (
@@ -822,12 +862,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                   )}
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
-                    Categoría 1: Funcionalidades por Nivel Contratado (Tier {res.tier || 2}) & Cupones de Quejas
+                    Cat 1: Nivel Contratado (Tier {res.tier || 2}) & Cupones
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[10px] font-bold text-blue-700">
-                    {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} funcionalidades prendidas
+                    {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} activas
                   </span>
                   <span className="text-[9px] uppercase tracking-wider font-extrabold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
                     {collapsedCategoriesByBranch[res.id]?.[1] ? 'Expandir' : 'Colapsar'}
@@ -900,13 +940,13 @@ export const AdminRestaurantsPage: React.FC = () => {
               )}
             </div>
 
-            {/* CATEGORÍA 2: HARDWARE NFC, MESAS DE HOSTESS & CAPACIDAD DE COMENSALES */}
+            {/* CATEGORÍA 2: HARDWARE NFC & MESAS */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
               <div
                 onClick={() => toggleBranchCategory(res.id, 2)}
-                className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-purple-100/60 transition-colors select-none"
+                className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-purple-100/60 transition-colors select-none"
               >
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {collapsedCategoriesByBranch[res.id]?.[2] ? (
                     <ChevronRight className="w-3.5 h-3.5 text-purple-700" />
                   ) : (
@@ -914,17 +954,20 @@ export const AdminRestaurantsPage: React.FC = () => {
                   )}
                   <QrCode className="w-3.5 h-3.5 text-purple-600" />
                   <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider">
-                    Categoría 2: Hardware NFC, {capabilities.unitPlural} de Hostess & Capacidad de Comensales
+                    Cat 2: Hardware NFC & {capabilities.unitPlural}
                   </span>
                   {branchTables.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-md bg-white border border-purple-200 text-purple-900 text-[10px] font-extrabold">
-                      Aforo: {branchTables.length} mesas ({totalBranchCapacity} comensales) · {freeTablesCount} Libres · {occupiedTablesCount} Ocupadas · {cleaningTablesCount} En Limpieza
+                    <span
+                      title={`Aforo total: ${branchTables.length} mesas (${totalBranchCapacity} comensales) · ${freeTablesCount} Libres · ${occupiedTablesCount} Ocupadas · ${cleaningTablesCount} En Limpieza`}
+                      className="px-2 py-0.5 rounded-md bg-white border border-purple-200 text-purple-900 text-[10px] font-extrabold cursor-help"
+                    >
+                      Aforo: {branchTables.length} mesas ({totalBranchCapacity} comensales)
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[10px] font-bold text-purple-700">
-                    {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas prendidas
+                    {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas
                   </span>
                   <a
                     href={`#/portal/hostess?branch=${res.id}`}
@@ -1066,14 +1109,14 @@ export const AdminRestaurantsPage: React.FC = () => {
               )}
             </div>
 
-            {/* CATEGORÍA 3: PANTALLAS OPERATIVAS ACTIVAS & ESTACIONES POR ROL (GERENCIA, HOSTESS, SALA, COCINA KDS Y BARISTA) */}
+            {/* CATEGORÍA 3: PANTALLAS OPERATIVAS KDS */}
             {(capabilities.supportsKds || capabilities.supportsFloorStaff) && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
                 <div
                   onClick={() => toggleBranchCategory(res.id, 3)}
-                  className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-orange-100/60 transition-colors select-none"
+                  className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-orange-100/60 transition-colors select-none"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {collapsedCategoriesByBranch[res.id]?.[3] ? (
                       <ChevronRight className="w-3.5 h-3.5 text-orange-700" />
                     ) : (
@@ -1081,16 +1124,16 @@ export const AdminRestaurantsPage: React.FC = () => {
                     )}
                     <Monitor className="w-3.5 h-3.5 text-orange-600" />
                     <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
-                      Categoría 3: Pantallas Operativas Activas & Estaciones por Rol (Gerencia, Hostess, Sala, Cocina KDS y Barista)
+                      Cat 3: Pantallas Operativas KDS
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-[10px] font-bold text-orange-700">
                       {(isWaiterTerminalOn ? 1 : 0) +
                         (kdsStateByBranch[res.id]?.hostess !== false ? 1 : 0) +
                         (kdsStateByBranch[res.id]?.gerente !== false ? 1 : 0) +
                         kdsStations.filter((s) => s.isActive).length}{' '}
-                      de {kdsStations.length + 3} pantallas prendidas
+                      de {kdsStations.length + 3} prendidas
                     </span>
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-orange-700 bg-white px-1.5 py-0.5 rounded border border-orange-200">
                       {collapsedCategoriesByBranch[res.id]?.[3] ? 'Expandir' : 'Colapsar'}
@@ -1362,14 +1405,14 @@ export const AdminRestaurantsPage: React.FC = () => {
               </div>
             )}
 
-            {/* CATEGORÍA 4: PLANTILLA DE PERSONAL OPERATIVO CON PIN, ROLES, TURNOS (60 DÍAS) & MÉTRICAS */}
+            {/* CATEGORÍA 4: PERSONAL OPERATIVO & TURNOS */}
             {capabilities.supportsFloorStaff && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
                 <div
                   onClick={() => toggleBranchCategory(res.id, 4)}
-                  className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
+                  className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {collapsedCategoriesByBranch[res.id]?.[4] ? (
                       <ChevronRight className="w-3.5 h-3.5 text-emerald-700" />
                     ) : (
@@ -1377,12 +1420,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                     )}
                     <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                     <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
-                      Categoría 4: Plantilla de Personal Operativo con PIN, Roles, Pantallas KDS, Turnos (60 Días) & Métricas
+                      Cat 4: Personal Operativo & Turnos (60 Días)
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-[10px] font-bold text-emerald-700">
-                      {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores prendidos · {branchShifts.length} turnos programados
+                      {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores
                     </span>
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
                       {collapsedCategoriesByBranch[res.id]?.[4] ? 'Expandir' : 'Colapsar'}
@@ -1512,13 +1555,13 @@ export const AdminRestaurantsPage: React.FC = () => {
               </div>
             )}
 
-            {/* CATEGORÍA 5: TABLA DE GERENTES DE LA ORGANIZACIÓN, ROL EN SUCURSAL & CORTES DE CAJA */}
+            {/* CATEGORÍA 5: GERENCIA & CORTES DE TURNO */}
             <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
               <div
                 onClick={() => toggleBranchCategory(res.id, 5)}
-                className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-200/70 flex flex-wrap items-center justify-between gap-2 cursor-pointer hover:bg-indigo-100/60 transition-colors select-none"
+                className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-indigo-100/60 transition-colors select-none"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {collapsedCategoriesByBranch[res.id]?.[5] ? (
                     <ChevronRight className="w-3.5 h-3.5 text-indigo-700" />
                   ) : (
@@ -1526,10 +1569,10 @@ export const AdminRestaurantsPage: React.FC = () => {
                   )}
                   <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                   <span className="text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
-                    Categoría 5: Tabla de Gerentes de la Organización, Acceso a Sucursal & Cortes de Turno
+                    Cat 5: Gerencia & Cortes de Turno
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <a
                     href={`#/portal/gerente?branch=${res.id}`}
                     target="_blank"
@@ -1537,7 +1580,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
                   >
-                    <span>Abrir Consola de Gerente</span>
+                    <span>Abrir Consola</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                   <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200">
@@ -1872,76 +1915,180 @@ export const AdminRestaurantsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Barra de Filtros, Selector de Organización y Expansión */}
-      <div className="p-4 bg-white rounded-3xl border border-slate-200/90 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-4">
-        {/* Campo de búsqueda reactivo */}
-        <div className="relative w-full lg:w-96">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por empresa, dueño, sucursal, mesero, tag o teléfono..."
-            className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+      {/* Barra de Filtros Bento Light Avanzada */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-4 space-y-3">
+        {/* Fila 1: Buscador Reactivo Flexible + Selectores + Controles de Árbol */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Campo de búsqueda flexible al 100% de su espacio */}
+          <div className="relative flex-1 min-w-[280px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por empresa, marca, sucursal, dueño, mesero, tag o teléfono..."
+              className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 transition-all font-medium"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Selectores de Segmentación y Controles de Expansión */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Selector de Empresa */}
+            <select
+              value={selectedOrgFilter}
+              onChange={(e) => setSelectedOrgFilter(e.target.value)}
+              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+              <option value="all">Todas las Empresas ({organizations.length})</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+              <option value="independent">Locales Independientes</option>
+            </select>
+
+            {/* Selector de Giro Comercial Universal */}
+            <select
+              value={selectedVerticalFilter}
+              onChange={(e) => setSelectedVerticalFilter(e.target.value)}
+              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+            >
+              <option value="all">Todos los Giros</option>
+              {businessVerticals.map((v) => (
+                <option key={v.id} value={v.slug}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Selector de Paquete / Modalidad */}
+            <select
+              value={selectedTierFilter}
+              onChange={(e) => setSelectedTierFilter(e.target.value)}
+              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+            >
+              <option value="all">Todos los Paquetes</option>
+              <option value="tier_1">Tier 1: Enlace Directo</option>
+              <option value="tier_2">Tier 2: Filtro Inteligente</option>
+              <option value="tier_3">Tier 3: Menú Digital + Wi-Fi</option>
+              <option value="tier_4">Tier 4: Red Publicitaria</option>
+              <option value="ad_free">Marca Blanca (Ad-Free)</option>
+              <option value="with_ads">Red de Anuncios</option>
+            </select>
+
+            {/* Botones de Expansión del Árbol */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={handleExpandAll}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs"
+                title="Expandir todas las empresas, sucursales y paneles de control"
+              >
+                Expandir Todo
+              </button>
+              <button
+                type="button"
+                onClick={handleCollapseAll}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs"
+                title="Colapsar todas las empresas"
+              >
+                Colapsar Todo
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Controles de Filtros y Expansión */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
-          <select
-            value={selectedOrgFilter}
-            onChange={(e) => setSelectedOrgFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-medium text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          >
-            <option value="all">Todas las Empresas ({organizations.length})</option>
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-            <option value="independent">Locales Independientes</option>
-          </select>
+        {/* Fila 2: Píldoras de Estado Rápido + Resumen de Coincidencias & Reset */}
+        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3 text-slate-400" />
+              <span>Estado:</span>
+            </span>
 
-          <select
-            value={selectedTierFilter}
-            onChange={(e) => setSelectedTierFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-medium text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          >
-            <option value="all">Todos los Paquetes</option>
-            <option value="tier_1">Tier 1: Enlace Directo</option>
-            <option value="tier_2">Tier 2: Filtro Inteligente</option>
-            <option value="tier_3">Tier 3: Menú Digital + Linktree</option>
-            <option value="tier_4">Tier 4: Red Publicitaria & Analítica</option>
-            <option value="ad_free">Marca Blanca (Ad-Free)</option>
-            <option value="with_ads">Red de Anuncios</option>
-            <option value="active">Solo Locales Prendidos</option>
-            <option value="paused">Solo Locales Apagados</option>
-          </select>
+            <button
+              type="button"
+              onClick={() => setSelectedStatusFilter('all')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors ${
+                selectedStatusFilter === 'all'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Todas ({restaurants.length})
+            </button>
 
-          {/* Botones de Expansión del Árbol */}
-          <div className="flex items-center gap-1">
             <button
-              onClick={handleExpandAll}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-all"
-              title="Expandir todas las empresas, sucursales y paneles de control"
+              type="button"
+              onClick={() => setSelectedStatusFilter('active')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
+                selectedStatusFilter === 'active'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
+              }`}
             >
-              Expandir Todo
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>Prendidas ({kpis.activeBranches})</span>
             </button>
+
             <button
-              onClick={handleCollapseAll}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-all"
-              title="Colapsar todas las empresas"
+              type="button"
+              onClick={() => setSelectedStatusFilter('paused')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
+                selectedStatusFilter === 'paused'
+                  ? 'bg-slate-700 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+              }`}
             >
-              Colapsar Todo
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+              <span>Apagadas ({kpis.pausedBranches})</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedStatusFilter('with_complaints')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
+                selectedStatusFilter === 'with_complaints'
+                  ? 'bg-rose-600 text-white shadow-2xs'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
+              }`}
+            >
+              <MessageSquareWarning className="w-3 h-3 text-rose-600" />
+              <span>Con Quejas ({feedbacks.length})</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] text-slate-500 font-medium">
+              Mostrando <strong className="text-slate-900">{treeData.stats.totalBranches}</strong> sucursales en{' '}
+              <strong className="text-slate-900">{treeData.stats.totalOrganizations}</strong> organizaciones
+            </span>
+
+            {(searchQuery ||
+              selectedOrgFilter !== 'all' ||
+              selectedTierFilter !== 'all' ||
+              selectedVerticalFilter !== 'all' ||
+              selectedStatusFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
+                title="Restablecer todos los filtros y términos de búsqueda"
+              >
+                <RotateCcw className="w-3 h-3 text-slate-500" />
+                <span>Limpiar Filtros</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2118,6 +2265,22 @@ export const AdminRestaurantsPage: React.FC = () => {
                             >
                               <KeyRound className="w-3.5 h-3.5 text-slate-500" />
                               <span>Accesos</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenEditOrg(org)}
+                              className="p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-blue-50 text-slate-500 hover:text-blue-600 hover:border-blue-200 text-xs font-bold shadow-2xs transition-all"
+                              title={`Editar datos de la organización "${org.name}" y fiscales`}
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteOrganization(org.id, org.name)}
+                              className="p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 hover:border-rose-200 text-xs font-bold shadow-2xs transition-all"
+                              title={`Eliminar organización "${org.name}" y todas sus sucursales`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -2683,6 +2846,21 @@ export const AdminRestaurantsPage: React.FC = () => {
         preselectedOrgId={selectedOrgForUserModal}
         onOrganizationCreated={(newOrg) => {
           setOrganizations((prev) => [newOrg, ...prev]);
+        }}
+      />
+
+      {/* Modal de Edición de Organización Matriz y Datos Fiscales */}
+      <OrganizationEditModal
+        isOpen={isEditOrgModalOpen}
+        onClose={() => {
+          setIsEditOrgModalOpen(false);
+          setEditingOrg(null);
+        }}
+        organization={editingOrg}
+        onUpdated={(updatedOrg) => {
+          setOrganizations((prev) =>
+            prev.map((o) => (o.id === updatedOrg.id ? updatedOrg : o))
+          );
         }}
       />
     </div>

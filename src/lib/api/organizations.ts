@@ -69,6 +69,34 @@ async updateOrganization(id: string, updates: Partial<Organization>): Promise<{ 
     return { success: true };
   },
 
+  /**
+   * Elimina una organización matriz y limpia sus marcas y sucursales supeditadas
+   */
+  async deleteOrganization(id: string): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !id.startsWith('org-')) {
+      try {
+        const { error } = await supabase.from('organizations').delete().eq('id', id);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    // Modo local / demo: purga en cascada
+    const orgs = getLocalItem<Organization[]>(STORAGE_KEYS.ORGANIZATIONS, INITIAL_DEMO_DATA.organizations);
+    setLocalItem(STORAGE_KEYS.ORGANIZATIONS, orgs.filter((o) => o.id !== id));
+
+    const brands = getLocalItem<OrganizationBrand[]>(STORAGE_KEYS.ORGANIZATION_BRANDS, INITIAL_DEMO_DATA.organizationBrands);
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_BRANDS, brands.filter((b) => b.organization_id !== id));
+
+    const rests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
+    setLocalItem(STORAGE_KEYS.RESTAURANTS, rests.filter((r) => r.organization_id !== id));
+
+    return { success: true };
+  },
+
 async getMyMembership(): Promise<{ organization: Organization; member: OrganizationMember } | null> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_portal_demo_auth') === 'true';
 

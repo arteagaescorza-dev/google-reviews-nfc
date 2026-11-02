@@ -365,7 +365,9 @@ export function buildOrganizationTree(
   feedbacks: Feedback[] = [],
   tierFeatureOverridesByBranch: Record<string, Record<string, boolean>> = {},
   organizationBrands: OrganizationBrand[] = [],
-  businessVerticals: BusinessVertical[] = []
+  businessVerticals: BusinessVertical[] = [],
+  selectedVerticalFilter: string = 'all',
+  selectedStatusFilter: string = 'all'
 ): TreeViewData {
   // Mapa de tags agrupados por restaurant_id
   const tagsByRestaurant: Record<string, Tag[]> = {};
@@ -417,6 +419,20 @@ export function buildOrganizationTree(
       if (selectedTierFilter === 'tier_4' && (res.tier || 2) !== 4) return;
       if (selectedTierFilter === 'active' && res.is_active === false) return;
       if (selectedTierFilter === 'paused' && res.is_active !== false) return;
+    }
+
+    if (selectedVerticalFilter !== 'all') {
+      const bType = res.business_type || 'restaurant';
+      if (bType !== selectedVerticalFilter) return;
+    }
+
+    if (selectedStatusFilter !== 'all') {
+      if (selectedStatusFilter === 'active' && res.is_active === false) return;
+      if (selectedStatusFilter === 'paused' && res.is_active !== false) return;
+      if (selectedStatusFilter === 'with_complaints') {
+        const cCount = (feedbacksByRestaurant[res.id] || []).length;
+        if (cCount === 0) return;
+      }
     }
 
     const capabilities = getBranchCapabilities(res, businessVerticals);
