@@ -36,9 +36,9 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ### Modulo 3: Finanzas Reales, Cobranza Stripe/MP y EBITDA
 | ID | Tarea UI / Componente | Estado | Mockup de Referencia | Infraestructura Backend |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI-FN-01** | **Semaforo de Cobranza Mensual:** Lista tabular ejecutiva de restaurantes con estado de cobro en Stripe y Mercado Pago, alerta de fallos de pago y boton de dunning. | `Preaprobada` | `mockup_bento_tab4_finanzas.png` (Card Superior) | `organizations.subscription_status` |
-| **UI-FN-02** | **Consola EBITDA en Vivo:** Desglose real entre ingresos brutos (SaaS + Kits de Hardware + Ads) y costos directos (COGS hardware, pasarelas de pago, hosting Supabase). | `Preaprobada` | `mockup_bento_tab1_resumen.png` (Card 1) | API `finances.getFinancialMetrics` |
-| **UI-FN-03** | **Liquidacion Automatica:** Indicador de saldo Stripe listo para dispersion bancaria via SPEI. | `Preaprobada` | `mockup_bento_tab4_finanzas.png` | Webhook Stripe |
+| **UI-FN-01** | **Semaforo de Cobranza Mensual:** Lista tabular ejecutiva de restaurantes con estado de cobro en Stripe y Mercado Pago, alerta de fallos de pago y boton de dunning. | `Implementada y Verificada` | `mockup_bento_tab4_finanzas.png` (Card Superior) | `organizations.subscription_status` |
+| **UI-FN-02** | **Consola EBITDA en Vivo:** Desglose real entre ingresos brutos (SaaS + Kits de Hardware + Ads) y costos directos (COGS hardware, pasarelas de pago, hosting Supabase). | `Implementada y Verificada` | `mockup_bento_tab1_resumen.png` (Card 1) | API `finances.getFinancialMetrics` |
+| **UI-FN-03** | **Liquidacion Automatica:** Indicador de saldo Stripe listo para dispersion bancaria via SPEI. | `Implementada y Verificada` | `mockup_bento_tab4_finanzas.png` | Webhook Stripe |
 
 ---
 
