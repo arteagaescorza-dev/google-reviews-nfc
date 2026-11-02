@@ -20,6 +20,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { filterBranchesBySameOrganization } from '../../lib/api/orders';
 import type {
   Restaurant,
   RestaurantTable,
@@ -38,6 +39,15 @@ export const PortalHostessPage: React.FC = () => {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [activeCalls, setActiveCalls] = useState<TableCall[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const sameOrgBranches = React.useMemo(
+    () => filterBranchesBySameOrganization(restaurants, selectedBranchId),
+    [restaurants, selectedBranchId]
+  );
+  const sameOrgBranchIds = React.useMemo(
+    () => sameOrgBranches.map((b) => b.id),
+    [sameOrgBranches]
+  );
 
   // Estado de sesión por PIN (Hostess / Capitán de Piso / Gerente)
   const [loggedInStaff, setLoggedInStaff] = useState<StaffMember | null>(null);
@@ -110,7 +120,7 @@ export const PortalHostessPage: React.FC = () => {
   const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError('');
-    const res = await api.loginStaffWithPin(selectedBranchId, pinInput);
+    const res = await api.loginStaffWithPin(selectedBranchId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       setLoggedInStaff(res.staff);
       setPinInput('');
@@ -269,17 +279,17 @@ export const PortalHostessPage: React.FC = () => {
             Control de mesas por sucursal, aforo de comensales y solicitud de limpieza a meseros en sala
           </p>
 
-          {restaurants.length > 1 && (
+          {sameOrgBranches.length > 1 && (
             <div className="mb-5">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Sucursal Operativa
+                Sucursal Operativa (Misma Organización)
               </label>
               <select
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-violet-500"
               >
-                {restaurants.map((r) => (
+                {sameOrgBranches.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name} ({r.branch_name || 'Principal'})
                   </option>

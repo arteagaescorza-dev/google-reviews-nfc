@@ -25,6 +25,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { NewOrganizationModal } from './NewOrganizationModal';
+import { PhoneInputWithCountry } from '../common/PhoneInputWithCountry';
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -667,12 +668,10 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Teléfono de la Sucursal
               </label>
-              <input
-                type="tel"
+              <PhoneInputWithCountry
                 value={managerPhone}
-                onChange={(e) => setManagerPhone(e.target.value)}
-                placeholder="+52 55..."
-                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white"
+                onChange={setManagerPhone}
+                compact
               />
             </div>
           </div>

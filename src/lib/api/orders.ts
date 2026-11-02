@@ -15,8 +15,40 @@ import type {
   ManagerRetentionCoupon,
   ManagerShiftReport,
   Feedback,
+  Restaurant,
 } from '../../types';
 import { STORAGE_KEYS, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
+
+/**
+ * POL-009 (Regla 1 y 2): Aislamiento estricto multi-organización.
+ * Una organización o sucursal jamás tiene acceso a los datos ni configuraciones de otra organización.
+ */
+export function isSameOrganizationAccessAllowed(
+  sourceOrganizationId: string | null | undefined,
+  targetOrganizationId: string | null | undefined
+): boolean {
+  if (!sourceOrganizationId || !targetOrganizationId) return false;
+  return sourceOrganizationId.trim() === targetOrganizationId.trim();
+}
+
+/**
+ * Filtra el listado de sucursales para devolver únicamente las que pertenecen a la misma organización
+ * de la sucursal activa (aislamiento de sucursal y organización).
+ */
+export function filterBranchesBySameOrganization(
+  branches: Restaurant[],
+  activeBranchId: string
+): Restaurant[] {
+  if (!branches || branches.length === 0) return [];
+  const current = branches.find((b) => b.id === activeBranchId) || branches[0];
+  if (!current) return [];
+  if (!current.organization_id) {
+    return [current];
+  }
+  return branches.filter((b) =>
+    isSameOrganizationAccessAllowed(current.organization_id, b.organization_id)
+  );
+}
 
 export function getDefaultStationsForRole(role: StaffMember['role']): KitchenStation[] {
   if (role === 'kitchen') return ['cocina'];
@@ -566,28 +598,169 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
     ];
 
     const stored = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
-    return stored.map((s) => ({
+    const normalized = stored.map((s) => ({
       ...s,
       allowed_stations:
         s.allowed_stations && s.allowed_stations.length > 0
           ? s.allowed_stations
           : getDefaultStationsForRole(s.role),
     }));
+    if (restaurantId && restaurantId !== 'res-1') {
+      const branchFiltered = normalized.filter((s) => s.restaurant_id === restaurantId);
+      if (branchFiltered.length > 0) return branchFiltered;
+      // Si la sucursal de la misma organización aún no tiene plantilla propia en demo, devolver copia base si no hay empleados de otra org
+      const anyCustomForBranch = stored.some((s) => s.restaurant_id === restaurantId);
+      if (anyCustomForBranch) return [];
+    }
+    return normalized;
   },
 
-async loginStaffWithPin(restaurantId: string, pin: string): Promise<{ success: boolean; staff?: StaffMember; error?: string }> {
-    const staffList = await ordersApi.getStaffMembers(restaurantId);
-    const isDemo = !isSupabaseConfigured || (typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true');
-    const matched = staffList.find((s) => s.is_active && (s.pin_code === pin || (isDemo && pin === '1234')));
-    if (matched) {
-      return { success: true, staff: matched };
+  /**
+   * Obtiene todo el personal operativo perteneciente a las sucursales de una misma organización,
+   * aislando estrictamente cualquier dato de otras organizaciones.
+   */
+  async getOrganizationStaffMembers(
+    organizationId: string,
+    sameOrgBranchIds: string[]
+  ): Promise<StaffMember[]> {
+    if (!organizationId || sameOrgBranchIds.length === 0) return [];
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('restaurant_staff')
+          .select('*')
+          .in('restaurant_id', sameOrgBranchIds);
+        if (!error && data && data.length > 0) {
+          return (data as StaffMember[]).map((s) => ({
+            ...s,
+            allowed_stations:
+              s.allowed_stations && s.allowed_stations.length > 0
+                ? s.allowed_stations
+                : getDefaultStationsForRole(s.role),
+          }));
+        }
+      } catch (err) {
+        console.warn('Error consultando personal de la organización en Supabase:', err);
+      }
     }
+
+    const allStored = await ordersApi.getStaffMembers();
+    return allStored.filter(
+      (s) => sameOrgBranchIds.includes(s.restaurant_id) || (organizationId === 'org-1' && s.restaurant_id === 'res-1')
+    );
+  },
+
+  /**
+   * POL-009 (Regla 3): Todo el personal operativo puede iniciar sesión con su PIN en otras sucursales
+   * de su MISMA organización para cubrir su turno ahí, pero nunca en sucursales de otra organización.
+   */
+  async loginStaffWithPin(
+    restaurantId: string,
+    pin: string,
+    sameOrgBranchIds?: string[]
+  ): Promise<{
+    success: boolean;
+    staff?: StaffMember;
+    isInterBranchShift?: boolean;
+    homeBranchId?: string;
+    error?: string;
+  }> {
+    let allowedBranchIds = sameOrgBranchIds ? [...sameOrgBranchIds] : [];
+    if (allowedBranchIds.length === 0) {
+      const storedRests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, []);
+      if (storedRests.length > 0) {
+        const sameOrg = filterBranchesBySameOrganization(storedRests, restaurantId);
+        allowedBranchIds = sameOrg.map((r) => r.id);
+      }
+    }
+    if (!allowedBranchIds.includes(restaurantId)) {
+      allowedBranchIds.push(restaurantId);
+    }
+
+    // Obtener plantilla completa para validar tanto pertenencia como aislamiento entre organizaciones
+    const allStaff = await ordersApi.getStaffMembers();
+    const isDemo = !isSupabaseConfigured || (typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true');
+
+    // 1. Buscar primero en la sucursal actual
+    const directMatch = allStaff.find(
+      (s) =>
+        s.is_active &&
+        s.restaurant_id === restaurantId &&
+        (s.pin_code === pin || (isDemo && pin === '1234'))
+    );
+    if (directMatch) {
+      return {
+        success: true,
+        staff: directMatch,
+        isInterBranchShift: false,
+        homeBranchId: directMatch.restaurant_id,
+      };
+    }
+
+    // 2. Buscar en otras sucursales de la MISMA organización (movilidad inter-sucursal permitida)
+    const interBranchMatch = allStaff.find(
+      (s) =>
+        s.is_active &&
+        allowedBranchIds.includes(s.restaurant_id) &&
+        (s.pin_code === pin || (isDemo && pin === '1234'))
+    );
+    if (interBranchMatch) {
+      return {
+        success: true,
+        staff: interBranchMatch,
+        isInterBranchShift: interBranchMatch.restaurant_id !== restaurantId,
+        homeBranchId: interBranchMatch.restaurant_id,
+      };
+    }
+
+    // 3. Verificar si el PIN existe en otra organización distinta para emitir rechazo explícito de aislamiento
+    const crossOrgMatch = allStaff.find(
+      (s) => s.is_active && !allowedBranchIds.includes(s.restaurant_id) && s.pin_code === pin
+    );
+    if (crossOrgMatch) {
+      return {
+        success: false,
+        error: 'Acceso denegado: Este colaborador pertenece a otra organización y no tiene acceso a esta sucursal.',
+      };
+    }
+
     return {
       success: false,
       error: isDemo ? 'PIN incorrecto. En modo demo puedes usar 1234.' : 'PIN de acceso inválido.',
     };
-  }
-,
+  },
+
+  /**
+   * POL-009 (Regla 4): Entre gerentes pueden hacer movimientos de personal entre sucursales
+   * de su misma organización y dejarlo asentado en la planeación de turnos (staff_shifts).
+   */
+  async scheduleInterBranchStaffShift(params: {
+    sourceBranchId: string;
+    targetBranchId: string;
+    organizationId: string;
+    allowedBranchIds: string[];
+    shift: Omit<StaffShift, 'id' | 'created_at' | 'restaurant_id'>;
+  }): Promise<{ success: boolean; data?: StaffShift; error?: string }> {
+    const { sourceBranchId, targetBranchId, allowedBranchIds, shift } = params;
+    if (!allowedBranchIds.includes(sourceBranchId) || !allowedBranchIds.includes(targetBranchId)) {
+      return {
+        success: false,
+        error: 'Acceso denegado: No se permiten movimientos de personal hacia o desde sucursales de otra organización.',
+      };
+    }
+
+    const isInterBranch = sourceBranchId !== targetBranchId;
+    const prefixNote = isInterBranch
+      ? `[Movimiento Inter-Sucursal: ${sourceBranchId} -> ${targetBranchId}]`
+      : '';
+    const combinedNotes = [prefixNote, shift.notes || ''].filter(Boolean).join(' ').trim() || null;
+
+    return ordersApi.createStaffShift({
+      ...shift,
+      restaurant_id: targetBranchId,
+      notes: combinedNotes,
+    });
+  },
 async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
     if (!isDemo && isSupabaseConfigured) {

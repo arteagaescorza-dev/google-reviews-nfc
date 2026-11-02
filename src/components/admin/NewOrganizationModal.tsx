@@ -9,11 +9,11 @@ import type {
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
+import { PhoneInputWithCountry } from '../common/PhoneInputWithCountry';
 import {
   X,
   Building2,
   User,
-  Phone,
   Mail,
   Check,
   Loader2,
@@ -610,18 +610,12 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    WhatsApp del Dueño
+                    Teléfono / WhatsApp del Dueño
                   </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                    <input
-                      type="tel"
-                      value={ownerPhone}
-                      onChange={(e) => setOwnerPhone(e.target.value)}
-                      placeholder="+52 55..."
-                      className="w-full pl-10 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500/20 font-medium"
-                    />
-                  </div>
+                  <PhoneInputWithCountry
+                    value={ownerPhone}
+                    onChange={setOwnerPhone}
+                  />
                 </div>
 
                 <div>
@@ -1182,16 +1176,11 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                   <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
                     Teléfono de la Sucursal
                   </label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                    <input
-                      type="tel"
-                      value={managerPhone}
-                      onChange={(e) => setManagerPhone(e.target.value)}
-                      placeholder="+52 55..."
-                      className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white font-medium"
-                    />
-                  </div>
+                  <PhoneInputWithCountry
+                    value={managerPhone}
+                    onChange={setManagerPhone}
+                    compact
+                  />
                 </div>
 
                 {/* Color de Marca de la Sucursal */}

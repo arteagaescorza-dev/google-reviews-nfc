@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   CreditCard,
   Banknote,
-  Phone,
   User,
   AlertTriangle,
   CheckCircle2,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { CorporateOrder, CorporatePaymentMethod, OrderItem } from '../../types';
 import { api } from '../../lib/api';
+import { PhoneInputWithCountry } from '../common/PhoneInputWithCountry';
 
 interface CorporateDeliveryModalProps {
   isOpen: boolean;
@@ -205,18 +205,13 @@ export const CorporateDeliveryModal: React.FC<CorporateDeliveryModalProps> = ({
 
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  WhatsApp (Para notificarte llegada)
+                  Teléfono / WhatsApp (Para notificarte llegada)
                 </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="55 1234 5678"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 font-medium"
-                  />
-                </div>
+                <PhoneInputWithCountry
+                  value={customerPhone}
+                  onChange={setCustomerPhone}
+                  compact
+                />
               </div>
 
               {deliveryMode === 'office_delivery' && (

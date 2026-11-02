@@ -54,8 +54,13 @@ import {
   Layers,
   MessageSquareWarning,
   Tag as TagIcon,
+  Check,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  PhoneInputWithCountry,
+  formatTextMax25,
+} from '../components/common/PhoneInputWithCountry';
 
 const KDS_STORAGE_KEY = 'nfc_kds_stations_state_v1';
 const WAITER_TERM_STORAGE_KEY = 'nfc_waiter_terminal_state_v1';
@@ -114,6 +119,138 @@ const StatusBadgeAndSwitch: React.FC<StatusBadgeAndSwitchProps> = ({
           }`}
         />
       </button>
+    </div>
+  );
+};
+
+interface InlineEditableTooltipFieldProps {
+  value?: string | null;
+  emptyLabel: string;
+  icon: 'address' | 'phone';
+  href?: string;
+  onSave: (newValue: string) => Promise<void>;
+}
+
+const InlineEditableTooltipField: React.FC<InlineEditableTooltipFieldProps> = ({
+  value,
+  emptyLabel,
+  icon,
+  href,
+  onSave,
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const [hasWhatsapp, setHasWhatsapp] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(value || '');
+  }, [value]);
+
+  const rawText = (value || '').trim();
+  const display25 = rawText ? formatTextMax25(rawText) : emptyLabel;
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(draft.trim());
+    setSaving(false);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="p-2 rounded-xl bg-white border border-blue-200 shadow-sm space-y-1.5 z-20 max-w-[290px]">
+        {icon === 'phone' ? (
+          <PhoneInputWithCountry
+            value={draft}
+            onChange={setDraft}
+            hasWhatsapp={hasWhatsapp}
+            onWhatsappChange={setHasWhatsapp}
+            compact
+          />
+        ) : (
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Dirección física completa..."
+            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+          />
+        )}
+        <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => {
+              setDraft(value || '');
+              setIsEditing(false);
+            }}
+            className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleSave}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold"
+          >
+            <Check className="w-3 h-3" />
+            <span>{saving ? 'Guardando...' : 'Guardar'}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative group inline-flex items-center gap-1.5 max-w-full">
+      {icon === 'address' ? (
+        <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+      ) : (
+        <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
+      )}
+
+      {rawText && href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={rawText}
+          className="text-[11px] text-slate-600 hover:text-blue-600 font-medium truncate"
+        >
+          {display25}
+        </a>
+      ) : (
+        <span
+          title={rawText || emptyLabel}
+          className={`text-[11px] truncate ${
+            rawText ? 'text-slate-600 font-medium' : 'text-slate-400 italic'
+          }`}
+        >
+          {display25}
+        </span>
+      )}
+
+      {/* Botón de acceso directo a edición del campo */}
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(value || '');
+          setIsEditing(true);
+        }}
+        title={`Editar ${icon === 'address' ? 'dirección' : 'teléfono'}`}
+        className="p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 opacity-80 group-hover:opacity-100 transition-all flex-shrink-0"
+      >
+        <Edit2 className="w-3 h-3" />
+      </button>
+
+      {/* Tooltip flotante con el contenido completo cuando supera 25 caracteres */}
+      {rawText.length > 25 && (
+        <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute bottom-full left-0 mb-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-medium shadow-lg whitespace-normal max-w-[280px] z-30">
+          {rawText}
+        </div>
+      )}
     </div>
   );
 };
@@ -1735,25 +1872,36 @@ export const AdminRestaurantsPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Col 2: Titular y Contacto */}
+                        {/* Col 2: Titular y Contacto (Truncado a 25 caracteres con Tooltip y Edición Directa) */}
                         <td className="py-3.5 px-4">
-                          <div className="space-y-0.5 text-xs text-slate-600">
+                          <div className="space-y-1 text-xs text-slate-600">
                             {org.owner_name && (
                               <div className="flex items-center gap-1 font-bold text-slate-800">
                                 <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                                 <span>{org.owner_name}</span>
                               </div>
                             )}
-                            {org.owner_phone && (
-                              <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                                <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                <span>{org.owner_phone}</span>
-                              </div>
-                            )}
+                            <div>
+                              <InlineEditableTooltipField
+                                value={org.owner_phone}
+                                emptyLabel="Sin teléfono"
+                                icon="phone"
+                                onSave={async (newPhone) => {
+                                  await api.updateOrganization(org.id, { owner_phone: newPhone });
+                                  setOrganizations((prev) =>
+                                    prev.map((item) =>
+                                      item.id === org.id ? { ...item, owner_phone: newPhone } : item
+                                    )
+                                  );
+                                }}
+                              />
+                            </div>
                             {org.owner_email && (
                               <div className="flex items-center gap-1 text-[11px] text-slate-500">
                                 <Mail className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                <span className="truncate">{org.owner_email}</span>
+                                <span title={org.owner_email} className="truncate">
+                                  {formatTextMax25(org.owner_email)}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -2022,35 +2170,57 @@ export const AdminRestaurantsPage: React.FC = () => {
                                         </div>
                                       </td>
 
-                                      {/* Col 2: Dirección y Teléfono de la Sucursal */}
+                                      {/* Col 2: Dirección y Teléfono de la Sucursal (Primeros 25 caracteres + Tooltip + Edición) */}
                                       <td className="py-3 px-4">
-                                        <div className="space-y-0.5 text-xs text-slate-600">
-                                          {res.address ? (
-                                            <a
+                                        <div className="space-y-1 text-xs text-slate-600">
+                                          <div>
+                                            <InlineEditableTooltipField
+                                              value={res.address}
+                                              emptyLabel="Sin dirección"
+                                              icon="address"
                                               href={
-                                                res.google_review_url ||
-                                                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                                  res.name + ' ' + res.address
-                                                )}`
+                                                res.address
+                                                  ? res.google_review_url ||
+                                                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                                      res.name + ' ' + res.address
+                                                    )}`
+                                                  : undefined
                                               }
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="flex items-center gap-1 truncate hover:text-blue-600"
-                                            >
-                                              <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                              <span className="truncate">{res.address}</span>
-                                            </a>
-                                          ) : (
-                                            <span className="text-slate-400 italic text-[11px]">
-                                              Sin dirección
-                                            </span>
-                                          )}
-                                          {res.manager_phone && (
-                                            <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                                              <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                              <span>{res.manager_phone}</span>
-                                            </div>
-                                          )}
+                                              onSave={async (newAddress) => {
+                                                await api.saveRestaurant({
+                                                  id: res.id,
+                                                  address: newAddress,
+                                                });
+                                                setRestaurants((prev) =>
+                                                  prev.map((item) =>
+                                                    item.id === res.id
+                                                      ? { ...item, address: newAddress }
+                                                      : item
+                                                  )
+                                                );
+                                              }}
+                                            />
+                                          </div>
+                                          <div>
+                                            <InlineEditableTooltipField
+                                              value={res.manager_phone}
+                                              emptyLabel="Sin teléfono"
+                                              icon="phone"
+                                              onSave={async (newPhone) => {
+                                                await api.saveRestaurant({
+                                                  id: res.id,
+                                                  manager_phone: newPhone,
+                                                });
+                                                setRestaurants((prev) =>
+                                                  prev.map((item) =>
+                                                    item.id === res.id
+                                                      ? { ...item, manager_phone: newPhone }
+                                                      : item
+                                                  )
+                                                );
+                                              }}
+                                            />
+                                          </div>
                                         </div>
                                       </td>
 
@@ -2212,7 +2382,40 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-slate-500">{res.address || 'Sin dirección'}</td>
+                            <td className="py-3 px-4 text-slate-500">
+                              <div className="space-y-1">
+                                <div>
+                                  <InlineEditableTooltipField
+                                    value={res.address}
+                                    emptyLabel="Sin dirección"
+                                    icon="address"
+                                    onSave={async (newAddress) => {
+                                      await api.saveRestaurant({ id: res.id, address: newAddress });
+                                      setRestaurants((prev) =>
+                                        prev.map((item) =>
+                                          item.id === res.id ? { ...item, address: newAddress } : item
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <InlineEditableTooltipField
+                                    value={res.manager_phone}
+                                    emptyLabel="Sin teléfono"
+                                    icon="phone"
+                                    onSave={async (newPhone) => {
+                                      await api.saveRestaurant({ id: res.id, manager_phone: newPhone });
+                                      setRestaurants((prev) =>
+                                        prev.map((item) =>
+                                          item.id === res.id ? { ...item, manager_phone: newPhone } : item
+                                        )
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
                             <td className="py-3 px-4">
                               <StatusBadgeAndSwitch
                                 isOn={isBranchOn}

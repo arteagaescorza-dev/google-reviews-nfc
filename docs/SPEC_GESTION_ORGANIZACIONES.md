@@ -73,3 +73,19 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
   3. **Cortes de Caja por Turno & Envío al Dueño**: Generación de cortes por turno de mesero (`public.manager_shift_reports`) y envío automático de métricas por mesa y por empleado a la pantalla general del dueño ([`PortalMetricsTab.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/portal/PortalMetricsTab.tsx)).
   4. **Quejas, Descuentos y Cupones con Límite Mensual**: Bandeja de quejas en tiempo real (`rating <= 3`), autorización de descuentos por incidencia y creación de cupones propios del gerente con tope mensual (`public.manager_retention_coupons`).
 * **Tabla de Gerentes por Organización (`public.organization_managers`)**: Tanto el Superadministrador ([`AdminRestaurantsPage.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/AdminRestaurantsPage.tsx)) como el Dueño del Local ([`PortalAccountTab.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/portal/PortalAccountTab.tsx)) pueden dar de alta gerentes en la organización y asignar su rol específico en cada sucursal (`gerente_tienda` vs `capitan_piso`).
+
+---
+
+## 9. Política de Aislamiento Multi-Organización, Movilidad Inter-Sucursal y Estándares de Interfaz (`POL-009`)
+
+### 9.1 Reglas de Aislamiento y Movilidad Operativa (`POL-009`)
+1. **Aislamiento entre Organizaciones**: Una organización jamás tiene acceso a los datos, métricas, personal ni configuraciones de otras organizaciones (`isSameOrganizationAccessAllowed`).
+2. **Aislamiento de Sucursales**: Una sucursal jamás tiene acceso a los datos ni configuraciones de otras organizaciones (`filterBranchesBySameOrganization`).
+3. **Movilidad de Personal Operativo en Turno**: Todo el personal operativo (`waiter`, `kitchen`, `barista`, `hostess`, `manager`) puede iniciar sesión con su PIN de 4 dígitos en otras sucursales **de su misma organización** para cubrir ahí su turno (`ordersApi.loginStaffWithPin`), rechazando estrictamente cualquier intento de acceso de personal perteneciente a otra organización.
+4. **Movimientos de Personal entre Sucursales por Gerentes**: Entre gerentes pueden realizar movimientos de personal entre sucursales de su misma organización y dejarlo asentado en la planeación de turnos de hasta 60 días (`ordersApi.scheduleInterBranchStaffShift` en [`PortalManagerPage.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/portal/PortalManagerPage.tsx)), registrando la etiqueta `[Movimiento Inter-Sucursal]`.
+
+### 9.2 Estándares de Interfaz en Administración y Formularios
+* **Truncado a 25 Caracteres con Tooltip y Edición Directa**: En [`AdminRestaurantsPage.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/AdminRestaurantsPage.tsx), tanto la dirección física como el teléfono muestran únicamente los primeros 25 caracteres (`formatTextMax25`), desplegando el valor íntegro en un tooltip al pasar el cursor y ofreciendo un botón de edición directa in-situ.
+* **Componente Universal de Teléfono con Lada y WhatsApp**: Todos los campos telefónicos del proyecto utilizan [`PhoneInputWithCountry.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/components/common/PhoneInputWithCountry.tsx), que integra selector de código de área internacional (`+52`, `+1`, `+34`, `+57`, `+54`, `+56`, `+51`, `+502`, `+506`), campo numérico local y casilla de verificación **Cuenta con WhatsApp**.
+* **Barra Lateral Fija Reactiva al Hover**: En [`AdminLayout.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/components/admin/AdminLayout.tsx), la barra lateral izquierda permanece fija (`h-screen sticky top-0 overflow-hidden`) sin desplazarse con el contenido, manteniendo fijos en la parte inferior los botones `Ver pantalla de cliente` y `Cerrar Sesión`, y contrayéndose/expandiéndose reactivamente al pasar el cursor (`hover`).
+

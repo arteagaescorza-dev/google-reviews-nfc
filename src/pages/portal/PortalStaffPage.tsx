@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { filterBranchesBySameOrganization } from '../../lib/api/orders';
 import type { TableCall, TableOrder, Feedback, StaffMember, Restaurant, RestaurantTable } from '../../types';
 import {
   BellRing,
@@ -29,6 +30,16 @@ export const PortalStaffPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('res-1');
   const [branchTables, setBranchTables] = useState<RestaurantTable[]>([]);
+  const [isInterBranchShift, setIsInterBranchShift] = useState(false);
+
+  const sameOrgBranches = React.useMemo(
+    () => filterBranchesBySameOrganization(restaurants, selectedRestaurantId),
+    [restaurants, selectedRestaurantId]
+  );
+  const sameOrgBranchIds = React.useMemo(
+    () => sameOrgBranches.map((b) => b.id),
+    [sameOrgBranches]
+  );
 
   useEffect(() => {
     api.getRestaurants().then((rests) => {
@@ -78,13 +89,14 @@ export const PortalStaffPage: React.FC = () => {
     }
   }, [currentStaff, selectedRestaurantId]);
 
-  // Autenticación con PIN
+  // Autenticación con PIN (POL-009: Permite iniciar sesión en otras sucursales de la misma organización para cubrir turno)
   const handlePinSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setPinError('');
-    const res = await api.loginStaffWithPin(selectedRestaurantId, pinInput);
+    const res = await api.loginStaffWithPin(selectedRestaurantId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       setCurrentStaff(res.staff);
+      setIsInterBranchShift(Boolean(res.isInterBranchShift));
       setPinInput('');
     } else {
       setPinError(res.error || 'PIN incorrecto.');
@@ -142,9 +154,11 @@ export const PortalStaffPage: React.FC = () => {
             Ingresa tu PIN de 4 dígitos para atender mesas y solicitudes de Hostess
           </p>
 
-          {restaurants.length > 1 && (
+          {sameOrgBranches.length > 1 && (
             <div className="mb-4 text-left">
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">Sucursal</label>
+              <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                Sucursal de Turno (Misma Organización)
+              </label>
               <div className="flex items-center gap-2 bg-slate-800 p-2 rounded-xl border border-slate-700">
                 <Store className="w-4 h-4 text-orange-400 flex-shrink-0" />
                 <select
@@ -152,9 +166,9 @@ export const PortalStaffPage: React.FC = () => {
                   onChange={(e) => setSelectedRestaurantId(e.target.value)}
                   className="w-full bg-transparent text-xs font-bold text-white focus:outline-none"
                 >
-                  {restaurants.map((r) => (
+                  {sameOrgBranches.map((r) => (
                     <option key={r.id} value={r.id} className="bg-slate-900 text-white">
-                      {r.brand_name} ({r.branch_name})
+                      {r.brand_name || r.name} ({r.branch_name || 'Principal'})
                     </option>
                   ))}
                 </select>
@@ -248,9 +262,16 @@ export const PortalStaffPage: React.FC = () => {
             <UserCheck className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-black text-white leading-tight">
-              {currentStaff.name}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-black text-white leading-tight">
+                {currentStaff.name}
+              </h1>
+              {isInterBranchShift && (
+                <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-black uppercase">
+                  Turno Inter-Sucursal
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-slate-400">
               Terminal de Sala • {restaurants.find((r) => r.id === selectedRestaurantId)?.brand_name || 'Restaurante'} ({restaurants.find((r) => r.id === selectedRestaurantId)?.branch_name || 'Principal'})
             </p>

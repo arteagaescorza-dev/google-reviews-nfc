@@ -22,8 +22,10 @@ import {
   RefreshCw,
   Clock,
   Sliders,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { filterBranchesBySameOrganization, isSameOrganizationAccessAllowed } from '../../lib/api/orders';
 import type {
   Restaurant,
   StaffMember,
@@ -55,8 +57,9 @@ export const PortalManagerPage: React.FC = () => {
   // Pestaña activa
   const [activeTab, setActiveTab] = useState<'staff' | 'shifts' | 'cash_metrics' | 'complaints_coupons'>('staff');
 
-  // Datos operativos de la sucursal
+  // Datos operativos de la sucursal y de su misma organización (POL-009)
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [orgStaffList, setOrgStaffList] = useState<StaffMember[]>([]);
   const [shifts, setShifts] = useState<StaffShift[]>([]);
   const [coupons, setCoupons] = useState<ManagerRetentionCoupon[]>([]);
   const [shiftReports, setShiftReports] = useState<ManagerShiftReport[]>([]);
@@ -76,6 +79,7 @@ export const PortalManagerPage: React.FC = () => {
   const todayIso = new Date().toISOString().slice(0, 10);
   const maxDateIso = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const [shiftStaffId, setShiftStaffId] = useState('');
+  const [shiftTargetBranchId, setShiftTargetBranchId] = useState<string>(branchParam || 'res-1');
   const [shiftDate, setShiftDate] = useState(todayIso);
   const [shiftType, setShiftType] = useState<StaffShiftType>('matutino');
   const [shiftStartTime, setShiftStartTime] = useState('08:00');
@@ -126,24 +130,48 @@ export const PortalManagerPage: React.FC = () => {
     init();
   }, [branchParam]);
 
+  // POL-009: Aislamiento estricto por Organización — una sucursal jamás ve sucursales ni datos de otra organización
+  const currentBranch = restaurants.find((r) => r.id === selectedBranchId) || restaurants[0];
+  const currentOrgId = currentBranch?.organization_id || 'org-1';
+  const sameOrgBranches = React.useMemo(
+    () => filterBranchesBySameOrganization(restaurants, selectedBranchId),
+    [restaurants, selectedBranchId]
+  );
+  const sameOrgBranchIds = React.useMemo(
+    () => sameOrgBranches.map((b) => b.id),
+    [sameOrgBranches]
+  );
+  const sameOrgManagers = React.useMemo(
+    () =>
+      orgManagers.filter((m) =>
+        isSameOrganizationAccessAllowed(m.organization_id || 'org-1', currentOrgId)
+      ),
+    [orgManagers, currentOrgId]
+  );
+
   const loadBranchData = async () => {
-    const [staffData, shiftsData, couponsData, reportsData, allFeedback, ordersData] = await Promise.all([
+    const branchIds = sameOrgBranchIds.length > 0 ? sameOrgBranchIds : [selectedBranchId];
+    const [staffData, orgStaffData, shiftsData, couponsData, reportsData, allFeedback, ordersData] = await Promise.all([
       api.getStaffMembers(selectedBranchId),
+      api.getOrganizationStaffMembers(currentOrgId, branchIds),
       api.getStaffShifts(selectedBranchId),
       api.getManagerRetentionCoupons(selectedBranchId),
-      api.getManagerShiftReports(selectedBranchId),
+      api.getManagerShiftReports(selectedBranchId, currentOrgId),
       api.getFeedbacks(),
       api.getTableOrders(selectedBranchId),
     ]);
     setStaffList(staffData);
+    setOrgStaffList(orgStaffData.length > 0 ? orgStaffData : staffData);
     setShifts(shiftsData);
     setCoupons(couponsData);
     setShiftReports(reportsData);
     setComplaints(allFeedback.filter((f) => (!selectedBranchId || f.restaurant_id === selectedBranchId) && f.rating <= 3));
     setOrders(ordersData);
+    setShiftTargetBranchId(selectedBranchId);
 
-    if (!shiftStaffId && staffData.length > 0) {
-      setShiftStaffId(staffData[0].id);
+    const combinedPool = orgStaffData.length > 0 ? orgStaffData : staffData;
+    if (!shiftStaffId && combinedPool.length > 0) {
+      setShiftStaffId(combinedPool[0].id);
     }
     const firstWaiter = staffData.find((s) => s.role === 'waiter');
     if (!selectedWaiterForClose && firstWaiter) {
@@ -156,10 +184,15 @@ export const PortalManagerPage: React.FC = () => {
 
   useEffect(() => {
     loadBranchData();
-  }, [selectedBranchId]);
+  }, [selectedBranchId, sameOrgBranchIds.length]);
 
   const handleBranchChange = (branchId: string) => {
+    if (sameOrgBranchIds.length > 0 && !sameOrgBranchIds.includes(branchId)) {
+      showToast('Acceso denegado: No tienes acceso a sucursales de otra organización.');
+      return;
+    }
     setSelectedBranchId(branchId);
+    setShiftTargetBranchId(branchId);
     setSearchParams({ branch: branchId });
   };
 
@@ -167,8 +200,8 @@ export const PortalManagerPage: React.FC = () => {
     e.preventDefault();
     setPinError('');
 
-    // Verificar en la tabla de gerentes de la organización
-    const matchedOrgMgr = orgManagers.find(
+    // Verificar únicamente en la tabla de gerentes de la MISMA organización (POL-009)
+    const matchedOrgMgr = sameOrgManagers.find(
       (m) => m.is_active && (m.pin_code === pinInput || pinInput === '8888' || pinInput === '9999' || pinInput === '1234')
     );
     if (matchedOrgMgr) {
@@ -179,13 +212,13 @@ export const PortalManagerPage: React.FC = () => {
       return;
     }
 
-    const res = await api.loginStaffWithPin(selectedBranchId, pinInput);
+    const res = await api.loginStaffWithPin(selectedBranchId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       setLoggedInManagerName(res.staff.name);
       setLoggedInManagerRole('gerente_tienda');
       setPinInput('');
     } else {
-      setPinError('PIN de Gerente inválido. Usa 8888, 9999 o 1234 en modo demo.');
+      setPinError(res.error || 'PIN de Gerente inválido. Usa 8888, 9999 o 1234 en modo demo.');
     }
   };
 
@@ -244,25 +277,34 @@ export const PortalManagerPage: React.FC = () => {
     showToast(`Permisos de rol y estación actualizados para ${member.name}.`);
   };
 
-  // Pestaña 2: Crear turno (hasta 60 días de anticipación)
+  // Pestaña 2: Crear turno (hasta 60 días de anticipación) y movimientos de personal entre sucursales de la misma organización (POL-009)
   const handleCreateShift = async (e: React.FormEvent) => {
     e.preventDefault();
-    const staffObj = staffList.find((s) => s.id === shiftStaffId) || staffList[0];
+    const pool = orgStaffList.length > 0 ? orgStaffList : staffList;
+    const staffObj = pool.find((s) => s.id === shiftStaffId) || pool[0];
     if (!staffObj) return;
 
-    const res = await api.createStaffShift({
-      restaurant_id: selectedBranchId,
-      staff_id: staffObj.id,
-      staff_name: staffObj.name,
-      staff_role: staffObj.role,
-      shift_date: shiftDate,
-      shift_type: shiftType,
-      start_time: shiftStartTime,
-      end_time: shiftEndTime,
-      assigned_station: shiftStation,
-      assigned_tables: ['Mesa 1', 'Mesa 2', 'Mesa 3'],
-      notes: shiftNotes.trim() || null,
-      created_by_manager: loggedInManagerName || 'Gerente de Tienda',
+    const targetBranch = shiftTargetBranchId || selectedBranchId;
+    const allowedIds = sameOrgBranchIds.length > 0 ? sameOrgBranchIds : [selectedBranchId];
+
+    const res = await api.scheduleInterBranchStaffShift({
+      sourceBranchId: staffObj.restaurant_id || selectedBranchId,
+      targetBranchId: targetBranch,
+      organizationId: currentOrgId,
+      allowedBranchIds: allowedIds,
+      shift: {
+        staff_id: staffObj.id,
+        staff_name: staffObj.name,
+        staff_role: staffObj.role,
+        shift_date: shiftDate,
+        shift_type: shiftType,
+        start_time: shiftStartTime,
+        end_time: shiftEndTime,
+        assigned_station: shiftStation,
+        assigned_tables: ['Mesa 1', 'Mesa 2', 'Mesa 3'],
+        notes: shiftNotes.trim() || null,
+        created_by_manager: loggedInManagerName || 'Gerente de Tienda',
+      },
     });
 
     if (!res.success) {
@@ -272,7 +314,13 @@ export const PortalManagerPage: React.FC = () => {
 
     setShiftNotes('');
     await loadBranchData();
-    showToast(`Turno programado para ${staffObj.name} el ${shiftDate}.`);
+    const destBranchName = sameOrgBranches.find((b) => b.id === targetBranch)?.name || 'Sucursal Destino';
+    const isInterBranch = (staffObj.restaurant_id || selectedBranchId) !== targetBranch;
+    showToast(
+      isInterBranch
+        ? `Movimiento Inter-Sucursal registrado: ${staffObj.name} asignado a ${destBranchName} el ${shiftDate}.`
+        : `Turno programado para ${staffObj.name} el ${shiftDate}.`
+    );
   };
 
   const handleDeleteShift = async (shiftId: string) => {
@@ -282,7 +330,6 @@ export const PortalManagerPage: React.FC = () => {
   };
 
   // Pestaña 3: Generar corte de caja por turno de mesero y enviar métricas al dueño
-  const currentBranch = restaurants.find((r) => r.id === selectedBranchId);
 
   const computedTableMetrics = React.useMemo(() => {
     const map = new Map<string, { count: number; total: number }>();
@@ -433,17 +480,17 @@ export const PortalManagerPage: React.FC = () => {
             Gestión de empleados y estaciones KDS, turnos a 2 meses, cortes de caja por mesero y autorización de cupones por quejas
           </p>
 
-          {restaurants.length > 0 && (
+          {sameOrgBranches.length > 0 && (
             <div className="mb-4">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Sucursal Asignada
+                Sucursal Asignada (Misma Organización)
               </label>
               <select
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-indigo-500"
               >
-                {restaurants.map((r) => (
+                {sameOrgBranches.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name} ({r.branch_name || 'Principal'})
                   </option>
@@ -533,7 +580,7 @@ export const PortalManagerPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {restaurants.length > 1 && (
+            {sameOrgBranches.length > 1 && (
               <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
                 <Building2 className="w-4 h-4 text-indigo-400" />
                 <select
@@ -541,7 +588,7 @@ export const PortalManagerPage: React.FC = () => {
                   onChange={(e) => handleBranchChange(e.target.value)}
                   className="bg-transparent text-xs font-bold text-white focus:outline-none"
                 >
-                  {restaurants.map((r) => (
+                  {sameOrgBranches.map((r) => (
                     <option key={r.id} value={r.id} className="bg-slate-900 text-white">
                       {r.name}
                     </option>
@@ -868,19 +915,46 @@ export const PortalManagerPage: React.FC = () => {
               <form onSubmit={handleCreateShift} className="space-y-3.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Colaborador *
+                    Colaborador de la Organización *
                   </label>
                   <select
                     value={shiftStaffId}
                     onChange={(e) => setShiftStaffId(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
                   >
-                    {staffList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.role.toUpperCase()})
+                    {(orgStaffList.length > 0 ? orgStaffList : staffList).map((s) => {
+                      const homeBranchName =
+                        sameOrgBranches.find((b) => b.id === s.restaurant_id)?.name || 'Sucursal Base';
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.role.toUpperCase()}) — {homeBranchName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                    <span>Sucursal Destino del Turno</span>
+                    <span className="text-[10px] font-black text-indigo-300 flex items-center gap-1">
+                      <ArrowLeftRight className="w-3 h-3" /> Movimiento entre Sucursales
+                    </span>
+                  </label>
+                  <select
+                    value={shiftTargetBranchId || selectedBranchId}
+                    onChange={(e) => setShiftTargetBranchId(e.target.value)}
+                    className="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-200"
+                  >
+                    {sameOrgBranches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.branch_name || 'Sucursal de la Organización'})
                       </option>
                     ))}
                   </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Permite entre gerentes mover personal a otra sucursal de la misma organización y dejarlo en la planeación.
+                  </p>
                 </div>
 
                 <div>
@@ -1017,6 +1091,11 @@ export const PortalManagerPage: React.FC = () => {
                         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                           {sh.shift_type} ({sh.start_time} - {sh.end_time})
                         </span>
+                        {sh.notes?.includes('[Movimiento Inter-Sucursal') && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-black uppercase">
+                            <ArrowLeftRight className="w-3 h-3" /> Movimiento Inter-Sucursal
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400 flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-indigo-400" />

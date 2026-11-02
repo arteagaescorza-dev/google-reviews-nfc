@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../../lib/api';
 import { ensureAbsoluteUrl } from '../../lib/utils';
 import { Star, CheckCircle, X, Send, AlertTriangle } from 'lucide-react';
+import { PhoneInputWithCountry } from '../common/PhoneInputWithCountry';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -183,12 +184,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
                   Teléfono / WhatsApp (opcional)
                 </label>
-                <input
-                  type="tel"
+                <PhoneInputWithCountry
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Para que gerencia te contacte"
-                  className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white placeholder:text-slate-400"
+                  onChange={setPhone}
                 />
               </div>
             </div>
