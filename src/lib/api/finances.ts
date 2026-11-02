@@ -5,6 +5,8 @@ import { restaurantsApi } from './restaurants';
 import { tagsApi } from './tags';
 import { adsApi } from './ads';
 import { feedbackApi } from './feedback';
+import { hardwareApi } from './hardware';
+import { salesApi } from './sales';
 
 export const financesApi = {
 async getDashboardKpis() {
@@ -101,6 +103,39 @@ async getDashboardKpis() {
     const adFreeTables = restaurants.filter((r) => r.is_ad_free).length;
     const occupiedPercent = activeTables > 0 ? Math.round(((activeTables - adFreeTables) / activeTables) * 100) : 79;
 
+    const [inventory, salesSummary] = await Promise.all([
+      hardwareApi.getInventory(),
+      salesApi.getSalesPipelineSummary(),
+    ]);
+
+    const chipItem = inventory.find((i) => i.category === 'nfc_chip');
+    const vinylItem = inventory.find((i) => i.category === 'vinyl_sticker');
+    const standItem = inventory.find((i) => i.category === 'acrylic_stand');
+
+    const hardwareSummary = {
+      chipsAvailable: chipItem?.stock_available ?? 350,
+      vinylsAvailable: vinylItem?.stock_available ?? 420,
+      standsAvailable: standItem?.stock_available ?? 85,
+      needsReorder: inventory.some((i) => i.stock_available <= i.stock_min_threshold),
+    };
+
+    const gross = finances.grossRevenue || 1;
+    const saasP = Math.round((finances.mrr / gross) * 100);
+    const adsP = Math.round((finances.adRevenue / gross) * 100);
+    const hwP = Math.max(0, 100 - saasP - adsP);
+
+    const revenueBreakdown = {
+      saasAmount: finances.mrr,
+      saasPercent: saasP,
+      adsAmount: finances.adRevenue,
+      adsPercent: adsP,
+      hardwareAmount: finances.hardwareRevenue,
+      hardwarePercent: hwP,
+      grossRevenue: finances.grossRevenue,
+      ebitda: finances.ebitda,
+      ebitdaMargin: finances.ebitdaMargin,
+    };
+
     return {
       ...kpis,
       finances,
@@ -110,6 +145,9 @@ async getDashboardKpis() {
       networkOccupancyRate: Math.max(10, Math.min(100, occupiedPercent)),
       activeCampaignsCount: ads.filter((a) => a.is_active).length,
       renewingCampaignsCount: ads.filter((a) => a.max_impressions && (a.impressions_count / a.max_impressions) >= 0.8).length,
+      hardwareSummary,
+      salesSummary,
+      revenueBreakdown,
     };
   },
 

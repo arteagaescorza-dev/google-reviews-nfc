@@ -45,9 +45,9 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ### Modulo 4: Centro de Mando Ejecutivo (Resumen Bento)
 | ID | Tarea UI / Componente | Estado | Mockup de Referencia | Infraestructura Backend |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI-RS-01** | **KPI Card Facturacion Mensual:** Tarjeta asimetrica Col-Span-5 con barra de progreso dividida por fuente de ingresos. | `Preaprobada` | `mockup_bento_tab1_resumen.png` | Vista agregada |
-| **UI-RS-02** | **Mini-Widgets de Stock y Pipeline:** Tarjetas cuadradas de lectura rapida con accesos directos a los modulos operativos. | `Preaprobada` | `mockup_bento_tab1_resumen.png` | `hardware_inventory`, `sales_leads` |
-| **UI-RS-03** | **Feed de Eventos en Directo:** Linea de tiempo con pastillas interactivas que reflejan escaneos, pagos recibidos y ordenes corporativas en tiempo real. | `Preaprobada` | `mockup_bento_tab1_resumen.png` | Supabase Realtime |
+| **UI-RS-01** | **KPI Card Facturacion Mensual:** Tarjeta asimetrica Col-Span-5 con barra de progreso dividida por fuente de ingresos. | `Implementada y Verificada` | `mockup_bento_tab1_resumen.png` | Vista agregada |
+| **UI-RS-02** | **Mini-Widgets de Stock y Pipeline:** Tarjetas cuadradas de lectura rapida con accesos directos a los modulos operativos. | `Implementada y Verificada` | `mockup_bento_tab1_resumen.png` | `hardware_inventory`, `sales_leads` |
+| **UI-RS-03** | **Feed de Eventos en Directo:** Linea de tiempo con pastillas interactivas que reflejan escaneos, pagos recibidos y ordenes corporativas en tiempo real. | `Implementada y Verificada` | `mockup_bento_tab1_resumen.png` | Supabase Realtime |
 
 ---
 

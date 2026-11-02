@@ -59,6 +59,10 @@ const HARDWARE_STORAGE_KEY = 'nfc_hardware_inventory';
 const PRINT_BATCHES_STORAGE_KEY = 'nfc_print_batches';
 
 export const hardwareApi = {
+  async getInventory(): Promise<HardwareInventoryItem[]> {
+    return hardwareApi.getHardwareInventory();
+  },
+
   async getHardwareInventory(): Promise<HardwareInventoryItem[]> {
     if (isSupabaseConfigured) {
       try {
