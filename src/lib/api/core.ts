@@ -29,6 +29,7 @@ export const STORAGE_KEYS = {
   TABLE_SESSIONS: 'nfc_demo_table_sessions',
   DAILY_CASH_CLOSES: 'nfc_demo_daily_cash_closes',
   CORPORATE_ORDERS: 'nfc_demo_corporate_orders',
+  RESTAURANT_TABLES: 'nfc_demo_restaurant_tables',
 };
 
 export const VIRAL_SEED_AD: Ad = {

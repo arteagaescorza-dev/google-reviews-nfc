@@ -14,6 +14,7 @@ import {
   Wine,
   Cookie,
   Layers,
+  Coffee,
 } from 'lucide-react';
 
 export const PortalKitchenPage: React.FC = () => {
@@ -44,20 +45,41 @@ export const PortalKitchenPage: React.FC = () => {
     return Math.max(1, Math.floor(diffMs / 60000));
   };
 
-
   const [station, setStation] = useState<KitchenStation>(() => {
     const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
     const s = params.get('station') as KitchenStation;
-    return s && ['cocina', 'barra', 'postres', 'all'].includes(s) ? s : 'all';
+    const roleParam = params.get('role');
+    if (roleParam === 'kitchen') return 'cocina';
+    if (roleParam === 'barista') return 'barista';
+    return s && ['cocina', 'barra', 'postres', 'barista', 'all'].includes(s) ? s : 'all';
   });
 
   const inferItemCategory = (item: OrderItem): 'entradas' | 'principales' | 'bebidas' | 'postres' => {
     if (item.category) return item.category;
     const lower = item.name.toLowerCase();
-    if (lower.includes('cerveza') || lower.includes('vino') || lower.includes('limonada') || lower.includes('bebida') || lower.includes('refresco') || lower.includes('café') || lower.includes('cocktail') || lower.includes('gin') || lower.includes('ipa') || lower.includes('chianti')) {
+    if (
+      lower.includes('cerveza') ||
+      lower.includes('vino') ||
+      lower.includes('limonada') ||
+      lower.includes('bebida') ||
+      lower.includes('refresco') ||
+      lower.includes('café') ||
+      lower.includes('cafe') ||
+      lower.includes('cocktail') ||
+      lower.includes('gin') ||
+      lower.includes('ipa') ||
+      lower.includes('chianti')
+    ) {
       return 'bebidas';
     }
-    if (lower.includes('tiramisú') || lower.includes('panna cotta') || lower.includes('postre') || lower.includes('pastel') || lower.includes('helado') || lower.includes('dulce')) {
+    if (
+      lower.includes('tiramisú') ||
+      lower.includes('panna cotta') ||
+      lower.includes('postre') ||
+      lower.includes('pastel') ||
+      lower.includes('helado') ||
+      lower.includes('dulce')
+    ) {
       return 'postres';
     }
     return 'principales';
@@ -69,6 +91,7 @@ export const PortalKitchenPage: React.FC = () => {
       const cat = inferItemCategory(item);
       if (currentStation === 'barra') return cat === 'bebidas';
       if (currentStation === 'postres') return cat === 'postres';
+      if (currentStation === 'barista') return cat === 'bebidas' || cat === 'postres';
       if (currentStation === 'cocina') return cat === 'entradas' || cat === 'principales';
       return true;
     });
@@ -94,16 +117,24 @@ export const PortalKitchenPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans">
-      {/* Barra Superior KDS Cocina */}
+      {/* Barra Superior KDS Cocina & Barra */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-orange-600/20 border border-orange-500/30 text-orange-400 flex items-center justify-center shadow-lg">
-            <ChefHat className="w-7 h-7" />
+            {station === 'barista' || station === 'barra' || station === 'postres' ? (
+              <Coffee className="w-7 h-7" />
+            ) : (
+              <ChefHat className="w-7 h-7" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                KDS Cocina & Barra en Vivo
+                {station === 'cocina'
+                  ? 'Estación Jefe de Cocina (KDS)'
+                  : station === 'barista'
+                  ? 'Estación Barista: Barra, Coctelería, Repostería & Café'
+                  : 'KDS Cocina & Barra en Vivo'}
               </h1>
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -114,7 +145,7 @@ export const PortalKitchenPage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Recepción automatizada de pedidos emitidos desde las placas NFC en mesa
+              Recepción automatizada de pedidos por estación (asignada por Gerencia)
             </p>
           </div>
         </div>
@@ -123,7 +154,7 @@ export const PortalKitchenPage: React.FC = () => {
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs">
             <Flame className="w-4 h-4 text-orange-500" />
-            <span className="text-slate-400">En Fuego:</span>
+            <span className="text-slate-400">En Preparación:</span>
             <span className="font-extrabold text-white">
               {pendingOrders.length + preparingOrders.length}
             </span>
@@ -146,13 +177,12 @@ export const PortalKitchenPage: React.FC = () => {
         </div>
       </div>
 
-
-      {/* Selector de Estación KDS (Cocina / Barra / Postres / Todas) */}
+      {/* Selector de Estación KDS (Cocina / Barista / Barra / Postres / Todas) */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
         <button
           type="button"
           onClick={() => setStation('all')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
             station === 'all'
               ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
               : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
@@ -165,40 +195,53 @@ export const PortalKitchenPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setStation('cocina')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
             station === 'cocina'
               ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
               : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
           }`}
         >
           <ChefHat className="w-4 h-4" />
-          <span>🍳 Cocina Caliente</span>
+          <span>Cocina Caliente (Jefe de Cocina)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStation('barista')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            station === 'barista'
+              ? 'bg-teal-600 text-white shadow-lg shadow-teal-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Coffee className="w-4 h-4" />
+          <span>Barista (Barra, Coctelería, Repostería & Café)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setStation('barra')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
             station === 'barra'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
               : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
           }`}
         >
           <Wine className="w-4 h-4" />
-          <span>🍺 Barra de Bebidas</span>
+          <span>Barra & Coctelería</span>
         </button>
 
         <button
           type="button"
           onClick={() => setStation('postres')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
             station === 'postres'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
               : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
           }`}
         >
           <Cookie className="w-4 h-4" />
-          <span>🍰 Repostería & Postres</span>
+          <span>Repostería & Café</span>
         </button>
       </div>
 
@@ -257,7 +300,7 @@ export const PortalKitchenPage: React.FC = () => {
                           <span className="font-semibold text-slate-200">{it.name}</span>
                           {it.notes && (
                             <span className="block text-[10px] text-amber-400/90 italic pl-5">
-                              ↳ "{it.notes}"
+                              Nota: "{it.notes}"
                             </span>
                           )}
                         </div>
@@ -339,7 +382,7 @@ export const PortalKitchenPage: React.FC = () => {
                           <span className="font-semibold text-slate-100">{it.name}</span>
                           {it.notes && (
                             <span className="block text-[10px] text-amber-300/90 italic pl-5">
-                              ↳ "{it.notes}"
+                              Nota: "{it.notes}"
                             </span>
                           )}
                         </div>
@@ -359,7 +402,7 @@ export const PortalKitchenPage: React.FC = () => {
                       onClick={() => handleStatusChange(ord.id, 'ready')}
                       className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm transition-all"
                     >
-                      <span>¡Platillo Listo!</span>
+                      <span>Platillo Listo</span>
                       <CheckCircle2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -439,7 +482,7 @@ export const PortalKitchenPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-slate-200">{ord.table_number}</span>
-                  <span className="text-[10px] text-emerald-400 font-semibold">✓ Entregado</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">Entregado</span>
                 </div>
                 <p className="text-[10px] text-slate-400 line-clamp-1">
                   {ord.items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}

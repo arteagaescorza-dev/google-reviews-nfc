@@ -38,6 +38,7 @@ import {
   ChevronDown,
   ChevronRight,
   User,
+  Users,
   Mail,
   ChefHat,
   UserCheck,
@@ -418,14 +419,22 @@ export const AdminRestaurantsPage: React.FC = () => {
     const isWaiterTerminalOn =
       waiterTerminalByBranch[res.id] !== undefined ? waiterTerminalByBranch[res.id] : true;
 
-    // Ordenar personal por categoría de rol: Meseros -> Cocina -> Capitán
-    const roleOrder: Record<string, number> = { waiter: 1, kitchen: 2, manager: 3 };
+    // Ordenar personal por categoría de rol: Hostess -> Meseros -> Barista -> Jefe de Cocina -> Capitán
+    const roleOrder: Record<string, number> = {
+      hostess: 1,
+      waiter: 2,
+      barista: 3,
+      kitchen: 4,
+      manager: 5,
+    };
     const sortedStaff = [...staff].sort(
       (a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9)
     );
 
     const roleSelectColors: Record<string, string> = {
+      hostess: 'bg-violet-50 text-violet-700 border-violet-200',
       waiter: 'bg-blue-50 text-blue-700 border-blue-200',
+      barista: 'bg-teal-50 text-teal-800 border-teal-200',
       kitchen: 'bg-amber-50 text-amber-800 border-amber-200',
       manager: 'bg-purple-50 text-purple-700 border-purple-200',
     };
@@ -725,6 +734,33 @@ export const AdminRestaurantsPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Fila Recepción: Terminal de Hostess & Control de Mesas */}
+                  <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-violet-50/30 hover:bg-violet-50/50">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
+                        <span className="font-extrabold text-slate-900">
+                          Pantalla de Hostess & Recepción (Gestión de Mesas, Aforo y Solicitud de Limpieza)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block pl-5">
+                        Permite crear mesas por sucursal, controlar mesas libres/ocupadas y enviar alertas de limpieza al mesero.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center">
+                      <a
+                        href={`#/portal/hostess?branch=${res.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-violet-50 text-violet-800 border-violet-200 hover:bg-violet-100 transition-colors"
+                      >
+                        <span>Abrir Hostess</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+
                   {/* Filas de Personal Operativo ordenadas por categoría de rol */}
                   {sortedStaff.map((member) => (
                     <div
@@ -745,11 +781,17 @@ export const AdminRestaurantsPage: React.FC = () => {
                             roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
                           }`}
                         >
+                          <option value="hostess" className="bg-white text-slate-900 font-bold">
+                            Hostess / Recepción de Mesas
+                          </option>
                           <option value="waiter" className="bg-white text-slate-900 font-bold">
                             Mesero de Sala
                           </option>
+                          <option value="barista" className="bg-white text-slate-900 font-bold">
+                            Barista (Barra, Coctelería, Repostería & Café)
+                          </option>
                           <option value="kitchen" className="bg-white text-slate-900 font-bold">
-                            Jefe de Cocina / KDS
+                            Jefe de Cocina (KDS Cocina)
                           </option>
                           <option value="manager" className="bg-white text-slate-900 font-bold">
                             Capitán / Gerente de Piso

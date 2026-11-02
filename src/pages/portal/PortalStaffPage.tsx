@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
-import type { TableCall, TableOrder, Feedback, StaffMember, Restaurant } from '../../types';
+import type { TableCall, TableOrder, Feedback, StaffMember, Restaurant, RestaurantTable } from '../../types';
 import {
   BellRing,
   Receipt,
@@ -12,6 +13,9 @@ import {
   Ticket,
   Phone,
   Store,
+  Sparkles,
+  AlertTriangle,
+  Users,
 } from 'lucide-react';
 
 export const PortalStaffPage: React.FC = () => {
@@ -24,6 +28,7 @@ export const PortalStaffPage: React.FC = () => {
   const [pinError, setPinError] = useState('');
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('res-1');
+  const [branchTables, setBranchTables] = useState<RestaurantTable[]>([]);
 
   useEffect(() => {
     api.getRestaurants().then((rests) => {
@@ -45,20 +50,22 @@ export const PortalStaffPage: React.FC = () => {
   const [urgentFeedbacks, setUrgentFeedbacks] = useState<Feedback[]>([]);
   const [couponCodeInput, setCouponCodeInput] = useState('');
   const [couponRedeemResult, setCouponRedeemResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [assignedTables, setAssignedTables] = useState<string[]>(['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4']);
+  const [assignedTables, setAssignedTables] = useState<string[]>(['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5', 'Mesa 6']);
   const [tableFilterTab, setTableFilterTab] = useState<'my_tables' | 'all_tables'>('my_tables');
   const [showTableAssignModal, setShowTableAssignModal] = useState(false);
 
   // Cargar datos operativos
   const loadData = async () => {
-    const [allCalls, allOrders, allFeedback] = await Promise.all([
+    const [allCalls, allOrders, allFeedback, tablesData] = await Promise.all([
       api.getTableCalls(selectedRestaurantId),
       api.getTableOrders(selectedRestaurantId),
       api.getFeedbacks(),
+      api.getRestaurantTables(selectedRestaurantId),
     ]);
 
     setCalls(allCalls.filter((c) => c.status === 'active'));
     setReadyOrders(allOrders.filter((o) => o.status === 'ready'));
+    setBranchTables(tablesData);
     // Quejas nuevas o no atendidas de 1 a 3 estrellas
     setUrgentFeedbacks(allFeedback.filter((f) => f.rating <= 3 && f.status === 'new').slice(0, 3));
   };
@@ -66,10 +73,10 @@ export const PortalStaffPage: React.FC = () => {
   useEffect(() => {
     if (currentStaff) {
       loadData();
-      const interval = setInterval(loadData, 10000); // Polling cada 10s
+      const interval = setInterval(loadData, 5000); // Polling cada 5s para notificaciones de Hostess y comensales
       return () => clearInterval(interval);
     }
-  }, [currentStaff]);
+  }, [currentStaff, selectedRestaurantId]);
 
   // Autenticación con PIN
   const handlePinSubmit = async (e?: React.FormEvent) => {
@@ -108,7 +115,7 @@ export const PortalStaffPage: React.FC = () => {
     if (res.success) {
       setCouponRedeemResult({
         success: true,
-        message: `¡Cupón válido! Descuento: ${res.coupon?.discount_description || '20% OFF'}.`,
+        message: `Cupón válido. Descuento: ${res.coupon?.discount_description || '20% OFF'}.`,
       });
       setCouponCodeInput('');
     } else {
@@ -132,7 +139,7 @@ export const PortalStaffPage: React.FC = () => {
             Terminal de Sala & Meseros
           </h2>
           <p className="text-xs text-slate-400 mt-1 mb-4">
-            Ingresa tu PIN de 4 dígitos para atender mesas
+            Ingresa tu PIN de 4 dígitos para atender mesas y solicitudes de Hostess
           </p>
 
           {restaurants.length > 1 && (
@@ -215,19 +222,27 @@ export const PortalStaffPage: React.FC = () => {
     );
   }
 
+  const cleaningCalls = calls.filter((c) => c.call_type === 'cleaning');
+
   // Filtrado de llamadas por zonificación y regla de escalamiento anti-abandono (SLA 60s)
   const displayCalls = calls.filter((c) => {
+    if (c.call_type === 'cleaning') return true;
     if (tableFilterTab === 'all_tables') return true;
     const isAssigned = assignedTables.includes(c.table_number);
     const isEscalated = getMinutesAgo(c.created_at) >= 1;
     return isAssigned || isEscalated;
   });
 
+  const selectableTableNames =
+    branchTables.length > 0
+      ? branchTables.map((t) => t.table_number)
+      : ['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5', 'Mesa 6', 'Mesa 7', 'Mesa 8', 'Mesa 9', 'Mesa 10', 'Mesa 11', 'Mesa 12'];
+
   // Dashboard de Sala del Mesero
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-sans max-w-3xl mx-auto space-y-6">
       {/* Barra de Encabezado */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-orange-600/20 text-orange-400 flex items-center justify-center font-bold">
             <UserCheck className="w-5 h-5" />
@@ -242,13 +257,23 @@ export const PortalStaffPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setCurrentStaff(null)}
-          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1.5 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Cambiar Turno</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/portal/hostess?branch=${selectedRestaurantId}`}
+            className="p-2 rounded-xl bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 text-violet-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Vista Hostess</span>
+          </Link>
+
+          <button
+            onClick={() => setCurrentStaff(null)}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1.5 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Cambiar Turno</span>
+          </button>
+        </div>
       </div>
 
       {/* Barra de Asignación de Mesas y Filtro de Alertas (SPEC-ZONING) */}
@@ -282,7 +307,7 @@ export const PortalStaffPage: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Mis Mesas ({calls.filter((c) => assignedTables.includes(c.table_number)).length})
+              Mis Mesas ({calls.filter((c) => assignedTables.includes(c.table_number) || c.call_type === 'cleaning').length})
             </button>
             <button
               type="button"
@@ -299,6 +324,52 @@ export const PortalStaffPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Sección Destacada: Solicitudes de Limpieza enviadas por Hostess */}
+      {cleaningCalls.length > 0 && (
+        <div className="p-4 rounded-2xl bg-violet-950/40 border-2 border-violet-500/60 shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-300 animate-pulse" />
+              <h3 className="font-black text-xs uppercase tracking-wider text-violet-200">
+                Solicitudes de Limpieza de Mesa (Enviadas por Hostess)
+              </h3>
+            </div>
+            <span className="text-[10px] bg-violet-600 text-white font-black px-2.5 py-0.5 rounded-full">
+              {cleaningCalls.length} Pendiente{cleaningCalls.length > 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {cleaningCalls.map((cleanCall) => (
+              <div
+                key={cleanCall.id}
+                className="p-3.5 rounded-xl bg-slate-900 border border-violet-500/40 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-violet-500/20 text-violet-300">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-sm text-white">{cleanCall.table_number}</h4>
+                    <p className="text-xs text-violet-300 font-bold">
+                      Hostess solicita limpieza para asignar comensales
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleResolveCall(cleanCall.id)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer"
+                  title="Marca la mesa como limpia y la libera automáticamente en la pantalla de Hostess"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Mesa Limpia</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sección 1: Alertas Críticas de Inconformidad en Mesa (1 a 3 estrellas) */}
       {urgentFeedbacks.length > 0 && (
@@ -309,8 +380,9 @@ export const PortalStaffPage: React.FC = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
               </span>
+              <AlertTriangle className="w-4 h-4 text-rose-400" />
               <h3 className="font-black text-xs uppercase tracking-wider text-rose-300">
-                🚨 Alerta de Servicio en Mesa (Retención Inmediata)
+                Alerta de Servicio en Mesa (Retención Inmediata)
               </h3>
             </div>
             <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded-full">
@@ -327,7 +399,7 @@ export const PortalStaffPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold">
-                      ★ {fb.rating} Estrellas
+                      {fb.rating} Estrellas
                     </span>
                     <span className="font-extrabold text-xs text-white">
                       Mesa {fb.tag_code?.slice(-2) || '4'}
@@ -370,7 +442,7 @@ export const PortalStaffPage: React.FC = () => {
               Llamadas Activas de Mesa ({displayCalls.length})
             </h3>
           </div>
-          <span className="text-[11px] text-slate-400">Peticiones de comensales en vivo</span>
+          <span className="text-[11px] text-slate-400">Peticiones de comensales y Hostess en vivo</span>
         </div>
 
         {displayCalls.length === 0 ? (
@@ -379,59 +451,82 @@ export const PortalStaffPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {displayCalls.map((call) => (
-              <div
-                key={call.id}
-                className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30 flex items-center justify-between gap-3 shadow-sm hover:border-amber-400 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
-                    {call.call_type === 'waiter' ? (
-                      <BellRing className="w-5 h-5" />
-                    ) : (
-                      <Receipt className="w-5 h-5 text-emerald-400" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-sm text-white">
-                        {call.table_number}
-                      </h4>
-                      {getMinutesAgo(call.created_at) >= 1 && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-600 text-white animate-pulse">
-                          ⚠️ SLA +1m
-                        </span>
-                      )}
-                      {assignedTables.includes(call.table_number) ? (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-orange-600/30 text-orange-300">
-                          Tu Mesa
-                        </span>
+            {displayCalls.map((call) => {
+              const isCleaning = call.call_type === 'cleaning';
+              return (
+                <div
+                  key={call.id}
+                  className={`p-4 rounded-2xl bg-slate-900 border flex items-center justify-between gap-3 shadow-sm transition-all ${
+                    isCleaning
+                      ? 'border-violet-500/40 hover:border-violet-400'
+                      : 'border-amber-500/30 hover:border-amber-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-2.5 rounded-xl ${
+                        isCleaning ? 'bg-violet-500/15 text-violet-300' : 'bg-amber-500/10 text-amber-400'
+                      }`}
+                    >
+                      {isCleaning ? (
+                        <Sparkles className="w-5 h-5" />
+                      ) : call.call_type === 'waiter' ? (
+                        <BellRing className="w-5 h-5" />
                       ) : (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">
-                          Apoyo
-                        </span>
+                        <Receipt className="w-5 h-5 text-emerald-400" />
                       )}
                     </div>
-                    <p className="text-xs text-slate-300 font-semibold">
-                      {call.call_type === 'waiter'
-                        ? 'Solicita Asistencia'
-                        : 'Pide la Cuenta con Terminal'}
-                    </p>
-                    <span className="text-[10px] text-slate-500">
-                      Hace pocos minutos
-                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-sm text-white">
+                          {call.table_number}
+                        </h4>
+                        {getMinutesAgo(call.created_at) >= 1 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-600 text-white animate-pulse">
+                            SLA +1m
+                          </span>
+                        )}
+                        {isCleaning ? (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-violet-600/30 text-violet-300">
+                            Hostess
+                          </span>
+                        ) : assignedTables.includes(call.table_number) ? (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-orange-600/30 text-orange-300">
+                            Tu Mesa
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">
+                            Apoyo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-300 font-semibold">
+                        {isCleaning
+                          ? 'Solicita Limpieza de Mesa'
+                          : call.call_type === 'waiter'
+                          ? 'Solicita Asistencia'
+                          : 'Pide la Cuenta con Terminal'}
+                      </p>
+                      <span className="text-[10px] text-slate-500">
+                        Hace pocos minutos
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  onClick={() => handleResolveCall(call.id)}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm transition-all"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Atendido</span>
-                </button>
-              </div>
-            ))}
+                  <button
+                    onClick={() => handleResolveCall(call.id)}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
+                      isCleaning
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{isCleaning ? 'Mesa Limpia' : 'Atendido'}</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -544,7 +639,7 @@ export const PortalStaffPage: React.FC = () => {
             </p>
 
             <div className="grid grid-cols-3 gap-2">
-              {['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5', 'Mesa 6', 'Mesa 7', 'Mesa 8', 'Mesa 9', 'Mesa 10', 'Mesa 11', 'Mesa 12'].map((tableNum) => {
+              {selectableTableNames.map((tableNum) => {
                 const isSelected = assignedTables.includes(tableNum);
                 return (
                   <button
@@ -561,7 +656,7 @@ export const PortalStaffPage: React.FC = () => {
                         : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600'
                     }`}
                   >
-                    {tableNum} {isSelected && '✓'}
+                    {tableNum}
                   </button>
                 );
               })}
@@ -570,7 +665,7 @@ export const PortalStaffPage: React.FC = () => {
             <div className="pt-2 flex gap-2">
               <button
                 type="button"
-                onClick={() => setAssignedTables(['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Mesa 5', 'Mesa 6', 'Mesa 7', 'Mesa 8', 'Mesa 9', 'Mesa 10', 'Mesa 11', 'Mesa 12'])}
+                onClick={() => setAssignedTables(selectableTableNames)}
                 className="flex-1 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl"
               >
                 Todas las mesas

@@ -418,7 +418,7 @@ export interface MenuItem {
   preparation_time_mins?: number;
 }
 
-export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'all';
+export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'barista' | 'all';
 
 export interface OrderItem {
   menu_item_id: string;
@@ -447,7 +447,7 @@ export interface TableOrder {
   restaurant?: Restaurant;
 }
 
-export type TableCallType = 'waiter' | 'bill_cash' | 'bill_card' | 'help';
+export type TableCallType = 'waiter' | 'bill_cash' | 'bill_card' | 'help' | 'cleaning';
 export type TableCallStatus = 'active' | 'attended';
 
 export interface TableCall {
@@ -462,7 +462,7 @@ export interface TableCall {
   attended_by?: string;
 }
 
-export type StaffRole = 'waiter' | 'kitchen' | 'manager';
+export type StaffRole = 'waiter' | 'kitchen' | 'barista' | 'hostess' | 'manager';
 
 export interface StaffMember {
   id: string;
@@ -473,6 +473,22 @@ export interface StaffMember {
   is_active: boolean;
   assigned_tables?: string[];
   zone_name?: string;
+  allowed_stations?: KitchenStation[];
+  created_at: string;
+}
+
+export type RestaurantTableStatus = 'libre' | 'ocupada' | 'en_limpieza' | 'desactivada';
+
+export interface RestaurantTable {
+  id: string;
+  restaurant_id: string;
+  table_number: string;
+  capacity: number;
+  current_guests: number;
+  status: RestaurantTableStatus;
+  assigned_waiter_name?: string | null;
+  notes?: string | null;
+  updated_at: string;
   created_at: string;
 }
 

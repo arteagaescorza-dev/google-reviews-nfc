@@ -886,7 +886,16 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
               className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:text-orange-700 font-semibold flex items-center justify-center gap-1.5 transition-colors"
             >
               <ChefHat className="w-3.5 h-3.5 text-orange-600" />
-              <span>Pantalla Cocina KDS ↗</span>
+              <span>Pantalla Cocina KDS</span>
+            </a>
+            <a
+              href="#/portal/hostess"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 text-slate-700 hover:text-violet-700 font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Users className="w-3.5 h-3.5 text-violet-600" />
+              <span>Pantalla Hostess</span>
             </a>
           </div>
 
@@ -950,7 +959,9 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
                           <span className="font-medium">
                           <select value={s.role} onChange={async (e) => { const nextRole = e.target.value as StaffRole; setStaffMembers((prev) => prev.map((item) => (item.id === s.id ? { ...item, role: nextRole } : item))); await api.updateStaffMember(s.id, { role: nextRole }); }} className="bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-slate-700 cursor-pointer focus:outline-none focus:border-orange-500">
+                            <option value="hostess">Hostess / Recepción</option>
                             <option value="waiter">Mesero de Sala</option>
+                            <option value="barista">Barista (Barra & Café)</option>
                             <option value="kitchen">Jefe de Cocina / KDS</option>
                             <option value="manager">Capitán de Piso</option>
                           </select>
@@ -2284,9 +2295,11 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                     onChange={(e) => setNewStaffRole(e.target.value as StaffRole)}
                     className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white"
                   >
-                    <option value="waiter">🍽️ Mesero de Sala (Llamadas y Comandas)</option>
-                    <option value="kitchen">👨‍🍳 Cocinero / Barra (Pantalla KDS Kanban)</option>
-                    <option value="manager">🛡️ Capitán de Sala (PIN de Autorización)</option>
+                    <option value="hostess">Hostess / Recepción (Control de Mesas y Limpieza)</option>
+                    <option value="waiter">Mesero de Sala (Llamadas y Comandas)</option>
+                    <option value="barista">Barista (Estación Barra, Coctelería, Repostería y Café)</option>
+                    <option value="kitchen">Jefe de Cocina (Estación Cocina Caliente KDS)</option>
+                    <option value="manager">Capitán / Gerente de Piso (Autorización Operativa)</option>
                   </select>
                 </div>
 

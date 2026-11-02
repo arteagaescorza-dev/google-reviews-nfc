@@ -1,6 +1,24 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { MenuItem, TableOrder, TableOrderStatus, TableCall, StaffMember, TableSession, DailyCashClose, CorporateOrder } from '../../types';
+import type {
+  MenuItem,
+  TableOrder,
+  TableOrderStatus,
+  TableCall,
+  StaffMember,
+  TableSession,
+  DailyCashClose,
+  CorporateOrder,
+  RestaurantTable,
+  RestaurantTableStatus,
+  KitchenStation,
+} from '../../types';
 import { STORAGE_KEYS, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
+
+export function getDefaultStationsForRole(role: StaffMember['role']): KitchenStation[] {
+  if (role === 'kitchen') return ['cocina'];
+  if (role === 'barista') return ['barra', 'postres'];
+  return ['all'];
+}
 
 export const ordersApi = {
 async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
@@ -334,10 +352,11 @@ async updateTableOrderStatus(orderId: string, status: TableOrderStatus): Promise
   },
 
 async getTableCalls(restaurantId?: string): Promise<TableCall[]> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
       try {
         let query = supabase.from('table_calls').select('*').order('created_at', { ascending: false });
-        if (restaurantId && restaurantId !== 'res-1') {
+        if (restaurantId && !restaurantId.startsWith('res-')) {
           query = query.eq('restaurant_id', restaurantId);
         }
         const { data, error } = await query;
@@ -377,10 +396,12 @@ async getTableCalls(restaurantId?: string): Promise<TableCall[]> {
   },
 
 async createTableCall(call: Partial<TableCall>): Promise<{ success: boolean; data?: TableCall }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const targetResId = call.restaurant_id || 'res-1';
+    if (!isDemo && isSupabaseConfigured && !targetResId.startsWith('res-')) {
       try {
         const payload = {
-          restaurant_id: call.restaurant_id || 'res-1',
+          restaurant_id: targetResId,
           tag_code: call.tag_code || 'TAG-MES-001',
           table_number: call.table_number || 'Mesa',
           call_type: call.call_type || 'waiter',
@@ -412,6 +433,8 @@ async createTableCall(call: Partial<TableCall>): Promise<{ success: boolean; dat
   },
 
 async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{ success: boolean; data?: TableCall }> {
+    let resolvedCall: TableCall | undefined;
+
     if (isSupabaseConfigured && !callId.startsWith('call-')) {
       try {
         const { data, error } = await supabase
@@ -424,7 +447,9 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
           .eq('id', callId)
           .select()
           .single();
-        if (!error && data) return { success: true, data: data as TableCall };
+        if (!error && data) {
+          resolvedCall = data as TableCall;
+        }
       } catch (err) {
         console.warn('Fallo al resolver table_call en Supabase:', err);
       }
@@ -437,7 +462,28 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
         : c
     );
     setLocalItem(STORAGE_KEYS.TABLE_CALLS, updated);
-    return { success: true, data: updated.find((c) => c.id === callId) };
+    if (!resolvedCall) {
+      resolvedCall = updated.find((c) => c.id === callId);
+    }
+
+    // Si era una solicitud de limpieza ('cleaning') enviada por Hostess, liberar automáticamente la mesa a estado 'libre'
+    if (resolvedCall && resolvedCall.call_type === 'cleaning') {
+      try {
+        const tables = await ordersApi.getRestaurantTables(resolvedCall.restaurant_id);
+        const matchingTable = tables.find(
+          (t) =>
+            t.table_number.trim().toLowerCase() === resolvedCall!.table_number.trim().toLowerCase() ||
+            `mesa ${t.table_number}`.trim().toLowerCase() === resolvedCall!.table_number.trim().toLowerCase()
+        );
+        if (matchingTable) {
+          await ordersApi.updateRestaurantTableStatus(matchingTable.id, 'libre', 0);
+        }
+      } catch (err) {
+        console.warn('No se pudo actualizar estado de mesa tras limpieza:', err);
+      }
+    }
+
+    return { success: true, data: resolvedCall };
   },
 
 async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
@@ -449,7 +495,13 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
         }
         const { data, error } = await query;
         if (!error && data && data.length > 0) {
-          return data as StaffMember[];
+          return (data as StaffMember[]).map((s) => ({
+            ...s,
+            allowed_stations:
+              s.allowed_stations && s.allowed_stations.length > 0
+                ? s.allowed_stations
+                : getDefaultStationsForRole(s.role),
+          }));
         }
       } catch (err) {
         console.warn('Fallo al obtener restaurant_staff de Supabase, usando respaldo local:', err);
@@ -464,29 +516,59 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
         role: 'waiter',
         pin_code: '1234',
         is_active: true,
+        allowed_stations: ['all'],
         created_at: new Date().toISOString(),
       },
       {
         id: 'staff-2',
         restaurant_id: restaurantId || 'res-1',
-        name: 'Chef Roberto (Jefe Cocina)',
+        name: 'Chef Roberto (Jefe de Cocina)',
         role: 'kitchen',
         pin_code: '4321',
         is_active: true,
+        allowed_stations: ['cocina'],
         created_at: new Date().toISOString(),
       },
       {
         id: 'staff-3',
         restaurant_id: restaurantId || 'res-1',
-        name: 'Sofía Valdés (Capitana Sala)',
+        name: 'Sofía Valdés (Capitana de Piso)',
         role: 'manager',
         pin_code: '9999',
         is_active: true,
+        allowed_stations: ['all'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'staff-4',
+        restaurant_id: restaurantId || 'res-1',
+        name: 'Valeria Montes (Hostess)',
+        role: 'hostess',
+        pin_code: '1111',
+        is_active: true,
+        allowed_stations: ['all'],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'staff-5',
+        restaurant_id: restaurantId || 'res-1',
+        name: 'Diego Herrera (Barista & Barra)',
+        role: 'barista',
+        pin_code: '2222',
+        is_active: true,
+        allowed_stations: ['barra', 'postres'],
         created_at: new Date().toISOString(),
       },
     ];
 
-    return getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
+    const stored = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
+    return stored.map((s) => ({
+      ...s,
+      allowed_stations:
+        s.allowed_stations && s.allowed_stations.length > 0
+          ? s.allowed_stations
+          : getDefaultStationsForRole(s.role),
+    }));
   },
 
 async loginStaffWithPin(restaurantId: string, pin: string): Promise<{ success: boolean; staff?: StaffMember; error?: string }> {
@@ -783,5 +865,248 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
     const current = getLocalItem<CorporateOrder[]>(STORAGE_KEYS.CORPORATE_ORDERS, []);
     setLocalItem(STORAGE_KEYS.CORPORATE_ORDERS, [newOrder, ...current]);
     return { success: true, data: newOrder };
-  }
+  },
+
+  // ==========================================
+  // MÓDULO HOSTESS: MESAS POR SUCURSAL Y SOLICITUD DE LIMPIEZA
+  // ==========================================
+  async getRestaurantTables(restaurantId?: string): Promise<RestaurantTable[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase.from('restaurant_tables').select('*').order('table_number', { ascending: true });
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as RestaurantTable[];
+        }
+      } catch (err: any) {
+        console.warn('Error obteniendo restaurant_tables de Supabase, usando respaldo local:', err.message);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const targetResId = restaurantId || 'res-1';
+    const defaultTables: RestaurantTable[] = [
+      {
+        id: 'tbl-1',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 1',
+        capacity: 4,
+        current_guests: 2,
+        status: 'ocupada',
+        assigned_waiter_name: 'Marco Antonio (Mesero)',
+        notes: 'Ventana principal',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+      {
+        id: 'tbl-2',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 2',
+        capacity: 2,
+        current_guests: 2,
+        status: 'ocupada',
+        assigned_waiter_name: 'Marco Antonio (Mesero)',
+        notes: 'Pareja terraza',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+      {
+        id: 'tbl-3',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 3',
+        capacity: 4,
+        current_guests: 0,
+        status: 'libre',
+        assigned_waiter_name: 'Marco Antonio (Mesero)',
+        notes: 'Pasillo central',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+      {
+        id: 'tbl-4',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 4',
+        capacity: 6,
+        current_guests: 4,
+        status: 'ocupada',
+        assigned_waiter_name: 'Marco Antonio (Mesero)',
+        notes: 'Grupo familiar',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+      {
+        id: 'tbl-5',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 5',
+        capacity: 4,
+        current_guests: 0,
+        status: 'en_limpieza',
+        assigned_waiter_name: 'Marco Antonio (Mesero)',
+        notes: 'Recién desocupada',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+      {
+        id: 'tbl-6',
+        restaurant_id: targetResId,
+        table_number: 'Mesa 6',
+        capacity: 8,
+        current_guests: 0,
+        status: 'libre',
+        assigned_waiter_name: 'Sofía Valdés (Capitana de Piso)',
+        notes: 'Mesa privada / VIP',
+        updated_at: nowIso,
+        created_at: nowIso,
+      },
+    ];
+
+    const current = getLocalItem<RestaurantTable[]>(STORAGE_KEYS.RESTAURANT_TABLES, defaultTables);
+    if (!restaurantId) return current;
+    const filtered = current.filter((t) => t.restaurant_id === restaurantId || t.restaurant_id === 'res-1');
+    return filtered.length > 0 ? filtered : defaultTables;
+  },
+
+  async saveRestaurantTable(
+    table: Partial<RestaurantTable>
+  ): Promise<{ success: boolean; data?: RestaurantTable; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const nowIso = new Date().toISOString();
+
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        if (table.id && !table.id.startsWith('tbl-')) {
+          const payload = sanitizeSupabasePayload({ ...table, updated_at: nowIso }, false);
+          const { data, error } = await supabase
+            .from('restaurant_tables')
+            .update(payload)
+            .eq('id', table.id)
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as RestaurantTable };
+        } else {
+          const insertPayload = sanitizeSupabasePayload(
+            {
+              restaurant_id: table.restaurant_id || 'res-1',
+              table_number: table.table_number || 'Mesa Nueva',
+              capacity: Number(table.capacity) || 4,
+              current_guests: Number(table.current_guests) || 0,
+              status: table.status || 'libre',
+              assigned_waiter_name: table.assigned_waiter_name || null,
+              notes: table.notes || null,
+            },
+            true
+          );
+          const { data, error } = await supabase
+            .from('restaurant_tables')
+            .insert([insertPayload])
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as RestaurantTable };
+        }
+      } catch (err: any) {
+        console.warn('Error guardando restaurant_table en Supabase, usando respaldo local:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getRestaurantTables();
+    if (table.id) {
+      const updated = current.map((t) =>
+        t.id === table.id ? ({ ...t, ...table, updated_at: nowIso } as RestaurantTable) : t
+      );
+      setLocalItem(STORAGE_KEYS.RESTAURANT_TABLES, updated);
+      return { success: true, data: updated.find((t) => t.id === table.id) };
+    }
+
+    const created: RestaurantTable = {
+      id: 'tbl-' + Date.now(),
+      restaurant_id: table.restaurant_id || 'res-1',
+      table_number: table.table_number || `Mesa ${current.length + 1}`,
+      capacity: Number(table.capacity) || 4,
+      current_guests: Number(table.current_guests) || 0,
+      status: table.status || 'libre',
+      assigned_waiter_name: table.assigned_waiter_name || null,
+      notes: table.notes || null,
+      updated_at: nowIso,
+      created_at: nowIso,
+    };
+    setLocalItem(STORAGE_KEYS.RESTAURANT_TABLES, [...current, created]);
+    return { success: true, data: created };
+  },
+
+  async updateRestaurantTableStatus(
+    tableId: string,
+    status: RestaurantTableStatus,
+    currentGuests?: number,
+    assignedWaiterName?: string
+  ): Promise<{ success: boolean; data?: RestaurantTable; error?: string }> {
+    const updates: Partial<RestaurantTable> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    if (currentGuests !== undefined) {
+      updates.current_guests = currentGuests;
+    } else if (status === 'libre' || status === 'en_limpieza' || status === 'desactivada') {
+      updates.current_guests = 0;
+    }
+    if (assignedWaiterName !== undefined) {
+      updates.assigned_waiter_name = assignedWaiterName;
+    }
+    return ordersApi.saveRestaurantTable({ id: tableId, ...updates });
+  },
+
+  async deleteRestaurantTable(tableId: string): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !tableId.startsWith('tbl-')) {
+      try {
+        const { error } = await supabase.from('restaurant_tables').delete().eq('id', tableId);
+        if (error) throw error;
+        return { success: true };
+      } catch (err: any) {
+        console.warn('Error eliminando restaurant_table en Supabase:', err.message);
+      }
+    }
+
+    const current = await ordersApi.getRestaurantTables();
+    const updated = current.filter((t) => t.id !== tableId);
+    setLocalItem(STORAGE_KEYS.RESTAURANT_TABLES, updated);
+    return { success: true };
+  },
+
+  async requestTableCleaning(
+    restaurantId: string,
+    table: RestaurantTable
+  ): Promise<{ success: boolean; table?: RestaurantTable; call?: TableCall }> {
+    const tableRes = await ordersApi.updateRestaurantTableStatus(table.id, 'en_limpieza', 0);
+
+    // Verificar si ya existe una solicitud de limpieza activa para esta mesa para no duplicar alertas
+    const existingCalls = await ordersApi.getTableCalls(restaurantId);
+    const activeCleaningCall = existingCalls.find(
+      (c) =>
+        c.status === 'active' &&
+        c.call_type === 'cleaning' &&
+        c.table_number.trim().toLowerCase() === table.table_number.trim().toLowerCase()
+    );
+
+    if (activeCleaningCall) {
+      return { success: true, table: tableRes.data, call: activeCleaningCall };
+    }
+
+    const callRes = await ordersApi.createTableCall({
+      restaurant_id: restaurantId,
+      tag_code: `HOSTESS-${table.table_number.replace(/\s+/g, '-').toUpperCase()}`,
+      table_number: table.table_number,
+      call_type: 'cleaning',
+      status: 'active',
+    });
+
+    return {
+      success: true,
+      table: tableRes.data,
+      call: callRes.data,
+    };
+  },
 };
