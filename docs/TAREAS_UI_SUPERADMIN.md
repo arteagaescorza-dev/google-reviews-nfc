@@ -52,13 +52,13 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ---
 
 ### Modulos Existentes en Bento Light (Alineacion de Navegacion)
-| ID | Modulo Existente | Adaptacion Bento Light | Ruta Actual |
-| :--- | :--- | :--- | :--- |
-| **UI-EX-01** | **Restaurantes** | Vista tipo Bento con tarjetas de sucursales, estado de suscripcion, logo y acceso rapido al portal. | `/admin/restaurants` |
-| **UI-EX-02** | **Tags NFC y QR** | Lista y cuadricula Bento de placas con indicador de lote fisico, mesa asignada y volumen de escaneos. | `/admin/tags` |
-| **UI-EX-03** | **Red de Anuncios** | Auditoria visual de banners, anunciantes locales activos y distribucion de cupones. | `/admin/ads` |
-| **UI-EX-04** | **Cobertura Territorial** | Mapa interactivo de zonas de cobertura metropolitana y densidad de colocacion de placas. | `/admin/cobertura` |
-| **UI-EX-05** | **Mesa de Ayuda B2B** | Bandeja de tickets de soporte con accion rapida para reemplazo de viniles dañados. | `/admin/soporte` |
+| ID | Modulo Existente | Adaptacion Bento Light | Ruta Actual | Estado |
+| :--- | :--- | :--- | :--- | :--- |
+| **UI-EX-01** | **Restaurantes** | Fila superior de 4 Bento KPIs (locales activos, tags en mesa, tasa Ad-Free, tiers), buscador en vivo con filtros por org y tarjetas Bento enriquecidas con acceso directo al portal. | `/admin/restaurants` | `Implementada y Verificada` |
+| **UI-EX-02** | **Tags NFC y QR** | Lista y cuadricula Bento de placas con indicador de lote fisico, mesa asignada y volumen de escaneos. | `/admin/tags` | `Alineada` |
+| **UI-EX-03** | **Red de Anuncios** | Auditoria visual de banners, anunciantes locales activos y distribucion de cupones. | `/admin/ads` | `Pendiente Bento v2` |
+| **UI-EX-04** | **Cobertura Territorial** | Mapa interactivo de zonas de cobertura metropolitana y densidad de colocacion de placas. | `/admin/cobertura` | `Alineada` |
+| **UI-EX-05** | **Mesa de Ayuda B2B** | Bandeja de tickets de soporte con accion rapida para reemplazo de viniles dañados. | `/admin/soporte` | `Pendiente Bento v2` |
 
 ---
 
