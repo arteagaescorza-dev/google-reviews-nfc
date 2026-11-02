@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
-import type { Restaurant, Organization, Tag, StaffMember, Feedback, TierType } from '../types';
+import type { Restaurant, Organization, Tag, StaffMember, StaffRole, Feedback, TierType } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
@@ -359,6 +359,13 @@ export const AdminRestaurantsPage: React.FC = () => {
     await api.toggleStaffMemberActive(staff.id, nextActive);
   };
 
+  const handleChangeStaffRole = async (staff: StaffMember, newRole: StaffRole) => {
+    setStaffMembers((prev) =>
+      prev.map((s) => (s.id === staff.id ? { ...s, role: newRole } : s))
+    );
+    await api.updateStaffMember(staff.id, { role: newRole });
+  };
+
   // ==========================================
   // Renderizador del Panel de Control de Sucursal (Nivel 3 por Categorías)
   // ==========================================
@@ -375,10 +382,10 @@ export const AdminRestaurantsPage: React.FC = () => {
       (a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9)
     );
 
-    const roleLabelMap: Record<string, string> = {
-      waiter: 'Mesero de Sala',
-      kitchen: 'Jefe de Cocina / KDS',
-      manager: 'Capitán / Gerente de Piso',
+    const roleSelectColors: Record<string, string> = {
+      waiter: 'bg-blue-50 text-blue-700 border-blue-200',
+      kitchen: 'bg-amber-50 text-amber-800 border-amber-200',
+      manager: 'bg-purple-50 text-purple-700 border-purple-200',
     };
 
     const tierBadgeColors: Record<string, string> = {
@@ -684,9 +691,29 @@ export const AdminRestaurantsPage: React.FC = () => {
                     >
                       <div className="flex flex-wrap items-center gap-2.5 min-w-0">
                         <span className="font-bold text-slate-900">{member.name}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold">
-                          {roleLabelMap[member.role] || member.role}
-                        </span>
+
+                        {/* Selector Interactivo de Rol / Puesto Operativo */}
+                        <select
+                          value={member.role}
+                          onChange={(e) =>
+                            handleChangeStaffRole(member, e.target.value as StaffRole)
+                          }
+                          title={`Cambiar puesto operativo de ${member.name}`}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${
+                            roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <option value="waiter" className="bg-white text-slate-900 font-bold">
+                            Mesero de Sala
+                          </option>
+                          <option value="kitchen" className="bg-white text-slate-900 font-bold">
+                            Jefe de Cocina / KDS
+                          </option>
+                          <option value="manager" className="bg-white text-slate-900 font-bold">
+                            Capitán / Gerente de Piso
+                          </option>
+                        </select>
+
                         <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
                           PIN: {member.pin_code}
                         </span>

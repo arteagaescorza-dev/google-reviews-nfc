@@ -949,7 +949,11 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
                           <span className="font-medium">
-                            {s.role === 'kitchen' ? '👨‍🍳 Cocina' : s.role === 'manager' ? '🛡️ Capitán' : '🍽️ Mesero'}
+                          <select value={s.role} onChange={async (e) => { const nextRole = e.target.value as StaffRole; setStaffMembers((prev) => prev.map((item) => (item.id === s.id ? { ...item, role: nextRole } : item))); await api.updateStaffMember(s.id, { role: nextRole }); }} className="bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-slate-700 cursor-pointer focus:outline-none focus:border-orange-500">
+                            <option value="waiter">Mesero de Sala</option>
+                            <option value="kitchen">Jefe de Cocina / KDS</option>
+                            <option value="manager">Capitán de Piso</option>
+                          </select>
                           </span>
                           <span>•</span>
                           <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 font-bold text-slate-700 flex items-center gap-1">
