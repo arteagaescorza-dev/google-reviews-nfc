@@ -48,7 +48,6 @@ import {
   User,
   Users,
   Mail,
-  ChefHat,
   UserCheck,
   Sliders,
   Monitor,
@@ -825,113 +824,295 @@ export const AdminRestaurantsPage: React.FC = () => {
               )}
             </div>
 
-            {/* CATEGORÍA 3: PANTALLAS DE COCINA / KDS (Jefe de Cocina vs Barista) */}
-            {capabilities.supportsKds && (
+            {/* CATEGORÍA 3: PANTALLAS OPERATIVAS ACTIVAS & ESTACIONES POR ROL (GERENCIA, HOSTESS, SALA, COCINA KDS Y BARISTA) */}
+            {(capabilities.supportsKds || capabilities.supportsFloorStaff) && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-                <div className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between">
+                <div className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <ChefHat className="w-3.5 h-3.5 text-orange-600" />
+                    <Monitor className="w-3.5 h-3.5 text-orange-600" />
                     <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
-                      Categoría 3: Pantallas de Cocina Activas & Estaciones KDS (Jefe de Cocina y Barista)
+                      Categoría 3: Pantallas Operativas Activas & Estaciones por Rol (Gerencia, Hostess, Sala, Cocina KDS y Barista)
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-orange-700">
-                    {kdsStations.filter((s) => s.isActive).length} de {kdsStations.length} estaciones prendidas
+                    {(isWaiterTerminalOn ? 1 : 0) +
+                      (kdsStateByBranch[res.id]?.hostess !== false ? 1 : 0) +
+                      (kdsStateByBranch[res.id]?.gerente !== false ? 1 : 0) +
+                      kdsStations.filter((s) => s.isActive).length}{' '}
+                    de {kdsStations.length + 3} pantallas prendidas
                   </span>
                 </div>
 
                 <div className="divide-y divide-slate-100 text-xs">
-                  {kdsStations.map((station) => {
-                    const isBaristaStation =
-                      station.id.includes('barra') ||
-                      station.id.includes('barista') ||
-                      station.name.toLowerCase().includes('barra') ||
-                      station.name.toLowerCase().includes('café') ||
-                      station.name.toLowerCase().includes('repostería');
-
-                    const assignedOperators = sortedStaff.filter((op) => {
-                      const opStations =
-                        op.allowed_stations && op.allowed_stations.length > 0
-                          ? op.allowed_stations
-                          : op.role === 'barista'
-                          ? ['barista']
-                          : op.role === 'kitchen'
-                          ? ['cocina']
-                          : [];
-                      return isBaristaStation
-                        ? opStations.includes('barista') || op.role === 'barista'
-                        : opStations.includes('cocina') || op.role === 'kitchen';
-                    });
+                  {/* Pantalla 1: Consola de Gerente de Tienda & Capitán de Piso */}
+                  {(() => {
+                    const isManagerScreenOn =
+                      kdsStateByBranch[res.id]?.gerente !== undefined
+                        ? kdsStateByBranch[res.id].gerente
+                        : true;
+                    const assignedBranchManagers = organizationManagers.filter(
+                      (m) =>
+                        m.assigned_branch_ids?.includes(res.id) &&
+                        m.branch_roles?.[res.id] !== 'sin_acceso'
+                    );
+                    const floorCaptains = sortedStaff.filter((s) => s.role === 'manager');
+                    const managerNames = [
+                      ...assignedBranchManagers.map((m) => m.name),
+                      ...floorCaptains.map((c) => c.name),
+                    ];
 
                     return (
-                      <div
-                        key={station.id}
-                        className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-orange-50/20"
-                      >
+                      <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-indigo-50/20">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-                            <span className="font-bold text-slate-900">{station.name}</span>
-                            <span
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
-                                isBaristaStation
-                                  ? 'bg-teal-50 text-teal-800 border-teal-200'
-                                  : 'bg-amber-50 text-amber-800 border-amber-200'
-                              }`}
-                            >
-                              {isBaristaStation
-                                ? 'Rol Exclusivo: Barista (Barra, Coctelería, Repostería & Café)'
-                                : 'Rol Exclusivo: Jefe de Cocina (Estaciones KDS)'}
+                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                            <span className="font-bold text-slate-900">
+                              Consola Operativa de Gerente de Tienda & Capitán de Piso
                             </span>
-                            {assignedOperators.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold border bg-indigo-50 text-indigo-800 border-indigo-200">
+                              Rol Exclusivo: Gerente de Tienda & Capitán de Piso
+                            </span>
+                            {managerNames.length > 0 && (
                               <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                Operadores: {assignedOperators.map((o) => o.name).join(', ')}
+                                Operadores: {managerNames.join(', ')}
                               </span>
                             )}
                           </div>
                           <span className="text-[11px] text-slate-500 block pl-5 mt-0.5">
-                            {station.description}
+                            Gestión de empleados y estaciones, programación de turnos (hasta 2 meses), cortes de caja al dueño, quejas y cupones con límite mensual.
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3 self-end sm:self-center">
                           <StatusBadgeAndSwitch
-                            isOn={station.isActive}
+                            isOn={isManagerScreenOn}
                             onToggle={() =>
-                              handleToggleKdsStation(res.id, station.id, station.isActive)
+                              handleToggleKdsStation(res.id, 'gerente', isManagerScreenOn)
                             }
-                            title={`Prender o apagar ${station.name}`}
+                            title="Prender o apagar la Consola Operativa de Gerente de Tienda en esta sucursal"
                           />
 
                           <a
-                            href={station.url}
+                            href={`#/portal/gerente?branch=${res.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                              station.isActive
-                                ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
+                              isManagerScreenOn
+                                ? 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:bg-indigo-100'
                                 : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
                             }`}
                           >
-                            <span>Abrir KDS</span>
+                            <span>Abrir Gerencia</span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
                       </div>
                     );
-                  })}
+                  })()}
+
+                  {/* Pantalla 2: Pantalla de Hostess & Recepción */}
+                  {(() => {
+                    const isHostessScreenOn =
+                      kdsStateByBranch[res.id]?.hostess !== undefined
+                        ? kdsStateByBranch[res.id].hostess
+                        : true;
+                    const hostessOperators = sortedStaff.filter((s) => s.role === 'hostess');
+
+                    return (
+                      <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-violet-50/20">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Users className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
+                            <span className="font-bold text-slate-900">
+                              Pantalla de Hostess & Recepción (Gestión de Mesas, Aforo y Solicitud de Limpieza)
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold border bg-violet-50 text-violet-800 border-violet-200">
+                              Rol Exclusivo: Hostess / Recepción
+                            </span>
+                            {hostessOperators.length > 0 && (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                Operadores: {hostessOperators.map((o) => o.name).join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block pl-5 mt-0.5">
+                            Permite crear mesas por sucursal con número de comensales, dar seguimiento a libres/ocupadas y enviar solicitud de limpieza al mesero.
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <StatusBadgeAndSwitch
+                            isOn={isHostessScreenOn}
+                            onToggle={() =>
+                              handleToggleKdsStation(res.id, 'hostess', isHostessScreenOn)
+                            }
+                            title="Prender o apagar la Pantalla de Hostess de esta sucursal"
+                          />
+
+                          <a
+                            href={`#/portal/hostess?branch=${res.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                              isHostessScreenOn
+                                ? 'bg-violet-50 text-violet-800 border-violet-200 hover:bg-violet-100'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                            }`}
+                          >
+                            <span>Abrir Hostess</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Pantalla 3: Terminal Móvil de Sala (Meseros) */}
+                  {(() => {
+                    const waiterOperators = sortedStaff.filter(
+                      (s) => s.role === 'waiter' || s.role === 'manager'
+                    );
+
+                    return (
+                      <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                            <span className="font-bold text-slate-900">
+                              Terminal Móvil de Sala (Recepción de Llamadas de Mesa, Alertas de Limpieza & Quejas)
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold border bg-emerald-50 text-emerald-800 border-emerald-200">
+                              Rol Exclusivo: Mesero en Sala & Capitán de Piso
+                            </span>
+                            {waiterOperators.length > 0 && (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                Operadores: {waiterOperators.map((o) => o.name).join(', ')}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block pl-5 mt-0.5">
+                            Recibe llamadas de cuenta, platos listos de cocina y solicitudes de limpieza enviadas por la Hostess.
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <StatusBadgeAndSwitch
+                            isOn={isWaiterTerminalOn}
+                            onToggle={() => handleToggleWaiterTerminal(res.id, isWaiterTerminalOn)}
+                            title="Prender o apagar la Terminal Móvil de Meseros de esta sucursal"
+                          />
+
+                          <a
+                            href={`#/portal/mesero?branch=${res.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                              isWaiterTerminalOn
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                            }`}
+                          >
+                            <span>Abrir Terminal</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Pantallas 4 a 8: Estaciones KDS (Jefe de Cocina vs Barista) */}
+                  {capabilities.supportsKds &&
+                    kdsStations.map((station) => {
+                      const isBaristaStation =
+                        station.id.includes('barra') ||
+                        station.id.includes('barista') ||
+                        station.name.toLowerCase().includes('barra') ||
+                        station.name.toLowerCase().includes('café') ||
+                        station.name.toLowerCase().includes('repostería');
+
+                      const assignedOperators = sortedStaff.filter((op) => {
+                        const opStations =
+                          op.allowed_stations && op.allowed_stations.length > 0
+                            ? op.allowed_stations
+                            : op.role === 'barista'
+                            ? ['barista']
+                            : op.role === 'kitchen'
+                            ? ['cocina']
+                            : [];
+                        return isBaristaStation
+                          ? opStations.includes('barista') || op.role === 'barista'
+                          : opStations.includes('cocina') || op.role === 'kitchen';
+                      });
+
+                      return (
+                        <div
+                          key={station.id}
+                          className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-orange-50/20"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                              <span className="font-bold text-slate-900">{station.name}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+                                  isBaristaStation
+                                    ? 'bg-teal-50 text-teal-800 border-teal-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                {isBaristaStation
+                                  ? 'Rol Exclusivo: Barista (Barra, Coctelería, Repostería & Café)'
+                                  : 'Rol Exclusivo: Jefe de Cocina (Estaciones KDS)'}
+                              </span>
+                              {assignedOperators.length > 0 && (
+                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                  Operadores: {assignedOperators.map((o) => o.name).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-500 block pl-5 mt-0.5">
+                              {station.description}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end sm:self-center">
+                            <StatusBadgeAndSwitch
+                              isOn={station.isActive}
+                              onToggle={() =>
+                                handleToggleKdsStation(res.id, station.id, station.isActive)
+                              }
+                              title={`Prender o apagar ${station.name}`}
+                            />
+
+                            <a
+                              href={station.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                                station.isActive
+                                  ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
+                                  : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                              }`}
+                            >
+                              <span>Abrir KDS</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}
 
-            {/* CATEGORÍA 4: PANTALLAS DE MESEROS, HOSTESS, ROLES, TURNOS (60 DÍAS) & MÉTRICAS POR EMPLEADO */}
+            {/* CATEGORÍA 4: PLANTILLA DE PERSONAL OPERATIVO CON PIN, ROLES, TURNOS (60 DÍAS) & MÉTRICAS */}
             {capabilities.supportsFloorStaff && (
               <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
                 <div className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                     <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
-                      Categoría 4: Personal Operativo con PIN, Pantallas KDS, Turnos (60 Días) & Métricas
+                      Categoría 4: Plantilla de Personal Operativo con PIN, Roles, Pantallas KDS, Turnos (60 Días) & Métricas
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-700">
@@ -940,70 +1121,6 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
 
                 <div className="divide-y divide-slate-100 text-xs">
-                  {/* Fila Principal: Terminal Móvil General de Meseros */}
-                  <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/40 hover:bg-emerald-50/20">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Monitor className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                        <span className="font-extrabold text-slate-900">
-                          Terminal Móvil de Sala (Recepción de Llamadas de Mesa, Alertas de Limpieza & Quejas)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 block pl-5">
-                        Recibe llamadas de cuenta, platos listos de cocina y solicitudes de limpieza enviadas por la Hostess.
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 self-end sm:self-center">
-                      <StatusBadgeAndSwitch
-                        isOn={isWaiterTerminalOn}
-                        onToggle={() => handleToggleWaiterTerminal(res.id, isWaiterTerminalOn)}
-                        title="Prender o apagar la Terminal Móvil de Meseros de esta sucursal"
-                      />
-
-                      <a
-                        href={`#/portal/mesero?branch=${res.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                          isWaiterTerminalOn
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
-                        }`}
-                      >
-                        <span>Abrir Terminal</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Fila Recepción: Terminal de Hostess & Control de Mesas */}
-                  <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-violet-50/30 hover:bg-violet-50/50">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
-                        <span className="font-extrabold text-slate-900">
-                          Pantalla de Hostess & Recepción (Gestión de Mesas, Aforo de Comensales y Solicitud de Limpieza)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 block pl-5">
-                        Permite crear mesas por sucursal, dar seguimiento a ocupadas/desocupadas y enviar solicitud de limpieza al mesero.
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 self-end sm:self-center">
-                      <a
-                        href={`#/portal/hostess?branch=${res.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-violet-50 text-violet-800 border-violet-200 hover:bg-violet-100 transition-colors"
-                      >
-                        <span>Abrir Hostess</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-
                   {/* Filas de Personal Operativo con Rol, Incidencia en Pantallas KDS, Turno a 60 días y Métricas */}
                   {sortedStaff.map((member) => {
                     const memberStations: KitchenStation[] =
