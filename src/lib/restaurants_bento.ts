@@ -3,6 +3,8 @@ import {
   type Restaurant,
   type Tag,
   type Organization,
+  type OrganizationBrand,
+  type BusinessVertical,
   type StaffMember,
   type BusinessType,
   type TierType,
@@ -69,8 +71,16 @@ export interface BranchNode {
   pendingFeedbacksCount: number;
 }
 
+export interface BrandNode {
+  brand: OrganizationBrand;
+  verticalLabel: string;
+  branches: BranchNode[];
+  totalTagsCount: number;
+}
+
 export interface OrganizationNode {
   organization: Organization;
+  brands: BrandNode[];
   branches: BranchNode[];
   totalTagsCount: number;
 }
@@ -81,29 +91,50 @@ export interface TreeViewData {
   stats: {
     totalOrganizations: number;
     emptyOrganizations: number;
+    totalBrands: number;
     totalBranches: number;
     totalTags: number;
   };
 }
 
 /**
- * Determina las capacidades operativas que aplican a una sucursal según su giro (VERTICAL_CONFIG)
+ * Determina las capacidades operativas que aplican a una sucursal según su giro (VERTICAL_CONFIG o business_verticals)
  */
-export function getBranchCapabilities(restaurant: Restaurant): BranchControlCapabilities {
+export function getBranchCapabilities(
+  restaurant: Restaurant,
+  customVerticals: BusinessVertical[] = []
+): BranchControlCapabilities {
   const businessType: BusinessType = restaurant.business_type || 'restaurant';
-  const cfg = VERTICAL_CONFIG[businessType] || VERTICAL_CONFIG.restaurant;
 
-  const verticalNames: Record<BusinessType, string> = {
+  const verticalNames: Record<string, string> = {
     restaurant: 'Gastronomía / Restaurante',
+    barberia: 'Barbería & Peluquería',
+    cafeteria: 'Cafetería & Repostería',
     gym: 'Gimnasio / Fitness',
     dental: 'Clínica Dental',
     spa: 'Spa & Bienestar',
     general: 'Comercio General',
   };
 
+  const matchedCustom = customVerticals.find(
+    (v) => v.slug === businessType || v.id === businessType
+  );
+  if (matchedCustom) {
+    return {
+      businessType: matchedCustom.slug,
+      verticalLabel: matchedCustom.name,
+      unitLabel: matchedCustom.unit_label,
+      unitPlural: matchedCustom.unit_plural,
+      supportsKds: matchedCustom.show_kds,
+      supportsFloorStaff: matchedCustom.show_floor_staff,
+    };
+  }
+
+  const cfg = VERTICAL_CONFIG[businessType] || VERTICAL_CONFIG.restaurant;
+
   return {
     businessType,
-    verticalLabel: verticalNames[businessType] || 'Gastronomía / Restaurante',
+    verticalLabel: verticalNames[businessType] || businessType || 'Gastronomía / Restaurante',
     unitLabel: cfg.unitLabel,
     unitPlural: cfg.unitPlural,
     supportsKds: cfg.showKds,
@@ -316,10 +347,11 @@ export function filterRestaurants(
 }
 
 /**
- * Construye la estructura jerárquica en Árbol de 3 Niveles:
+ * Construye la estructura jerárquica en Árbol:
  * Nivel 1: Organización (Empresa Matriz / Corporativo)
- * Nivel 2: Sucursales (Locales Físicos con selector de Tier y acceso a quejas)
- * Nivel 3: Panel de Control de Sucursal por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS, Pantallas de Meseros)
+ * Nivel 2: Marca Comercial (organization_brands con giro comercial universal y logo)
+ * Nivel 3: Sucursales (Locales Físicos supeditados a la marca con selector de Tier y acceso a quejas)
+ * Nivel 4: Panel de Control de Sucursal por Categorías
  */
 export function buildOrganizationTree(
   organizations: Organization[],
@@ -331,7 +363,9 @@ export function buildOrganizationTree(
   staffMembers: StaffMember[] = [],
   kdsStateByBranch: Record<string, Record<string, boolean>> = {},
   feedbacks: Feedback[] = [],
-  tierFeatureOverridesByBranch: Record<string, Record<string, boolean>> = {}
+  tierFeatureOverridesByBranch: Record<string, Record<string, boolean>> = {},
+  organizationBrands: OrganizationBrand[] = [],
+  businessVerticals: BusinessVertical[] = []
 ): TreeViewData {
   // Mapa de tags agrupados por restaurant_id
   const tagsByRestaurant: Record<string, Tag[]> = {};
@@ -385,7 +419,7 @@ export function buildOrganizationTree(
       if (selectedTierFilter === 'paused' && res.is_active !== false) return;
     }
 
-    const capabilities = getBranchCapabilities(res);
+    const capabilities = getBranchCapabilities(res, businessVerticals);
     const branchStaff = staffByRestaurant[res.id] || (capabilities.supportsFloorStaff ? genericStaff : []);
     const kdsStations = capabilities.supportsKds
       ? getDefaultKdsStations(res.id, kdsStateByBranch[res.id] || {})
@@ -414,12 +448,86 @@ export function buildOrganizationTree(
     }
   });
 
-  // Construir nodos de organización (incluye organizaciones con 0 sucursales)
+  const buildBrandsForOrg = (orgId: string, orgBranches: BranchNode[]): BrandNode[] => {
+    const explicitBrands = organizationBrands.filter((b) => b.organization_id === orgId);
+    const brandMap = new Map<string, BrandNode>();
+
+    const resolveVerticalLabel = (slug: string): string => {
+      const custom = businessVerticals.find((v) => v.slug === slug || v.id === slug);
+      if (custom) return custom.name;
+      const defaultLabels: Record<string, string> = {
+        restaurant: 'Gastronomía / Restaurante',
+        barberia: 'Barbería & Peluquería',
+        cafeteria: 'Cafetería & Repostería',
+        gym: 'Gimnasio / Fitness',
+        dental: 'Clínica Dental',
+        spa: 'Spa & Bienestar',
+        general: 'Comercio General',
+      };
+      return defaultLabels[slug] || slug || 'Gastronomía / Restaurante';
+    };
+
+    explicitBrands.forEach((b) => {
+      brandMap.set(b.id, {
+        brand: b,
+        verticalLabel: resolveVerticalLabel(b.vertical_slug),
+        branches: [],
+        totalTagsCount: 0,
+      });
+    });
+
+    orgBranches.forEach((bNode) => {
+      const res = bNode.restaurant;
+      let targetBrandNode: BrandNode | undefined;
+
+      if (res.brand_id && brandMap.has(res.brand_id)) {
+        targetBrandNode = brandMap.get(res.brand_id);
+      } else {
+        // Buscar por coincidencia de nombre de marca en la organización
+        const matchByName = Array.from(brandMap.values()).find(
+          (bn) => bn.brand.name.trim().toLowerCase() === (res.brand_name || '').trim().toLowerCase()
+        );
+        if (matchByName) {
+          targetBrandNode = matchByName;
+        } else {
+          // Sintetizar nodo de marca automático para sucursales previas sin registro explícito
+          const syntheticId = res.brand_id || `synth-brand-${orgId}-${(res.brand_name || 'marca').toLowerCase()}`;
+          const vSlug = res.business_type || 'restaurant';
+          targetBrandNode = {
+            brand: {
+              id: syntheticId,
+              organization_id: orgId,
+              name: res.brand_name || res.name,
+              vertical_slug: vSlug,
+              logo_url: res.logo_url || null,
+              brand_color: res.brand_color || '#2563eb',
+              created_at: res.created_at,
+            },
+            verticalLabel: bNode.capabilities.verticalLabel,
+            branches: [],
+            totalTagsCount: 0,
+          };
+          brandMap.set(syntheticId, targetBrandNode);
+        }
+      }
+
+      if (targetBrandNode) {
+        targetBrandNode.branches.push(bNode);
+        targetBrandNode.totalTagsCount += bNode.tags.length;
+      }
+    });
+
+    return Array.from(brandMap.values());
+  };
+
+  // Construir nodos de organización (incluye organizaciones con 0 sucursales y sus marcas)
   let orgNodes: OrganizationNode[] = organizations.map((org) => {
     const branches = branchesByOrg[org.id] || [];
+    const brands = buildBrandsForOrg(org.id, branches);
     const totalTagsCount = branches.reduce((acc, b) => acc + b.tags.length, 0);
     return {
       organization: org,
+      brands,
       branches,
       totalTagsCount,
     };
@@ -470,9 +578,23 @@ export function buildOrganizationTree(
           return matchBranch || matchTag || matchStaff;
         });
 
-        if (matchingBranches.length > 0) {
+        const matchingBrandsWithoutBranches = node.brands.filter(
+          (bn) =>
+            bn.branches.length === 0 &&
+            ((bn.brand.name || '').toLowerCase().includes(cleanQuery) ||
+              (bn.verticalLabel || '').toLowerCase().includes(cleanQuery))
+        );
+
+        if (matchingBranches.length > 0 || matchingBrandsWithoutBranches.length > 0) {
+          const rebuiltBrands = buildBrandsForOrg(node.organization.id, matchingBranches).filter(
+            (bn) =>
+              bn.branches.length > 0 ||
+              (bn.brand.name || '').toLowerCase().includes(cleanQuery) ||
+              (bn.verticalLabel || '').toLowerCase().includes(cleanQuery)
+          );
           return {
             ...node,
+            brands: rebuiltBrands,
             branches: matchingBranches,
             totalTagsCount: matchingBranches.reduce((acc, b) => acc + b.tags.length, 0),
           };
@@ -514,6 +636,7 @@ export function buildOrganizationTree(
     stats: {
       totalOrganizations: orgNodes.length,
       emptyOrganizations,
+      totalBrands: orgNodes.reduce((acc, o) => acc + o.brands.length, 0),
       totalBranches: orgNodes.reduce((acc, o) => acc + o.branches.length, 0) + filteredIndependents.length,
       totalTags:
         orgNodes.reduce((acc, o) => acc + o.totalTagsCount, 0) +

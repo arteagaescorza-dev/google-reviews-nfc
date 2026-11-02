@@ -1,6 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
-import type { Restaurant, Organization, Tag, StaffMember, StaffRole, Feedback, TierType } from '../types';
+import type {
+  Restaurant,
+  Organization,
+  OrganizationBrand,
+  BusinessVertical,
+  Tag,
+  StaffMember,
+  StaffRole,
+  Feedback,
+  TierType,
+} from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
@@ -35,6 +45,7 @@ import {
   Monitor,
   Layers,
   MessageSquareWarning,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -102,6 +113,8 @@ const StatusBadgeAndSwitch: React.FC<StatusBadgeAndSwitchProps> = ({
 export const AdminRestaurantsPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizationBrands, setOrganizationBrands] = useState<OrganizationBrand[]>([]);
+  const [businessVerticals, setBusinessVerticals] = useState<BusinessVertical[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -142,29 +155,36 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [selectedOrgFilter, setSelectedOrgFilter] = useState('all');
   const [selectedTierFilter, setSelectedTierFilter] = useState('all');
 
-  // Estado de colapsado en el Árbol Tabular (Nivel 1 Organizaciones y Nivel 2 Sucursales)
+  // Estado de colapsado en el Árbol Tabular
   const [collapsedOrgs, setCollapsedOrgs] = useState<Record<string, boolean>>({});
   const [expandedBranchPanels, setExpandedBranchPanels] = useState<Record<string, boolean>>({});
 
-  // Modales
+  // Modales y Asistente de 3 Pasos (Organización -> Marca -> Sucursal)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [preselectedOrgForNewBranch, setPreselectedOrgForNewBranch] = useState<string | undefined>(undefined);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [selectedOrgForUserModal, setSelectedOrgForUserModal] = useState<string | undefined>(undefined);
   const [isNewOrgModalOpen, setIsNewOrgModalOpen] = useState(false);
+  const [wizardInitialOrg, setWizardInitialOrg] = useState<Organization | null>(null);
+  const [wizardInitialBrand, setWizardInitialBrand] = useState<OrganizationBrand | null>(null);
 
   const loadData = async () => {
     setLoading(true);
-    const [resList, orgList, tagList, staffList, fbList] = await Promise.all([
-      api.getRestaurants(),
-      api.getOrganizations(),
-      api.getTags(),
-      api.getStaffMembers(),
-      api.getFeedbacks(),
-    ]);
+    const [resList, orgList, brandList, verticalList, tagList, staffList, fbList] =
+      await Promise.all([
+        api.getRestaurants(),
+        api.getOrganizations(),
+        api.getOrganizationBrands(),
+        api.getBusinessVerticals(),
+        api.getTags(),
+        api.getStaffMembers(),
+        api.getFeedbacks(),
+      ]);
     setRestaurants(resList);
     setOrganizations(orgList);
+    setOrganizationBrands(brandList);
+    setBusinessVerticals(verticalList);
     setTags(tagList);
     setStaffMembers(staffList);
     setFeedbacks(fbList);
@@ -179,7 +199,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     return calculateRestaurantKpis(restaurants, tags);
   }, [restaurants, tags]);
 
-  // Construcción del Árbol Jerárquico en 3 Niveles con Panel de Control por Sucursal
+  // Construcción del Árbol Jerárquico (Organización -> Marca Comercial -> Sucursal -> Panel de Control)
   const treeData = useMemo(() => {
     return buildOrganizationTree(
       organizations,
@@ -191,7 +211,9 @@ export const AdminRestaurantsPage: React.FC = () => {
       staffMembers,
       kdsStateByBranch,
       feedbacks,
-      tierFeatureOverridesByBranch
+      tierFeatureOverridesByBranch,
+      organizationBrands,
+      businessVerticals
     );
   }, [
     organizations,
@@ -204,12 +226,32 @@ export const AdminRestaurantsPage: React.FC = () => {
     kdsStateByBranch,
     feedbacks,
     tierFeatureOverridesByBranch,
+    organizationBrands,
+    businessVerticals,
   ]);
 
   const handleEdit = (r: Restaurant) => {
     setEditingRestaurant(r);
     setPreselectedOrgForNewBranch(r.organization_id || undefined);
     setIsModalOpen(true);
+  };
+
+  const handleOpenNewOrganizationWizard = () => {
+    setWizardInitialOrg(null);
+    setWizardInitialBrand(null);
+    setIsNewOrgModalOpen(true);
+  };
+
+  const handleOpenAddBrandForOrg = (org: Organization) => {
+    setWizardInitialOrg(org);
+    setWizardInitialBrand(null);
+    setIsNewOrgModalOpen(true);
+  };
+
+  const handleOpenAddBranchForBrand = (org: Organization, brand: OrganizationBrand) => {
+    setWizardInitialOrg(org);
+    setWizardInitialBrand(brand);
+    setIsNewOrgModalOpen(true);
   };
 
   const handleCreateNewBranch = (orgId?: string) => {
@@ -744,7 +786,7 @@ export const AdminRestaurantsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-              Capa 2: Directorio de Cuentas & Panel de Control por Sucursal
+              Capa 2: Directorio de Organizaciones, Marcas & Sucursales
             </span>
             <span className="text-xs text-slate-400 font-mono">POL-002</span>
           </div>
@@ -752,19 +794,19 @@ export const AdminRestaurantsPage: React.FC = () => {
             Directorio de Cuentas & Sucursales
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Estructura jerárquica en filas de 3 niveles: Empresa Matriz &rarr; Sucursal Física &rarr; Panel de Control por Categorías.
+            Estructura jerárquica: Organización Matriz &rarr; Marca Comercial (Giro Universal) &rarr; Sucursal Física &rarr; Panel de Control.
           </p>
         </div>
 
         {/* Acciones Superiores */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setIsNewOrgModalOpen(true)}
+            onClick={handleOpenNewOrganizationWizard}
             className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-xs transition-all"
-            title="Alta express en calle para registrar un nuevo corporativo en 30 segundos"
+            title="Dar de alta una nueva organización con sus datos fiscales, marcas comerciales y sucursales"
           >
             <Building2 className="w-4 h-4 text-emerald-600" />
-            <span>+ Empresa en Calle</span>
+            <span>Dar de Alta Organización</span>
           </button>
 
           <button
@@ -994,7 +1036,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                             <button
                               onClick={() => toggleOrgCollapse(org.id)}
                               className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors flex-shrink-0"
-                              title={isOrgCollapsed ? 'Desplegar sucursales' : 'Colapsar sucursales'}
+                              title={isOrgCollapsed ? 'Desplegar marcas y sucursales' : 'Colapsar marcas y sucursales'}
                             >
                               {isOrgCollapsed ? (
                                 <ChevronRight className="w-4 h-4" />
@@ -1013,8 +1055,13 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   {org.name}
                                 </span>
                                 <span className="px-1.5 py-0.2 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
-                                  Nivel 1: Empresa Matriz
+                                  Organización Matriz
                                 </span>
+                                {org.billing_info?.tax_id && (
+                                  <span className="px-1.5 py-0.2 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-mono font-bold">
+                                    RFC: {org.billing_info.tax_id}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1044,18 +1091,23 @@ export const AdminRestaurantsPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Col 3: Resumen de Sucursales */}
+                        {/* Col 3: Resumen de Marcas y Sucursales */}
                         <td className="py-3.5 px-4">
-                          {node.branches.length === 0 ? (
-                            <span className="px-2 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold inline-flex items-center gap-1">
-                              <span>0 Sucursales Asignadas</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold">
+                              {node.brands.length} {node.brands.length === 1 ? 'Marca' : 'Marcas'}
                             </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-bold inline-block">
-                              {node.branches.filter((b) => b.restaurant.is_active !== false).length} de{' '}
-                              {node.branches.length} Sucursales Prendidas
-                            </span>
-                          )}
+                            {node.branches.length === 0 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold">
+                                0 Sucursales
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-bold">
+                                {node.branches.filter((b) => b.restaurant.is_active !== false).length}/
+                                {node.branches.length} Sucursales
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Col 4: Hardware NFC Total */}
@@ -1068,11 +1120,20 @@ export const AdminRestaurantsPage: React.FC = () => {
 
                         {/* Col 5: Acciones de Organización */}
                         <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => handleOpenAddBrandForOrg(org)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold shadow-2xs transition-all"
+                              title="Añadir una nueva marca comercial y giro a esta organización"
+                            >
+                              <TagIcon className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>+ Añadir Marca</span>
+                            </button>
+
                             <button
                               onClick={() => handleCreateNewBranch(org.id)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-all"
-                              title="Registrar una nueva sucursal bajo esta empresa"
+                              title="Registrar una nueva sucursal bajo esta organización"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>+ Sucursal</span>
@@ -1093,229 +1154,330 @@ export const AdminRestaurantsPage: React.FC = () => {
                         </td>
                       </tr>
 
-                      {/* Sub-fila de alerta para Organizaciones con 0 sucursales (caso Berman y pizzs) */}
-                      {!isOrgCollapsed && node.branches.length === 0 && (
+                      {/* Sub-fila de alerta para Organizaciones sin marcas ni sucursales */}
+                      {!isOrgCollapsed && node.brands.length === 0 && node.branches.length === 0 && (
                         <tr className="bg-amber-50/40 border-b border-amber-200/60">
-                          <td colSpan={5} className="py-4 px-6">
+                          <td colSpan={5} className="py-3.5 px-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
                               <div className="flex items-center gap-2.5">
-                                <Store className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                <TagIcon className="w-4 h-4 text-amber-600 flex-shrink-0" />
                                 <div>
                                   <span className="font-extrabold block">
-                                    Empresa matriz registrada sin locales comerciales activos.
+                                    Organización registrada sin marcas ni sucursales activas.
                                   </span>
                                   <span className="text-[11px] text-amber-700 block">
-                                    Registra su primera sucursal para habilitar su panel de control, KDS y placas NFC.
+                                    Añade primero una marca comercial con su giro y logo para vincular sus sucursales.
                                   </span>
                                 </div>
                               </div>
 
                               <button
-                                onClick={() => handleCreateNewBranch(org.id)}
+                                onClick={() => handleOpenAddBrandForOrg(org)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-2xs flex-shrink-0"
                               >
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>Registrar Primera Sucursal para {org.name}</span>
+                                <span>Añadir Primera Marca para {org.name}</span>
                               </button>
                             </div>
                           </td>
                         </tr>
                       )}
 
-                      {/* Filas Nivel 2: Sucursales Físicas de esta Empresa */}
+                      {/* NIVEL 2: Marcas Comerciales de la Organización (con Sucursales Supeditadas) */}
                       {!isOrgCollapsed &&
-                        node.branches.map((branchNode) => {
-                          const res = branchNode.restaurant;
-                          const branchTags = branchNode.tags;
-                          const tierInfo = TIERS[res.tier || 2];
-                          const isPanelExpanded = !!expandedBranchPanels[res.id];
-                          const isBranchOn = res.is_active !== false;
+                        node.brands.map((brandNode) => {
+                          const brand = brandNode.brand;
 
                           return (
-                            <React.Fragment key={res.id}>
-                              {/* Fila Nivel 2: Sucursal */}
-                              <tr className="bg-white hover:bg-blue-50/20 border-b border-slate-100 transition-colors">
-                                {/* Col 1: Conector de árbol, Identidad y Selector del Nivel Contratado (Tier) */}
-                                <td className="py-3 px-4 pl-8 sm:pl-10">
+                            <React.Fragment key={brand.id}>
+                              {/* Fila de Marca Comercial */}
+                              <tr className="bg-indigo-50/30 hover:bg-indigo-50/60 border-b border-indigo-100/80 transition-colors">
+                                <td className="py-2.5 px-4 pl-6 sm:pl-8">
                                   <div className="flex items-center gap-2.5">
-                                    <span className="text-slate-300 font-mono text-sm select-none">&bull;</span>
+                                    <span className="text-indigo-300 font-mono text-xs select-none">
+                                      &#9492;
+                                    </span>
 
-                                    {res.logo_url ? (
+                                    {brand.logo_url ? (
                                       <img
-                                        src={res.logo_url}
-                                        alt={res.name}
-                                        className="w-7 h-7 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                                        src={brand.logo_url}
+                                        alt={brand.name}
+                                        className="w-7 h-7 rounded-xl object-cover border border-indigo-200 bg-white flex-shrink-0"
                                       />
                                     ) : (
                                       <div
-                                        className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
-                                        style={{ backgroundColor: res.brand_color || '#2563eb' }}
+                                        className="w-7 h-7 rounded-xl flex items-center justify-center font-extrabold text-white text-xs flex-shrink-0 shadow-2xs"
+                                        style={{ backgroundColor: brand.brand_color || '#4f46e5' }}
                                       >
-                                        {res.brand_name.charAt(0)}
+                                        {brand.name.charAt(0).toUpperCase()}
                                       </div>
                                     )}
 
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-extrabold text-slate-900 text-xs truncate">
-                                          {res.brand_name}
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-extrabold text-xs text-slate-900">
+                                          {brand.name}
                                         </span>
-                                        <span className="text-slate-500 font-semibold text-[11px] truncate">
-                                          ({res.branch_name})
+                                        <span className="px-1.5 py-0.2 rounded-md bg-indigo-100/80 text-indigo-800 border border-indigo-200 text-[10px] font-extrabold">
+                                          Marca Comercial
                                         </span>
-                                      </div>
-
-                                      {/* Selector Interactivo del Nivel Contratado (Tier 1 a 4) */}
-                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                        <select
-                                          value={res.tier || 2}
-                                          onChange={(e) =>
-                                            handleChangeBranchTier(res, Number(e.target.value) as TierType)
-                                          }
-                                          title="Cambiar el nivel de paquete contratado por esta sucursal"
-                                          className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${tierInfo.badgeColor}`}
-                                        >
-                                          <option value={1} className="bg-white text-slate-900 font-bold">
-                                            {TIERS[1].name}
-                                          </option>
-                                          <option value={2} className="bg-white text-slate-900 font-bold">
-                                            {TIERS[2].name}
-                                          </option>
-                                          <option value={3} className="bg-white text-slate-900 font-bold">
-                                            {TIERS[3].name}
-                                          </option>
-                                          <option value={4} className="bg-white text-slate-900 font-bold">
-                                            {TIERS[4].name}
-                                          </option>
-                                        </select>
-
-                                        <span className="text-[10px] text-slate-400 font-semibold">
-                                          • {branchNode.capabilities.verticalLabel}
+                                        <span className="px-2 py-0.2 rounded-md bg-white text-slate-700 border border-slate-200 text-[10px] font-bold">
+                                          Giro: {brandNode.verticalLabel}
                                         </span>
                                       </div>
                                     </div>
                                   </div>
                                 </td>
 
-                                {/* Col 2: Dirección y Teléfono de la Sucursal */}
-                                <td className="py-3 px-4">
-                                  <div className="space-y-0.5 text-xs text-slate-600">
-                                    {res.address ? (
-                                      <a
-                                        href={
-                                          res.google_review_url ||
-                                          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                            res.name + ' ' + res.address
-                                          )}`
-                                        }
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 truncate hover:text-blue-600"
-                                      >
-                                        <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                        <span className="truncate">{res.address}</span>
-                                      </a>
-                                    ) : (
-                                      <span className="text-slate-400 italic text-[11px]">Sin dirección</span>
-                                    )}
-                                    {res.manager_phone && (
-                                      <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                                        <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                        <span>{res.manager_phone}</span>
-                                      </div>
-                                    )}
-                                  </div>
+                                <td className="py-2.5 px-4 text-[11px] text-slate-500">
+                                  Supeditada a <span className="font-bold text-slate-700">{org.name}</span>
                                 </td>
 
-                                {/* Col 3: Badge de Estado Actual + Switch Maestro de la Sucursal */}
-                                <td className="py-3 px-4">
-                                  <StatusBadgeAndSwitch
-                                    isOn={isBranchOn}
-                                    onToggle={() => handleToggleBranchActive(res)}
-                                    title="Prender o apagar servicio general de esta sucursal"
-                                  />
+                                <td className="py-2.5 px-4">
+                                  <span className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-bold">
+                                    {brandNode.branches.length}{' '}
+                                    {brandNode.branches.length === 1
+                                      ? 'Sucursal Supeditada'
+                                      : 'Sucursales Supeditadas'}
+                                  </span>
                                 </td>
 
-                                {/* Col 4: Botón Desplegable del Panel de Control de Sucursal (Nivel 3) */}
-                                <td className="py-3 px-4">
+                                <td className="py-2.5 px-4">
+                                  <span className="text-[11px] font-bold text-purple-700">
+                                    {brandNode.totalTagsCount} Tags en marca
+                                  </span>
+                                </td>
+
+                                <td className="py-2.5 px-4 text-right">
                                   <button
-                                    onClick={() => toggleBranchPanel(res.id)}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                                      isPanelExpanded
-                                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                                        : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
-                                    }`}
-                                    title="Abrir Panel de Control por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS y Meseros)"
+                                    onClick={() => handleOpenAddBranchForBrand(org, brand)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold shadow-2xs transition-colors"
+                                    title={`Añadir nueva sucursal supeditada a la marca ${brand.name}`}
                                   >
-                                    <Sliders className="w-3.5 h-3.5" />
-                                    <span>Panel de Control</span>
-                                    <span
-                                      className={`px-1.5 py-0.2 rounded text-[10px] ${
-                                        isPanelExpanded
-                                          ? 'bg-white/20 text-white'
-                                          : 'bg-white text-slate-600 border border-slate-200'
-                                      }`}
-                                    >
-                                      {branchTags.length} Tags
-                                      {branchNode.capabilities.supportsKds ? ' • KDS' : ''}
-                                    </span>
-                                    {isPanelExpanded ? (
-                                      <ChevronDown className="w-3.5 h-3.5" />
-                                    ) : (
-                                      <ChevronRight className="w-3.5 h-3.5" />
-                                    )}
+                                    <Plus className="w-3 h-3" />
+                                    <span>+ Añadir Sucursal a {brand.name}</span>
                                   </button>
-                                </td>
-
-                                {/* Col 5: Botonera de Sucursal + Botón Directo a Solicitudes de Quejas */}
-                                <td className="py-3 px-4 text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <Link
-                                      to={`/admin/feedback?restaurant=${res.id}`}
-                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                                        branchNode.pendingFeedbacksCount > 0
-                                          ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                      }`}
-                                      title="Ver solicitudes de quejas retenidas (1 a 3 estrellas) de esta sucursal"
-                                    >
-                                      <MessageSquareWarning className="w-3 h-3" />
-                                      <span>Quejas ({branchNode.feedbacksCount})</span>
-                                    </Link>
-
-                                    <a
-                                      href={res.google_review_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 text-[11px] font-semibold transition-colors"
-                                      title="Abrir ficha en Google Maps"
-                                    >
-                                      <span>Google</span>
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-
-                                    <Link
-                                      to={`/portal?restaurantId=${res.id}`}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
-                                      title="Abrir portal del cliente para este local"
-                                    >
-                                      <Store className="w-3 h-3" />
-                                      <span>Portal</span>
-                                    </Link>
-
-                                    <button
-                                      onClick={() => handleEdit(res)}
-                                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                      title="Editar Sucursal"
-                                    >
-                                      <Edit2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
                                 </td>
                               </tr>
 
-                              {/* Fila Nivel 3: Panel de Control de la Sucursal por Categorías */}
-                              {isPanelExpanded && renderBranchControlPanel(branchNode)}
+                              {/* Filas de Sucursales Físicas supeditadas a esta Marca */}
+                              {brandNode.branches.map((branchNode) => {
+                                const res = branchNode.restaurant;
+                                const branchTags = branchNode.tags;
+                                const tierInfo = TIERS[res.tier || 2];
+                                const isPanelExpanded = !!expandedBranchPanels[res.id];
+                                const isBranchOn = res.is_active !== false;
+
+                                return (
+                                  <React.Fragment key={res.id}>
+                                    {/* Fila de Sucursal Física */}
+                                    <tr className="bg-white hover:bg-blue-50/20 border-b border-slate-100 transition-colors">
+                                      {/* Col 1: Conector de árbol, Identidad y Selector del Nivel Contratado (Tier) */}
+                                      <td className="py-3 px-4 pl-10 sm:pl-14">
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="text-slate-300 font-mono text-sm select-none">
+                                            &bull;
+                                          </span>
+
+                                          {res.logo_url || brand.logo_url ? (
+                                            <img
+                                              src={res.logo_url || brand.logo_url || ''}
+                                              alt={res.name}
+                                              className="w-7 h-7 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                                            />
+                                          ) : (
+                                            <div
+                                              className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
+                                              style={{
+                                                backgroundColor:
+                                                  res.brand_color || brand.brand_color || '#2563eb',
+                                              }}
+                                            >
+                                              {res.brand_name.charAt(0)}
+                                            </div>
+                                          )}
+
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="font-extrabold text-slate-900 text-xs truncate">
+                                                {res.branch_name || 'Sucursal Principal'}
+                                              </span>
+                                              <span className="text-slate-400 font-semibold text-[11px] truncate">
+                                                ({res.brand_name})
+                                              </span>
+                                            </div>
+
+                                            {/* Selector Interactivo del Nivel Contratado (Tier 1 a 4) */}
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                              <select
+                                                value={res.tier || 2}
+                                                onChange={(e) =>
+                                                  handleChangeBranchTier(
+                                                    res,
+                                                    Number(e.target.value) as TierType
+                                                  )
+                                                }
+                                                title="Cambiar el nivel de paquete contratado por esta sucursal"
+                                                className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${tierInfo.badgeColor}`}
+                                              >
+                                                <option
+                                                  value={1}
+                                                  className="bg-white text-slate-900 font-bold"
+                                                >
+                                                  {TIERS[1].name}
+                                                </option>
+                                                <option
+                                                  value={2}
+                                                  className="bg-white text-slate-900 font-bold"
+                                                >
+                                                  {TIERS[2].name}
+                                                </option>
+                                                <option
+                                                  value={3}
+                                                  className="bg-white text-slate-900 font-bold"
+                                                >
+                                                  {TIERS[3].name}
+                                                </option>
+                                                <option
+                                                  value={4}
+                                                  className="bg-white text-slate-900 font-bold"
+                                                >
+                                                  {TIERS[4].name}
+                                                </option>
+                                              </select>
+
+                                              <span className="text-[10px] text-slate-400 font-semibold">
+                                                • {branchNode.capabilities.verticalLabel}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Col 2: Dirección y Teléfono de la Sucursal */}
+                                      <td className="py-3 px-4">
+                                        <div className="space-y-0.5 text-xs text-slate-600">
+                                          {res.address ? (
+                                            <a
+                                              href={
+                                                res.google_review_url ||
+                                                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                                  res.name + ' ' + res.address
+                                                )}`
+                                              }
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center gap-1 truncate hover:text-blue-600"
+                                            >
+                                              <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                              <span className="truncate">{res.address}</span>
+                                            </a>
+                                          ) : (
+                                            <span className="text-slate-400 italic text-[11px]">
+                                              Sin dirección
+                                            </span>
+                                          )}
+                                          {res.manager_phone && (
+                                            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                                              <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                              <span>{res.manager_phone}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* Col 3: Badge de Estado Actual + Switch Maestro de la Sucursal */}
+                                      <td className="py-3 px-4">
+                                        <StatusBadgeAndSwitch
+                                          isOn={isBranchOn}
+                                          onToggle={() => handleToggleBranchActive(res)}
+                                          title="Prender o apagar servicio general de esta sucursal"
+                                        />
+                                      </td>
+
+                                      {/* Col 4: Botón Desplegable del Panel de Control de Sucursal */}
+                                      <td className="py-3 px-4">
+                                        <button
+                                          onClick={() => toggleBranchPanel(res.id)}
+                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                            isPanelExpanded
+                                              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                                              : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
+                                          }`}
+                                          title="Abrir Panel de Control por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS y Meseros)"
+                                        >
+                                          <Sliders className="w-3.5 h-3.5" />
+                                          <span>Panel de Control</span>
+                                          <span
+                                            className={`px-1.5 py-0.2 rounded text-[10px] ${
+                                              isPanelExpanded
+                                                ? 'bg-white/20 text-white'
+                                                : 'bg-white text-slate-600 border border-slate-200'
+                                            }`}
+                                          >
+                                            {branchTags.length} Tags
+                                            {branchNode.capabilities.supportsKds ? ' • KDS' : ''}
+                                          </span>
+                                          {isPanelExpanded ? (
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                          ) : (
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      </td>
+
+                                      {/* Col 5: Botonera de Sucursal + Botón Directo a Solicitudes de Quejas */}
+                                      <td className="py-3 px-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <Link
+                                            to={`/admin/feedback?restaurant=${res.id}`}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                                              branchNode.pendingFeedbacksCount > 0
+                                                ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                            }`}
+                                            title="Ver solicitudes de quejas retenidas (1 a 3 estrellas) de esta sucursal"
+                                          >
+                                            <MessageSquareWarning className="w-3 h-3" />
+                                            <span>Quejas ({branchNode.feedbacksCount})</span>
+                                          </Link>
+
+                                          <a
+                                            href={res.google_review_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 text-[11px] font-semibold transition-colors"
+                                            title="Abrir ficha en Google Maps"
+                                          >
+                                            <span>Google</span>
+                                            <ExternalLink className="w-3 h-3" />
+                                          </a>
+
+                                          <Link
+                                            to={`/portal?restaurantId=${res.id}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
+                                            title="Abrir portal del cliente para este local"
+                                          >
+                                            <Store className="w-3 h-3" />
+                                            <span>Portal</span>
+                                          </Link>
+
+                                          <button
+                                            onClick={() => handleEdit(res)}
+                                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                            title="Editar Sucursal"
+                                          >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+
+                                    {/* Fila Panel de Control de la Sucursal por Categorías */}
+                                    {isPanelExpanded && renderBranchControlPanel(branchNode)}
+                                  </React.Fragment>
+                                );
+                              })}
                             </React.Fragment>
                           );
                         })}
@@ -1427,12 +1589,26 @@ export const AdminRestaurantsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de Alta Express de Organización */}
+      {/* Asistente de 3 Pasos: Dar de Alta Organización -> Añadir Marca -> Añadir Sucursal */}
       <NewOrganizationModal
         isOpen={isNewOrgModalOpen}
-        onClose={() => setIsNewOrgModalOpen(false)}
+        onClose={() => {
+          setIsNewOrgModalOpen(false);
+          setWizardInitialOrg(null);
+          setWizardInitialBrand(null);
+        }}
+        initialOrganization={wizardInitialOrg}
+        initialBrand={wizardInitialBrand}
         onCreated={(newOrg) => {
           setOrganizations((prev) => [newOrg, ...prev]);
+        }}
+        onBrandCreated={(newBrand) => {
+          setOrganizationBrands((prev) => [...prev, newBrand]);
+          api.getBusinessVerticals().then(setBusinessVerticals);
+        }}
+        onBranchCreated={(newBranch) => {
+          setRestaurants((prev) => [newBranch, ...prev]);
+          loadData();
         }}
       />
 

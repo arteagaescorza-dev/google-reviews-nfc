@@ -1,4 +1,35 @@
-export type BusinessType = 'restaurant' | 'gym' | 'dental' | 'spa' | 'general';
+export type BusinessType =
+  | 'restaurant'
+  | 'barberia'
+  | 'dental'
+  | 'gym'
+  | 'spa'
+  | 'cafeteria'
+  | 'general'
+  | (string & {});
+
+export interface BusinessVertical {
+  id: string;
+  slug: string;
+  name: string;
+  unit_label: string;
+  unit_plural: string;
+  show_kds: boolean;
+  show_floor_staff: boolean;
+  show_hostess: boolean;
+  created_at: string;
+}
+
+export interface OrganizationBrand {
+  id: string;
+  organization_id: string;
+  name: string;
+  vertical_id?: string | null;
+  vertical_slug: string;
+  logo_url?: string | null;
+  brand_color: string;
+  created_at: string;
+}
 
 export interface BusinessVerticalConfig {
   unitLabel: string;
@@ -12,7 +43,7 @@ export interface BusinessVerticalConfig {
   feedbackQuestion: string;
 }
 
-export const VERTICAL_CONFIG: Record<BusinessType, BusinessVerticalConfig> = {
+export const VERTICAL_CONFIG: Record<string, BusinessVerticalConfig> = {
   restaurant: {
     unitLabel: 'Mesa',
     unitPlural: 'Mesas',
@@ -23,6 +54,28 @@ export const VERTICAL_CONFIG: Record<BusinessType, BusinessVerticalConfig> = {
     showKds: true,
     showFloorStaff: true,
     feedbackQuestion: '¿Cómo estuvo tu experiencia hoy?',
+  },
+  barberia: {
+    unitLabel: 'Sillón / Estación',
+    unitPlural: 'Sillones',
+    catalogTitle: 'Catálogo de Cortes & Barba',
+    catalogSubtitle: 'Estilos, bebidas de cortesía y productos',
+    actionPrimary: 'Solicitar Bebida / Asistencia',
+    actionSecondary: 'Agendar Próxima Cita',
+    showKds: false,
+    showFloorStaff: true,
+    feedbackQuestion: '¿Cómo quedó tu corte y servicio hoy?',
+  },
+  cafeteria: {
+    unitLabel: 'Mesa / Barra',
+    unitPlural: 'Mesas & Barra',
+    catalogTitle: 'Carta de Café & Repostería',
+    catalogSubtitle: 'Pide tu café de especialidad y pan recién horneado',
+    actionPrimary: 'Llamar Barista',
+    actionSecondary: 'Pedir la Cuenta',
+    showKds: true,
+    showFloorStaff: true,
+    feedbackQuestion: '¿Qué te pareció tu café y postre hoy?',
   },
   gym: {
     unitLabel: 'Máquina / Zona',
@@ -103,6 +156,7 @@ export interface Organization {
 export interface Restaurant {
   id: string;
   organization_id?: string | null;
+  brand_id?: string | null;
   brand_name: string;
   branch_name: string;
   business_type?: BusinessType;
@@ -122,8 +176,9 @@ export interface Restaurant {
   ad_credit_balance?: number;
   created_at: string;
   updated_at: string;
-  // Relación opcional
+  // Relaciones opcionales
   organization?: Organization;
+  brand?: OrganizationBrand;
 }
 
 export type TagPhysicalCondition = 'nuevo' | 'instalado' | 'desgastado' | 'danado' | 'reemplazado';

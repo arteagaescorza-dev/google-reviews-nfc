@@ -265,4 +265,79 @@ describe('UI-EX-01: Sucursales & Restaurantes en Bento Grid Light', () => {
     expect(branch2?.tierFeatures.find((f) => f.key === 'tier_2_reputation_shield')?.isActive).toBe(true);
     expect(branch2?.tierFeatures.find((f) => f.key === 'tier_3_digital_menu_wifi')?.isActive).toBe(true);
   });
+
+  it('debe supeditar las sucursales a las marcas comerciales de cada organización y sincronizar giros universales', () => {
+    const customVerticals = [
+      {
+        id: 'vert-barber',
+        slug: 'barberia-vip',
+        name: 'Barbería & Grooming VIP',
+        unit_label: 'Sillón',
+        unit_plural: 'Sillones',
+        show_kds: false,
+        show_floor_staff: true,
+        show_hostess: true,
+        created_at: '',
+      },
+    ];
+
+    const explicitBrands = [
+      {
+        id: 'brand-pizza',
+        organization_id: 'org-1',
+        name: 'Pizzería Napolitana',
+        vertical_slug: 'restaurant',
+        logo_url: 'https://ejemplo.com/pizza.webp',
+        brand_color: '#EF4444',
+        created_at: '',
+      },
+      {
+        id: 'brand-barber',
+        organization_id: 'org-1',
+        name: 'Barbería Royal',
+        vertical_id: 'vert-barber',
+        vertical_slug: 'barberia-vip',
+        logo_url: 'https://ejemplo.com/barber.webp',
+        brand_color: '#1E293B',
+        created_at: '',
+      },
+    ];
+
+    const restaurantsWithBrands: Restaurant[] = [
+      {
+        ...mockRestaurants[0],
+        brand_id: 'brand-pizza',
+      },
+      {
+        ...mockRestaurants[1],
+        brand_id: 'brand-pizza',
+      },
+    ];
+
+    const tree = buildOrganizationTree(
+      mockOrganizations,
+      restaurantsWithBrands,
+      mockTags,
+      '',
+      'all',
+      'all',
+      [],
+      {},
+      [],
+      {},
+      explicitBrands,
+      customVerticals
+    );
+
+    const org1 = tree.organizations.find((o) => o.organization.id === 'org-1');
+    expect(org1?.brands.length).toBe(2);
+
+    const pizzaBrand = org1?.brands.find((b) => b.brand.id === 'brand-pizza');
+    expect(pizzaBrand?.branches.length).toBe(2);
+    expect(pizzaBrand?.totalTagsCount).toBe(3);
+
+    const barberBrand = org1?.brands.find((b) => b.brand.id === 'brand-barber');
+    expect(barberBrand?.verticalLabel).toBe('Barbería & Grooming VIP');
+    expect(barberBrand?.branches.length).toBe(0);
+  });
 });

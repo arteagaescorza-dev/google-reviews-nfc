@@ -1,5 +1,12 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { Organization, OrganizationMember, MemberRole, Restaurant } from '../../types';
+import type {
+  Organization,
+  OrganizationMember,
+  MemberRole,
+  Restaurant,
+  BusinessVertical,
+  OrganizationBrand,
+} from '../../types';
 import { STORAGE_KEYS, INITIAL_DEMO_DATA, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
 export const organizationsApi = {
@@ -235,5 +242,165 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
     const updated = all.filter((m) => m.id !== memberId);
     setLocalItem(STORAGE_KEYS.ORGANIZATION_MEMBERS, updated);
     return { success: true };
-  }
+  },
+
+  /**
+   * Obtiene el catálogo universal de giros comerciales (business_verticals)
+   */
+  async getBusinessVerticals(): Promise<BusinessVertical[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('business_verticals')
+          .select('*')
+          .order('name', { ascending: true });
+        if (!error && data && data.length > 0) return data;
+      } catch (e) {
+        console.warn('Error cargando giros comerciales de Supabase:', e);
+      }
+    }
+    return getLocalItem<BusinessVertical[]>(
+      STORAGE_KEYS.BUSINESS_VERTICALS,
+      INITIAL_DEMO_DATA.businessVerticals
+    );
+  },
+
+  /**
+   * Da de alta un nuevo giro comercial en la tabla universal (business_verticals)
+   */
+  async createBusinessVertical(payload: {
+    name: string;
+    slug?: string;
+    unit_label?: string;
+    unit_plural?: string;
+    show_kds?: boolean;
+    show_floor_staff?: boolean;
+    show_hostess?: boolean;
+  }): Promise<{ success: boolean; data?: BusinessVertical; error?: string }> {
+    const cleanName = payload.name.trim();
+    const generatedSlug =
+      payload.slug?.trim() ||
+      cleanName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') ||
+      `giro-${Date.now()}`;
+
+    const isFoodOrGastro = /restauran|taquer|pizz|sushi|bar|cafe|cocina|bistro|hamburgues|marisc/i.test(
+      cleanName
+    );
+
+    const verticalRow = {
+      slug: generatedSlug,
+      name: cleanName,
+      unit_label: payload.unit_label || (isFoodOrGastro ? 'Mesa' : 'Estación / Punto'),
+      unit_plural: payload.unit_plural || (isFoodOrGastro ? 'Mesas' : 'Puntos de Atención'),
+      show_kds: payload.show_kds ?? isFoodOrGastro,
+      show_floor_staff: payload.show_floor_staff ?? true,
+      show_hostess: payload.show_hostess ?? isFoodOrGastro,
+    };
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('business_verticals')
+          .insert([verticalRow])
+          .select()
+          .single();
+        if (error) throw error;
+        return { success: true, data };
+      } catch (err: any) {
+        console.warn('Error insertando giro en Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const list = getLocalItem<BusinessVertical[]>(
+      STORAGE_KEYS.BUSINESS_VERTICALS,
+      INITIAL_DEMO_DATA.businessVerticals
+    );
+    const existing = list.find(
+      (v) => v.slug === generatedSlug || v.name.toLowerCase() === cleanName.toLowerCase()
+    );
+    if (existing) {
+      return { success: true, data: existing };
+    }
+
+    const newVertical: BusinessVertical = {
+      ...verticalRow,
+      id: 'vert-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.BUSINESS_VERTICALS, [...list, newVertical]);
+    return { success: true, data: newVertical };
+  },
+
+  /**
+   * Obtiene las marcas comerciales registradas (todas o filtradas por organización)
+   */
+  async getOrganizationBrands(organizationId?: string): Promise<OrganizationBrand[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('organization_brands')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (organizationId) {
+          query = query.eq('organization_id', organizationId);
+        }
+        const { data, error } = await query;
+        if (!error && data) return data;
+      } catch (e) {
+        console.warn('Error cargando marcas de Supabase:', e);
+      }
+    }
+
+    const brands = getLocalItem<OrganizationBrand[]>(
+      STORAGE_KEYS.ORGANIZATION_BRANDS,
+      INITIAL_DEMO_DATA.organizationBrands
+    );
+    if (organizationId) {
+      return brands.filter((b) => b.organization_id === organizationId);
+    }
+    return brands;
+  },
+
+  /**
+   * Da de alta una nueva marca comercial dentro de una organización
+   */
+  async createOrganizationBrand(
+    brand: Omit<OrganizationBrand, 'id' | 'created_at'>
+  ): Promise<{ success: boolean; data?: OrganizationBrand; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const clean = sanitizeSupabasePayload(brand, true);
+        const { data, error } = await supabase
+          .from('organization_brands')
+          .insert([clean])
+          .select()
+          .single();
+        if (error) throw error;
+        return { success: true, data };
+      } catch (err: any) {
+        console.warn('Error insertando marca en Supabase, aplicando fallback local:', err.message);
+      }
+    }
+
+    const brands = getLocalItem<OrganizationBrand[]>(
+      STORAGE_KEYS.ORGANIZATION_BRANDS,
+      INITIAL_DEMO_DATA.organizationBrands
+    );
+    const newBrand: OrganizationBrand = {
+      ...brand,
+      id: 'brand-' + Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setLocalItem(STORAGE_KEYS.ORGANIZATION_BRANDS, [...brands, newBrand]);
+    return { success: true, data: newBrand };
+  },
 };

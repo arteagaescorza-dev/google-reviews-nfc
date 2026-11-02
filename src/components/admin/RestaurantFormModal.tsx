@@ -1,9 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import type { Restaurant, LinkItem, LinkType, Organization } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import type {
+  Restaurant,
+  LinkItem,
+  LinkType,
+  Organization,
+  OrganizationBrand,
+  BusinessVertical,
+  TierType,
+} from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
 import { normalizeImageUrl } from '../../lib/utils';
-import { X, Plus, Trash2, Store, Check, ExternalLink, Wifi, Building2 } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Trash2,
+  Store,
+  Check,
+  ExternalLink,
+  Wifi,
+  Building2,
+  Tag as TagIcon,
+  Search,
+  Layers,
+} from 'lucide-react';
 import { NewOrganizationModal } from './NewOrganizationModal';
 
 interface RestaurantFormModalProps {
@@ -14,6 +34,7 @@ interface RestaurantFormModalProps {
   organizations: Organization[];
   onOrganizationCreated?: (org: Organization) => void;
   preselectedOrgId?: string;
+  preselectedBrandId?: string;
 }
 
 function parseWifiString(url: string): { ssid: string; pass: string } {
@@ -22,7 +43,7 @@ function parseWifiString(url: string): { ssid: string; pass: string } {
   const passMatch = url.match(/P:([^;]*)/i);
   return {
     ssid: ssidMatch ? ssidMatch[1] : '',
-    pass: passMatch ? passMatch[1] : (url.startsWith('WIFI:') ? '' : url),
+    pass: passMatch ? passMatch[1] : url.startsWith('WIFI:') ? '' : url,
   };
 }
 
@@ -44,35 +65,45 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   organizations,
   onOrganizationCreated,
   preselectedOrgId,
+  preselectedBrandId,
 }) => {
   const [localOrgs, setLocalOrgs] = useState<Organization[]>(organizations);
+  const [allBrands, setAllBrands] = useState<OrganizationBrand[]>([]);
+  const [verticals, setVerticals] = useState<BusinessVertical[]>([]);
+  const [verticalSearch, setVerticalSearch] = useState('');
+  const [isVerticalDropdownOpen, setIsVerticalDropdownOpen] = useState(false);
+  const [isCreatingVertical, setIsCreatingVertical] = useState(false);
+  const verticalDropdownRef = useRef<HTMLDivElement>(null);
+
   const [showNewOrgModal, setShowNewOrgModal] = useState(false);
+  const [organizationId, setOrganizationId] = useState('');
+  const [brandId, setBrandId] = useState('');
   const [brandName, setBrandName] = useState('');
+  const [businessType, setBusinessType] = useState<string>('restaurant');
   const [branchName, setBranchName] = useState('Principal');
   const [slug, setSlug] = useState('');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [tier, setTier] = useState<1 | 2 | 3>(2);
+  const [tier, setTier] = useState<TierType>(2);
   const [isAdFree, setIsAdFree] = useState(false);
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [address, setAddress] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
-  const [organizationId, setOrganizationId] = useState('');
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleReviewUrlChange = (val: string) => {
     const trimmed = val.trim();
-    // Si pega un Place ID directamente (ej. ChIJ...)
     if (/^ChIJ[a-zA-Z0-9_-]+$/i.test(trimmed)) {
       setGoogleReviewUrl(`https://search.google.com/local/writereview?placeid=${trimmed}`);
       return;
     }
-    // Si pega una URL que contiene query_place_id o placeid
     const placeIdMatch = trimmed.match(/[?&](?:query_place_id|placeid)=([a-zA-Z0-9_-]+)/i);
     if (placeIdMatch && placeIdMatch[1]) {
-      setGoogleReviewUrl(`https://search.google.com/local/writereview?placeid=${placeIdMatch[1]}`);
+      setGoogleReviewUrl(
+        `https://search.google.com/local/writereview?placeid=${placeIdMatch[1]}`
+      );
       return;
     }
     setGoogleReviewUrl(val);
@@ -83,13 +114,25 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   }, [organizations]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    Promise.all([api.getOrganizationBrands(), api.getBusinessVerticals()]).then(
+      ([bList, vList]) => {
+        setAllBrands(bList);
+        setVerticals(vList);
+      }
+    );
+  }, [isOpen]);
+
+  useEffect(() => {
     if (restaurant) {
       setBrandName(restaurant.brand_name || '');
+      setBrandId(restaurant.brand_id || '');
+      setBusinessType(restaurant.business_type || 'restaurant');
       setBranchName(restaurant.branch_name || 'Principal');
       setSlug(restaurant.slug || '');
       setGoogleReviewUrl(restaurant.google_review_url || '');
       setLogoUrl(restaurant.logo_url || '');
-      setTier((restaurant.tier as 1 | 2 | 3) || 2);
+      setTier((restaurant.tier as TierType) || 2);
       setIsAdFree(restaurant.is_ad_free || false);
       setBrandColor(restaurant.brand_color || '#2563eb');
       setAddress(restaurant.address || '');
@@ -97,7 +140,12 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setOrganizationId(restaurant.organization_id || '');
       setLinks(restaurant.links || []);
     } else {
+      const targetOrgId =
+        preselectedOrgId || localOrgs[0]?.id || organizations[0]?.id || '';
+      setOrganizationId(targetOrgId);
+      setBrandId(preselectedBrandId || '');
       setBrandName('');
+      setBusinessType('restaurant');
       setBranchName('Principal');
       setSlug('');
       setGoogleReviewUrl('');
@@ -107,13 +155,56 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor('#2563eb');
       setAddress('');
       setManagerPhone('');
-      setOrganizationId(preselectedOrgId || localOrgs[0]?.id || organizations[0]?.id || '');
       setLinks([]);
     }
     setErrorMsg('');
-  }, [restaurant, isOpen, organizations, preselectedOrgId]);
+  }, [restaurant, isOpen, organizations, preselectedOrgId, preselectedBrandId]);
+
+  // Si se preselecciona una marca, sincronizar sus datos en nueva sucursal
+  useEffect(() => {
+    if (!restaurant && brandId && allBrands.length > 0) {
+      const matched = allBrands.find((b) => b.id === brandId);
+      if (matched) {
+        setBrandName(matched.name);
+        setBusinessType(matched.vertical_slug || 'restaurant');
+        if (matched.logo_url) setLogoUrl(matched.logo_url);
+        if (matched.brand_color) setBrandColor(matched.brand_color);
+        const generated = `${matched.name} ${branchName}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+        setSlug(generated);
+      }
+    }
+  }, [brandId, allBrands, restaurant]);
 
   if (!isOpen) return null;
+
+  const orgBrands = allBrands.filter((b) => b.organization_id === organizationId);
+  const currentVerticalObj = verticals.find((v) => v.slug === businessType);
+  const filteredVerticals = verticals.filter((v) => {
+    const q = verticalSearch.trim().toLowerCase();
+    if (!q) return true;
+    return v.name.toLowerCase().includes(q) || v.slug.toLowerCase().includes(q);
+  });
+  const exactVerticalMatch = verticals.some(
+    (v) => v.name.toLowerCase() === verticalSearch.trim().toLowerCase()
+  );
+
+  const handleCreateNewVertical = async () => {
+    const clean = verticalSearch.trim();
+    if (!clean) return;
+    setIsCreatingVertical(true);
+    const res = await api.createBusinessVertical({ name: clean });
+    setIsCreatingVertical(false);
+    if (res.success && res.data) {
+      const created = res.data;
+      setVerticals((prev) => [...prev, created]);
+      setBusinessType(created.slug);
+      setVerticalSearch('');
+      setIsVerticalDropdownOpen(false);
+    }
+  };
 
   // Auto-generar slug
   const handleBrandChange = (val: string) => {
@@ -138,7 +229,6 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
     }
   };
 
-  // Manejo de links para Tier 3
   const addLink = () => {
     setLinks([
       ...links,
@@ -161,11 +251,26 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       } else {
         if (newUrl.startsWith('WIFI:')) newUrl = 'https://';
         if (newIcon === 'instagram') {
-          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Síguenos en Instagram';
+          if (
+            !newTitle ||
+            newTitle === 'Nuevo Acceso' ||
+            newTitle === 'Conectar a Wi-Fi Clientes'
+          )
+            newTitle = 'Síguenos en Instagram';
         } else if (newIcon === 'whatsapp') {
-          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Reservaciones por WhatsApp';
+          if (
+            !newTitle ||
+            newTitle === 'Nuevo Acceso' ||
+            newTitle === 'Conectar a Wi-Fi Clientes'
+          )
+            newTitle = 'Reservaciones por WhatsApp';
         } else if (newIcon === 'menu') {
-          if (!newTitle || newTitle === 'Nuevo Acceso' || newTitle === 'Conectar a Wi-Fi Clientes') newTitle = 'Menú Digital & Carta';
+          if (
+            !newTitle ||
+            newTitle === 'Nuevo Acceso' ||
+            newTitle === 'Conectar a Wi-Fi Clientes'
+          )
+            newTitle = 'Menú Digital & Carta';
         }
       }
 
@@ -191,12 +296,40 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
     setIsSaving(true);
     setErrorMsg('');
 
-    const fullName = branchName ? `${brandName.trim()} - ${branchName.trim()}` : brandName.trim();
-    const cleanLogo = normalizeImageUrl(logoUrl);
+    const fullName = branchName
+      ? `${brandName.trim()} - ${branchName.trim()}`
+      : brandName.trim();
+    const cleanLogo = logoUrl.startsWith('data:') ? logoUrl : normalizeImageUrl(logoUrl);
+
+    let resolvedBrandId = brandId || null;
+
+    // Si pertenece a una organización y aún no tiene brand_id en organization_brands, sincronizar marca
+    if (organizationId && !resolvedBrandId) {
+      const existingBrand = orgBrands.find(
+        (b) => b.name.toLowerCase() === brandName.trim().toLowerCase()
+      );
+      if (existingBrand) {
+        resolvedBrandId = existingBrand.id;
+      } else {
+        const createdBrandRes = await api.createOrganizationBrand({
+          organization_id: organizationId,
+          name: brandName.trim(),
+          vertical_id: currentVerticalObj?.id || null,
+          vertical_slug: businessType || 'restaurant',
+          logo_url: cleanLogo || null,
+          brand_color: brandColor || '#2563eb',
+        });
+        if (createdBrandRes.success && createdBrandRes.data) {
+          resolvedBrandId = createdBrandRes.data.id;
+        }
+      }
+    }
 
     const payload: Partial<Restaurant> = {
+      brand_id: resolvedBrandId,
       brand_name: brandName.trim(),
       branch_name: branchName.trim() || 'Principal',
+      business_type: businessType || 'restaurant',
       name: fullName,
       slug: slug.trim() || `sucursal-${Date.now()}`,
       google_review_url: googleReviewUrl.trim(),
@@ -222,7 +355,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       onSaved();
       onClose();
     } else {
-      setErrorMsg(res.error || 'Error al guardar el restaurante.');
+      setErrorMsg(res.error || 'Error al guardar la sucursal.');
     }
   };
 
@@ -236,9 +369,11 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                {restaurant ? 'Editar Sucursal / Local' : 'Dar de Alta Nuevo Local'}
+                {restaurant ? 'Editar Sucursal / Local' : 'Dar de Alta Sucursal'}
               </h2>
-              <p className="text-xs text-slate-500">Configuración de reputación, paquete y publicidad</p>
+              <p className="text-xs text-slate-500">
+                Configuración de organización, marca comercial, giro, paquete y publicidad
+              </p>
             </div>
           </div>
           <button
@@ -256,13 +391,13 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Organización / Empresa del Cliente */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+          {/* Organización y Marca Comercial */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-2xs space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-blue-600" />
                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Empresa / Organización del Cliente
+                  Organización & Marca Comercial
                 </label>
               </div>
               <button
@@ -271,46 +406,150 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-colors w-fit"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Nueva Empresa en Calle</span>
+                <span>Dar de Alta Organización</span>
               </button>
             </div>
 
-            <select
-              value={organizationId}
-              onChange={(e) => setOrganizationId(e.target.value)}
-              className="w-full p-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:bg-white"
-            >
-              <option value="">-- Sin Organización Asignada (Independiente) --</option>
-              {localOrgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name} ({org.owner_name}{org.owner_phone ? ` - ${org.owner_phone}` : ''})
-                </option>
-              ))}
-            </select>
-            <p className="text-[10px] text-slate-400 mt-1.5">
-              Agrupa todas las sucursales de este locatario para que las gestione desde su mismo portal.
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Organización Matriz
+                </label>
+                <select
+                  value={organizationId}
+                  onChange={(e) => {
+                    setOrganizationId(e.target.value);
+                    setBrandId('');
+                  }}
+                  className="w-full p-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white shadow-2xs"
+                >
+                  <option value="">-- Sin Organización (Independiente) --</option>
+                  {localOrgs.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name} ({org.owner_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Marca Registrada en la Organización
+                </label>
+                <select
+                  value={brandId}
+                  onChange={(e) => {
+                    const bId = e.target.value;
+                    setBrandId(bId);
+                    const matched = orgBrands.find((b) => b.id === bId);
+                    if (matched) {
+                      setBrandName(matched.name);
+                      setBusinessType(matched.vertical_slug || 'restaurant');
+                      if (matched.logo_url) setLogoUrl(matched.logo_url);
+                      if (matched.brand_color) setBrandColor(matched.brand_color);
+                    }
+                  }}
+                  className="w-full p-2.5 text-xs font-medium rounded-xl border border-slate-200 bg-white shadow-2xs"
+                >
+                  <option value="">-- Nueva Marca / Especificar Abajo --</option>
+                  {orgBrands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.vertical_slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* Datos de marca y sucursal */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Nombre de Marca, Giro Comercial Universal con Buscador y Sucursal */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Marca / Nombre del Negocio *
+                Nombre de la Marca *
               </label>
-              <input
-                type="text"
-                required
-                value={brandName}
-                onChange={(e) => handleBrandChange(e.target.value)}
-                placeholder="Ej. Tacos El Pastorcito"
-                className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
-              />
+              <div className="relative">
+                <TagIcon className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type="text"
+                  required
+                  value={brandName}
+                  onChange={(e) => handleBrandChange(e.target.value)}
+                  placeholder="Ej. Tacos El Pastorcito"
+                  className="w-full pl-8 pr-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-bold"
+                />
+              </div>
+            </div>
+
+            {/* Selector Universal de Giro Comercial con Buscador */}
+            <div ref={verticalDropdownRef} className="relative">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Giro de la Marca *
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsVerticalDropdownOpen((prev) => !prev)}
+                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 hover:bg-white flex items-center justify-between font-bold text-slate-800"
+              >
+                <span className="truncate">
+                  {currentVerticalObj ? currentVerticalObj.name : businessType}
+                </span>
+                <Layers className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+              </button>
+
+              {isVerticalDropdownOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 space-y-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={verticalSearch}
+                      onChange={(e) => setVerticalSearch(e.target.value)}
+                      placeholder="Buscar o crear giro..."
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                    {filteredVerticals.map((vert) => (
+                      <button
+                        key={vert.id}
+                        type="button"
+                        onClick={() => {
+                          setBusinessType(vert.slug);
+                          setIsVerticalDropdownOpen(false);
+                        }}
+                        className={`w-full px-2.5 py-1.5 text-left text-xs rounded-lg flex items-center justify-between ${
+                          businessType === vert.slug
+                            ? 'bg-blue-50 text-blue-800 font-extrabold'
+                            : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span>{vert.name}</span>
+                        {businessType === vert.slug && (
+                          <Check className="w-3.5 h-3.5 text-blue-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {verticalSearch.trim().length > 1 && !exactVerticalMatch && (
+                    <button
+                      type="button"
+                      disabled={isCreatingVertical}
+                      onClick={handleCreateNewVertical}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center justify-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Dar de alta giro "{verticalSearch.trim()}"</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Sucursal *
+                Nombre de Sucursal *
               </label>
               <input
                 type="text"
@@ -318,7 +557,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 value={branchName}
                 onChange={(e) => handleBranchChange(e.target.value)}
                 placeholder="Ej. Sucursal Centro o Norte"
-                className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
+                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-bold"
               />
             </div>
           </div>
@@ -334,7 +573,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="ej: tacos-pastorcito-centro"
-                className="w-full p-3 text-sm font-mono rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
+                className="w-full p-2.5 text-xs font-mono rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
             </div>
 
@@ -348,77 +587,85 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 value={googleReviewUrl}
                 onChange={(e) => handleReviewUrlChange(e.target.value)}
                 placeholder="https://g.page/r/.../review o link de Google Maps"
-                className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white"
+                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Pega aquí el enlace de <strong>Pedir opiniones</strong> (<code className="text-blue-600 font-mono">g.page/r/...</code>) o el enlace de Google Maps.
-              </p>
             </div>
           </div>
 
-          {/* Selección de Paquete (Tier) */}
+          {/* Selección de Paquete (Tier 1 a 4) */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
               Paquete Contratado (Nivel de Servicio)
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {([1, 2, 3] as const).map((tNum) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([1, 2, 3, 4] as TierType[]).map((tNum) => (
                 <div
                   key={tNum}
                   onClick={() => setTier(tNum)}
-                  className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
+                  className={`cursor-pointer p-3.5 rounded-2xl border-2 transition-all ${
                     tier === tNum
-                      ? 'border-blue-600 bg-blue-50/50 shadow-sm'
+                      ? 'border-blue-600 bg-blue-50/50 shadow-2xs'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs text-slate-900">{TIERS[tNum].name}</span>
                     {tier === tNum && <Check className="w-4 h-4 text-blue-600" />}
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">{TIERS[tNum].description}</p>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    {TIERS[tNum].description}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Opciones de monetización y diseño */}
+          {/* Opciones de monetización (Switch de Anuncios), Color y Teléfono */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Modalidad Ad-Free (Sin Anuncios)
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Modalidad de Anuncios
               </label>
-              <label className="flex items-center gap-2 cursor-pointer mt-2">
-                <input
-                  type="checkbox"
-                  checked={isAdFree}
-                  onChange={(e) => setIsAdFree(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-800 font-semibold">
-                  {isAdFree ? 'Pagó por quitar anuncios' : 'Mostrar publicidad local'}
+              <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-xs font-bold text-slate-800">
+                  {isAdFree ? 'Marca Blanca (Ad-Free)' : 'Red de Anuncios'}
                 </span>
-              </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isAdFree}
+                  onClick={() => setIsAdFree((prev) => !prev)}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    isAdFree ? 'bg-emerald-600' : 'bg-blue-600'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                      isAdFree ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Color de Marca
               </label>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2">
                 <input
                   type="color"
                   value={brandColor}
                   onChange={(e) => setBrandColor(e.target.value)}
-                  className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                  className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
                 />
                 <span className="text-xs font-mono text-slate-600">{brandColor}</span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Teléfono del Gerente (Alertas)
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Teléfono de la Sucursal
               </label>
               <input
                 type="tel"
@@ -430,25 +677,25 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
           </div>
 
-          {/* Logo y dirección */}
+          {/* Logo y dirección física */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                URL del Logo o Imagen de Portada
+                URL del Logo de Marca
               </label>
               <input
                 type="url"
-                value={logoUrl}
+                value={logoUrl.startsWith('data:') ? '' : logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
                 placeholder="https://ejemplo.com/logo.png"
-                className="w-full p-3 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Dirección Física
+                  Dirección Física de la Sucursal
                 </label>
                 {googleReviewUrl && (
                   <a
@@ -456,7 +703,6 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-medium"
-                    title="Abrir ficha en Google Maps para copiar la dirección exacta"
                   >
                     <span>Ver en Google Maps</span>
                     <ExternalLink className="w-3 h-3" />
@@ -468,23 +714,22 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Av. Hidalgo #120, Col. Centro"
-                className="w-full p-3 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Copia la dirección que figura en la tarjeta de Google Maps de tu cliente para que coincida exactamente con su GPS.
-              </p>
             </div>
           </div>
 
-          {/* Sección de Linktree para Tier 3 */}
-          {tier === 3 && (
+          {/* Sección de Linktree para Tier 3 o superior */}
+          {tier >= 3 && (
             <div className="pt-3 border-t border-slate-200">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                     Botones de Linktree (Menú, Redes, Wi-Fi)
                   </h4>
-                  <p className="text-[11px] text-slate-500">Aparecerán debajo del widget de estrellas</p>
+                  <p className="text-[11px] text-slate-500">
+                    Aparecerán debajo del widget de estrellas
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -516,14 +761,14 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                           onChange={(e) => updateLink(idx, 'icon', e.target.value as LinkType)}
                           className="w-full sm:w-auto p-2 text-xs rounded-lg border border-slate-200 bg-white font-medium"
                         >
-                          <option value="wifi">📶 Wi-Fi Clientes</option>
-                          <option value="menu">🍽️ Menú Digital</option>
-                          <option value="instagram">📸 Instagram</option>
-                          <option value="facebook">👍 Facebook</option>
-                          <option value="tiktok">🎵 TikTok</option>
-                          <option value="whatsapp">💬 WhatsApp</option>
-                          <option value="website">🌐 Sitio Web</option>
-                          <option value="other">🔗 Otro</option>
+                          <option value="wifi">Wi-Fi Clientes</option>
+                          <option value="menu">Menú Digital</option>
+                          <option value="instagram">Instagram</option>
+                          <option value="facebook">Facebook</option>
+                          <option value="tiktok">TikTok</option>
+                          <option value="whatsapp">WhatsApp</option>
+                          <option value="website">Sitio Web</option>
+                          <option value="other">Otro Enlace</option>
                         </select>
 
                         <input
@@ -554,7 +799,6 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                         </button>
                       </div>
 
-                      {/* Si es Wi-Fi, mostrar inputs sencillos de Red y Contraseña */}
                       {isWifi && (
                         <div className="mt-2.5 pt-2.5 border-t border-blue-100 space-y-2">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -564,13 +808,16 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                               </label>
                               <input
                                 type="text"
-                                placeholder="Ej: CafeClientes o TacosMike_WiFi"
+                                placeholder="Ej: CafeClientes"
                                 value={wifiData.ssid}
                                 onChange={(e) => {
-                                  const newWifiStr = buildWifiString(e.target.value, wifiData.pass);
+                                  const newWifiStr = buildWifiString(
+                                    e.target.value,
+                                    wifiData.pass
+                                  );
                                   updateLink(idx, 'url', newWifiStr);
                                 }}
-                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white focus:border-blue-500"
+                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white"
                               />
                             </div>
 
@@ -580,20 +827,23 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
                               </label>
                               <input
                                 type="text"
-                                placeholder="Ej: cafe1234 (o dejar vacío si es abierta)"
+                                placeholder="Ej: cafe1234"
                                 value={wifiData.pass}
                                 onChange={(e) => {
-                                  const newWifiStr = buildWifiString(wifiData.ssid, e.target.value);
+                                  const newWifiStr = buildWifiString(
+                                    wifiData.ssid,
+                                    e.target.value
+                                  );
                                   updateLink(idx, 'url', newWifiStr);
                                 }}
-                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white focus:border-blue-500"
+                                className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white"
                               />
                             </div>
                           </div>
                           <p className="text-[11px] text-blue-700 flex items-center gap-1.5">
                             <Wifi className="w-3.5 h-3.5 flex-shrink-0" />
                             <span>
-                              El sistema genera automáticamente el código para que los comensales copien la clave con un toque o se conecten al escanear.
+                              Genera automáticamente el código para que los clientes copien la clave con un toque.
                             </span>
                           </p>
                         </div>
@@ -605,7 +855,6 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
           )}
 
-          {/* Botones de acción */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <button
               type="button"
@@ -619,7 +868,11 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
               disabled={isSaving}
               className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSaving ? 'Guardando...' : restaurant ? 'Actualizar Local' : 'Guardar y Activar'}
+              {isSaving
+                ? 'Guardando...'
+                : restaurant
+                ? 'Actualizar Sucursal'
+                : 'Guardar y Activar Sucursal'}
             </button>
           </div>
         </form>
@@ -635,6 +888,12 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             if (onOrganizationCreated) {
               onOrganizationCreated(newOrg);
             }
+          }}
+          onBrandCreated={(newBrand) => {
+            setAllBrands((prev) => [...prev, newBrand]);
+            setBrandId(newBrand.id);
+            setBrandName(newBrand.name);
+            setBusinessType(newBrand.vertical_slug);
           }}
         />
       )}

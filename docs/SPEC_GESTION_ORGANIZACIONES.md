@@ -1,135 +1,62 @@
 ---
 id: SPEC-005
-titulo: Gestión de Organizaciones y Onboarding de Clientes en Superadmin
+titulo: Gestión de Organizaciones, Marcas Multigiro y Sucursales en Superadmin
 categoria: especificacion
-estado: preaprobado
+estado: implementado
 fecha_creacion: 2026-10-29
 autores: [Mickey, Antigravity]
-tags: [admin, superadmin, organizaciones, multi-tenant, onboarding, credenciales]
+tags: [admin, superadmin, organizaciones, marcas, giros, sucursales, multi-tenant]
 ---
 
-# 🏢 SPEC-005: Gestión de Organizaciones y Onboarding de Clientes en Superadmin
+# SPEC-005: Gestión de Organizaciones, Marcas Multigiro y Sucursales en Superadmin
 
-## 1. Resumen Ejecutivo & Contexto
+## 1. Resumen Ejecutivo & Arquitectura de 3 Niveles de Alta
 
-En la versión inicial de la plataforma, la tabla `organizations` funcionaba como el ancla multi-tenant del sistema, pero su registro dependía exclusivamente de inserciones directas por base de datos (`supabase/seed.sql`) o datos de prueba en memoria (`Carlos Mendoza - Grupo Gastronómico Gourmet`). 
+El sistema estructura las cuentas de clientes bajo una jerarquía corporativa de 3 entidades encadenadas que permite que una misma organización opere múltiples marcas comerciales de distintos giros y múltiples sucursales supeditadas a cada marca:
 
-Este documento formaliza la especificación técnica y de experiencia de usuario (UX) para permitir al **Superadministrador** crear, asignar y gestionar organizaciones y cuentas de clientes directamente desde la interfaz gráfica de usuario (UI), eliminando cualquier dependencia de datos mock o intervención manual en base de datos.
+1. **Organización (`public.organizations`)**: Base legal, fiscal (`billing_info` CFDI 4.0) y datos del dueño titular (`owner_name`, `owner_email`, `owner_phone`).
+2. **Marca Comercial (`public.organization_brands`)**: Cada organización cuenta con su propio catálogo de marcas comerciales. Cada marca almacena su logotipo en formato cuadrado predeterminado (`256×256 px` 1:1) y se vincula al catálogo universal de giros comerciales (`public.business_verticals`).
+3. **Sucursal Física (`public.restaurants`)**: Toda sucursal está supeditada a una marca comercial (`brand_id`), heredando su identidad visual y su giro operativo, y definiendo su enlace de reseñas de Google, paquete contratado (`Tier 1` a `4`), switch de modalidad de anuncios (`Marca Blanca Ad-Free` vs `Red de Anuncios`), teléfono de sucursal y dirección física.
 
 ```mermaid
 flowchart TD
-    A["👑 Superadmin en Panel de Control"] --> B{"¿Qué acción realiza?"}
-    
-    B -->|"Dar de alta sucursal"| C["Modal Alta de Sucursal<br/>(RestaurantFormModal)"]
-    C --> C1["Dropdown 'Cliente / Organización'<br/>con opción '+ Nuevo Cliente'"]
-    C1 --> C2["Crea Organización y asocia Sucursal"]
-    
-    B -->|"Gestionar accesos de clientes"| D["Modal Accesos al Portal<br/>(OrganizationUserModal)"]
-    D --> D1["Botón '+ Nueva Organización'<br/>junto al selector"]
-    D1 --> D2["Formulario Rápido de Empresa & Dueño"]
-    D2 --> D3["Auto-selecciona Organización recién creada"]
-    D3 --> D4["Genera Credenciales de Acceso (Supabase Auth)"]
-    D4 --> D5["Copia mensaje listo para WhatsApp"]
+    A["Superadmin en /admin/restaurants"] --> B["Botón: Dar de Alta Organización"]
+    B --> P1["Paso 1: Dar de Alta Organización<br/>(Datos Generales del Dueño + Datos Fiscales CFDI 4.0)"]
+    P1 --> P2["Paso 2: Añadir Marca Comercial<br/>(Logo Cuadrado 1:1 + Buscador Universal de Giros)"]
+    P2 -->|"Si el giro no existe"| G1["Botón: + Dar de alta giro en public.business_verticals"]
+    G1 --> P2
+    P2 --> P3["Paso 3: Añadir Sucursal Supeditada a la Marca<br/>(Link Google Reviews + Tier + Switch Anuncios + Teléfono y Dirección)"]
 ```
 
 ---
 
-## 2. Diagnóstico del Vacío Funcional Actual
+## 2. Tablas de Base de Datos (Supabase PostgreSQL)
 
-| Componente | Comportamiento Actual (Limitación) | Comportamiento Especificado (Solución) |
-| :--- | :--- | :--- |
-| **`src/lib/api.ts`** | Solo existen `getOrganizations()` y `updateOrganization()`. No hay método de creación. | Implementar `createOrganization(data)` con soporte para Supabase y fallback en `localStorage`. |
-| **`RestaurantFormModal.tsx`** | Asigna silenciosamente `organizations[0]` al crear un restaurante. El campo no es visible. | Exponer selector visible de Organización con botón integrado para registrar un nuevo grupo gastronómico al vuelo. |
-| **`OrganizationUserModal.tsx`** | Selector dropdown estático con datos demo; si no hay organizaciones en BD, solo muestra a Carlos Mendoza. | Agregar botón **`+ Nueva Organización`** que abre sub-modal de creación y auto-selecciona el nuevo registro. |
-| **Navegación Admin** | No hay vista centralizada de clientes/empresas en el menú lateral. | Incorporar vista **`/admin/clientes`** con métricas de sucursales activas, tags y contacto directo. |
+### 2.1. Catálogo Universal de Giros (`public.business_verticals`)
+Funciona de forma universal en todo el sistema y se sincroniza en tiempo real con todos los desplegables de marcas y sucursales:
+* `id` (`UUID PRIMARY KEY`)
+* `slug` (`TEXT UNIQUE NOT NULL`)
+* `name` (`TEXT NOT NULL`) — Ej. `Gastronomía / Restaurante`, `Barbería & Peluquería`, `Clínica / Consultorio Dental`
+* `unit_label` / `unit_plural` (`TEXT`) — Ej. `Mesa / Mesas`, `Sillón / Sillones`, `Consultorio / Consultorios`
+* `show_kds` (`BOOLEAN`), `show_floor_staff` (`BOOLEAN`), `show_hostess` (`BOOLEAN`)
 
----
+### 2.2. Tabla de Marcas por Organización (`public.organization_brands`)
+* `id` (`UUID PRIMARY KEY`)
+* `organization_id` (`UUID REFERENCES public.organizations(id) ON DELETE CASCADE`)
+* `name` (`TEXT NOT NULL`)
+* `vertical_id` (`UUID REFERENCES public.business_verticals(id)`)
+* `vertical_slug` (`TEXT NOT NULL`)
+* `logo_url` (`TEXT`) — Imagen normalizada en formato cuadrado estándar `256×256 px`
+* `brand_color` (`TEXT DEFAULT '#2563eb'`)
 
-## 3. Modelo de Datos & Requisitos de API
-
-### 3.1. Esquema de la Entidad `Organization`
-La entidad en PostgreSQL (`supabase/schema.sql`) se gestionará con la siguiente interfaz TypeScript:
-
-```typescript
-export interface Organization {
-  id: string;
-  name: string;                         // Ej: "Grupo Gastronómico Sonora"
-  owner_name: string;                   // Ej: "Alberto Gómez"
-  owner_email: string;                  // Ej: "alberto@sonoragrill.com"
-  owner_phone?: string | null;          // Ej: "+525512345678"
-  notify_negative_feedback: boolean;   // Notificación inmediata de 1-3 estrellas
-  billing_info?: Record<string, any>;   // JSONB: Razón social, RFC, régimen, plan
-  created_at: string;
-}
-```
-
-### 3.2. Contrato de API Requerido (`api.createOrganization`)
-```typescript
-async createOrganization(
-  data: Omit<Organization, 'id' | 'created_at'>
-): Promise<{ success: boolean; data?: Organization; error?: string }>
-```
-
-* **Flujo con Supabase Conectado:**
-  1. Ejecuta `INSERT INTO organizations (...) VALUES (...) RETURNING *`.
-  2. Valida RLS: Requiere rol `superadmin` mediante la función `is_superadmin()`.
-  3. Devuelve el objeto `Organization` creado con su `id` UUID asignado.
-* **Flujo Modo Demo / Local:**
-  1. Genera un ID con prefijo `org-` + timestamp.
-  2. Inserta el registro al inicio del array en `localStorage.getItem('nfc_demo_organizations')`.
-  3. Retorna inmediatamente para permitir pruebas en vivo sin conexión.
+### 2.3. Supeditación de Sucursales a Marcas (`public.restaurants`)
+* `brand_id` (`UUID REFERENCES public.organization_brands(id) ON DELETE SET NULL`)
+* `business_type` (`TEXT NOT NULL DEFAULT 'restaurant'`)
 
 ---
 
-## 4. Especificación de Pantallas y Componentes
+## 3. Componentes Implementados
 
-### 4.1. Modal de Creación Rápida (`NewOrganizationModal.tsx`)
-Un modal limpio, enfocado y accesible que solicita los datos fundamentales del cliente:
-
-* **Campos del Formulario:**
-  * **Nombre de la Empresa / Grupo:** (Obligatorio, ej: *Taquerías El Pastorcito*).
-  * **Nombre del Dueño / Representante:** (Obligatorio, ej: *Mauricio Arteaga*).
-  * **Correo Electrónico:** (Obligatorio, validación de sintaxis email).
-  * **Teléfono WhatsApp:** (Opcional, formato internacional `+52...` para notificaciones y envío de accesos).
-* **Comportamiento post-guardado:**
-  * Cierra el modal de creación.
-  * Dispara evento `onCreated(newOrg)` para actualizar la lista del componente padre.
-  * Selecciona automáticamente la nueva organización en el dropdown activo.
-
-### 4.2. Mejoras al Modal de Accesos (`OrganizationUserModal.tsx`)
-1. **Cabecera de Selección:**
-   * La etiqueta pasa a ser: `CLIENTE / ORGANIZACIÓN`.
-   * A la derecha de la etiqueta se añade un botón secundario compacto: `+ Nueva Empresa`.
-2. **Generador de Credenciales:**
-   * Permite asociar múltiples usuarios (con rol `owner` o `manager`) a la misma organización.
-   * El botón "Copiar WhatsApp" incluye variables dinámicas con el nombre real del dueño:
-     ```text
-     ¡Hola [owner_name]! 👋
-     Ya tienes acceso a tu Portal de Negocio para gestionar tus sucursales y quejas:
-     
-     🔗 Entra aquí: https://[dominio]/#/portal/login
-     ✉️ Correo: [email]
-     🔑 Contraseña temporal: [password]
-     ```
-
-### 4.3. Selector en Alta de Sucursal (`RestaurantFormModal.tsx`)
-* En la primera sección de datos generales, se añade:
-  * Etiqueta: `Asignar a Grupo Gastronómico / Cliente *`.
-  * Control: Select que lista todas las organizaciones existentes ordenadas alfabéticamente.
-  * Acción rápida: Botón inline para crear una nueva organización si el cliente aún no existe en el sistema.
-
----
-
-## 5. Próxima Etapa: Vista de Gestión Centralizada (`/admin/clientes`)
-
-Para escalar la administración cuando existan más de 10 clientes registrados, se implementará la ruta `/admin/clientes` con las siguientes capacidades:
-* **Métricas por Cliente:** Total de sucursales, total de placas NFC asignadas, promedio de satisfacción (estrellas Google).
-* **Acciones Rápidas:** Botón directo para "Generar Accesos", "Ver Sucursales del Grupo" y "Editar Datos de Contacto/Facturación".
-
----
-
-## 6. Estado de Aprobación & Próximos Pasos
-
-* **Estado:** `PREAPROBADO` (Aprobado formalmente por Mickey con retroalimentación continua abierta).
-* **Siguiente paso:** Proceder a la implementación en código una vez que el usuario dé luz verde para iniciar la codificación.
-
+* [`NewOrganizationModal.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/components/admin/NewOrganizationModal.tsx): Asistente guiado de 3 pasos (`1. Organización & Fiscal` -> `2. Añadir Marca & Giro` -> `3. Añadir Sucursal`) con recorte automático de logo en `<canvas>` `256×256 px` y desplegable de giros con buscador y botón **`+ Dar de alta giro`**.
+* [`RestaurantFormModal.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/components/admin/RestaurantFormModal.tsx): Selector de organización y marca registrada, buscador universal de giros y switch interactivo para la modalidad de anuncios.
+* [`AdminRestaurantsPage.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/pages/AdminRestaurantsPage.tsx) y [`restaurants_bento.ts`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/lib/restaurants_bento.ts): Botón superior **`Dar de Alta Organización`** y tabla jerárquica en árbol con niveles `Organización Matriz -> Marca Comercial -> Sucursal Física -> Panel de Control Operativo`.
