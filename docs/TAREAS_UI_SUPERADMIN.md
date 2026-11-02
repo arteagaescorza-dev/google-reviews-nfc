@@ -54,7 +54,7 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 ### Modulos Existentes en Bento Light (Alineacion de Navegacion)
 | ID | Modulo Existente | Adaptacion Bento Light | Ruta Actual | Estado |
 | :--- | :--- | :--- | :--- | :--- |
-| **UI-EX-01** | **Directorio Jerárquico en Árbol (3 Niveles)** | Árbol Bento de 3 niveles (Empresa Matriz -> Sucursales Físicas -> Hardware NFC en Mesa) con visibilidad para organizaciones con 0 sucursales, KPIs superiores, buscador reactivo y accesos directos. | `/admin/restaurants` | `Implementada y Verificada` |
+| **UI-EX-01** | **Directorio Jerárquico en Árbol por Filas (Tree Table 3 Niveles)** | Formato tabular en filas de 3 niveles jerárquicos (Nivel 1: Empresa Matriz -> Nivel 2: Sucursales Físicas -> Nivel 3: Hardware NFC en Mesa) con soporte directo para empresas con 0 sucursales, KPIs superiores, buscador reactivo y accesos directos. | `/admin/restaurants` | `Implementada y Verificada` |
 | **UI-EX-02** | **Tags NFC y QR** | Lista y cuadricula Bento de placas con indicador de lote fisico, mesa asignada y volumen de escaneos. | `/admin/tags` | `Alineada` |
 | **UI-EX-03** | **Red de Anuncios** | Auditoria visual de banners, anunciantes locales activos y distribucion de cupones. | `/admin/ads` | `Pendiente Bento v2` |
 | **UI-EX-04** | **Cobertura Territorial** | Mapa interactivo de zonas de cobertura metropolitana y densidad de colocacion de placas. | `/admin/cobertura` | `Alineada` |
