@@ -156,4 +156,59 @@ describe('UI-EX-01: Sucursales & Restaurantes en Bento Grid Light', () => {
     expect(tree.organizations[0].organization.name).toBe('Berman y pizzs');
     expect(tree.independentBranches.length).toBe(0);
   });
+
+  it('debe habilitar categorías de KDS y Meseros únicamente en sucursales donde aplique por giro', () => {
+    const mixedRestaurants: Restaurant[] = [
+      {
+        ...mockRestaurants[0],
+        id: 'res-gastro',
+        business_type: 'restaurant',
+      },
+      {
+        ...mockRestaurants[1],
+        id: 'res-dental',
+        business_type: 'dental',
+      },
+    ];
+
+    const tree = buildOrganizationTree(
+      mockOrganizations,
+      mixedRestaurants,
+      mockTags,
+      '',
+      'all',
+      'all',
+      [
+        {
+          id: 'st-1',
+          restaurant_id: 'res-1',
+          name: 'Marco Antonio',
+          role: 'waiter',
+          pin_code: '1234',
+          is_active: true,
+          created_at: '',
+        },
+      ],
+      {
+        'res-gastro': { postres: true },
+      }
+    );
+
+    const org1 = tree.organizations.find((o) => o.organization.id === 'org-1');
+    const gastroBranch = org1?.branches.find((b) => b.restaurant.id === 'res-gastro');
+    const dentalBranch = org1?.branches.find((b) => b.restaurant.id === 'res-dental');
+
+    // Giro Restaurante: KDS y Meseros activos
+    expect(gastroBranch?.capabilities.supportsKds).toBe(true);
+    expect(gastroBranch?.capabilities.supportsFloorStaff).toBe(true);
+    expect(gastroBranch?.kdsStations.length).toBe(5);
+    expect(gastroBranch?.kdsStations.find((s) => s.id === 'postres')?.isActive).toBe(true);
+    expect(gastroBranch?.staff.length).toBe(1);
+
+    // Giro Clínica Dental: KDS y Meseros no aplican
+    expect(dentalBranch?.capabilities.supportsKds).toBe(false);
+    expect(dentalBranch?.capabilities.supportsFloorStaff).toBe(false);
+    expect(dentalBranch?.kdsStations.length).toBe(0);
+    expect(dentalBranch?.staff.length).toBe(0);
+  });
 });

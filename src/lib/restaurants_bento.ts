@@ -1,4 +1,4 @@
-import type { Restaurant, Tag, Organization } from '../types';
+import { VERTICAL_CONFIG, type Restaurant, type Tag, type Organization, type StaffMember, type BusinessType } from '../types';
 
 export interface RestaurantKpiMetrics {
   totalBranches: number;
@@ -16,9 +16,29 @@ export interface RestaurantKpiMetrics {
   };
 }
 
+export interface KdsStationConfig {
+  id: 'all' | 'cocina' | 'barra' | 'postres' | 'turnero';
+  name: string;
+  description: string;
+  url: string;
+  isActive: boolean;
+}
+
+export interface BranchControlCapabilities {
+  businessType: BusinessType;
+  verticalLabel: string;
+  unitLabel: string;
+  unitPlural: string;
+  supportsKds: boolean;
+  supportsFloorStaff: boolean;
+}
+
 export interface BranchNode {
   restaurant: Restaurant;
   tags: Tag[];
+  staff: StaffMember[];
+  capabilities: BranchControlCapabilities;
+  kdsStations: KdsStationConfig[];
 }
 
 export interface OrganizationNode {
@@ -36,6 +56,85 @@ export interface TreeViewData {
     totalBranches: number;
     totalTags: number;
   };
+}
+
+/**
+ * Determina las capacidades operativas que aplican a una sucursal según su giro (VERTICAL_CONFIG)
+ */
+export function getBranchCapabilities(restaurant: Restaurant): BranchControlCapabilities {
+  const businessType: BusinessType = restaurant.business_type || 'restaurant';
+  const cfg = VERTICAL_CONFIG[businessType] || VERTICAL_CONFIG.restaurant;
+
+  const verticalNames: Record<BusinessType, string> = {
+    restaurant: 'Gastronomía / Restaurante',
+    gym: 'Gimnasio / Fitness',
+    dental: 'Clínica Dental',
+    spa: 'Spa & Bienestar',
+    general: 'Comercio General',
+  };
+
+  return {
+    businessType,
+    verticalLabel: verticalNames[businessType] || 'Gastronomía / Restaurante',
+    unitLabel: cfg.unitLabel,
+    unitPlural: cfg.unitPlural,
+    supportsKds: cfg.showKds,
+    supportsFloorStaff: cfg.showFloorStaff,
+  };
+}
+
+/**
+ * Construye la configuración de estaciones de pantalla de cocina (KDS) para una sucursal
+ */
+export function getDefaultKdsStations(
+  restaurantId: string,
+  overrides: Record<string, boolean> = {}
+): KdsStationConfig[] {
+  const stations: Omit<KdsStationConfig, 'isActive'>[] = [
+    {
+      id: 'all',
+      name: 'Monitor Maestro KDS (General)',
+      description: 'Todas las comandas de mesas en tiempo real con alerta SLA 15 min',
+      url: `#/portal/cocina?station=all&branch=${restaurantId}`,
+    },
+    {
+      id: 'cocina',
+      name: 'Estación Cocina Caliente',
+      description: 'Filtra únicamente entradas y platos fuertes al grill/horno',
+      url: `#/portal/cocina?station=cocina&branch=${restaurantId}`,
+    },
+    {
+      id: 'barra',
+      name: 'Estación Barra & Coctelería',
+      description: 'Filtra bebidas, vinos, cervezas y mixología',
+      url: `#/portal/cocina?station=barra&branch=${restaurantId}`,
+    },
+    {
+      id: 'postres',
+      name: 'Estación Repostería & Café',
+      description: 'Filtra postres, digestivos y cafetería',
+      url: `#/portal/cocina?station=postres&branch=${restaurantId}`,
+    },
+    {
+      id: 'turnero',
+      name: 'Turnero Público 4K (Food Court)',
+      description: 'Pantalla para comensales con estado En Preparación / Listo para Recoger',
+      url: `#/turnero-plaza?branch=${restaurantId}`,
+    },
+  ];
+
+  const defaultActive: Record<string, boolean> = {
+    all: true,
+    cocina: true,
+    barra: true,
+    postres: false,
+    turnero: false,
+  };
+
+  return stations.map((st) => ({
+    ...st,
+    isActive: overrides[st.id] !== undefined ? overrides[st.id] : defaultActive[st.id],
+  }));
 }
 
 /**
@@ -125,7 +224,7 @@ export function filterRestaurants(
  * Construye la estructura jerárquica en Árbol de 3 Niveles:
  * Nivel 1: Organización (Empresa Matriz / Corporativo)
  * Nivel 2: Sucursales (Locales Físicos con dirección y menús)
- * Nivel 3: Placas NFC en Mesa (Hardware físico con folios y escaneos)
+ * Nivel 3: Panel de Control de Sucursal por Categorías (Módulos, Placas NFC, Pantallas KDS, Pantallas de Meseros)
  */
 export function buildOrganizationTree(
   organizations: Organization[],
@@ -133,7 +232,9 @@ export function buildOrganizationTree(
   tags: Tag[],
   searchQuery: string = '',
   selectedOrgFilter: string = 'all',
-  selectedTierFilter: string = 'all'
+  selectedTierFilter: string = 'all',
+  staffMembers: StaffMember[] = [],
+  kdsStateByBranch: Record<string, Record<string, boolean>> = {}
 ): TreeViewData {
   // Mapa de tags agrupados por restaurant_id
   const tagsByRestaurant: Record<string, Tag[]> = {};
@@ -143,6 +244,20 @@ export function buildOrganizationTree(
         tagsByRestaurant[tag.restaurant_id] = [];
       }
       tagsByRestaurant[tag.restaurant_id].push(tag);
+    }
+  });
+
+  // Mapa de personal operativo agrupado por restaurant_id
+  const staffByRestaurant: Record<string, StaffMember[]> = {};
+  const genericStaff: StaffMember[] = [];
+  staffMembers.forEach((member) => {
+    if (member.restaurant_id && member.restaurant_id !== 'res-1') {
+      if (!staffByRestaurant[member.restaurant_id]) {
+        staffByRestaurant[member.restaurant_id] = [];
+      }
+      staffByRestaurant[member.restaurant_id].push(member);
+    } else {
+      genericStaff.push(member);
     }
   });
 
@@ -161,9 +276,18 @@ export function buildOrganizationTree(
       if (selectedTierFilter === 'paused' && res.is_active !== false) return;
     }
 
+    const capabilities = getBranchCapabilities(res);
+    const branchStaff = staffByRestaurant[res.id] || (capabilities.supportsFloorStaff ? genericStaff : []);
+    const kdsStations = capabilities.supportsKds
+      ? getDefaultKdsStations(res.id, kdsStateByBranch[res.id] || {})
+      : [];
+
     const branchNode: BranchNode = {
       restaurant: res,
       tags: tagsByRestaurant[res.id] || [],
+      staff: branchStaff,
+      capabilities,
+      kdsStations,
     };
 
     if (res.organization_id) {
@@ -225,7 +349,11 @@ export function buildOrganizationTree(
               (t.table_identifier || '').toLowerCase().includes(cleanQuery)
           );
 
-          return matchBranch || matchTag;
+          const matchStaff = b.staff.some((s) =>
+            (s.name || '').toLowerCase().includes(cleanQuery)
+          );
+
+          return matchBranch || matchTag || matchStaff;
         });
 
         if (matchingBranches.length > 0) {

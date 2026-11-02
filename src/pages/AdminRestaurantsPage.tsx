@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../lib/api';
-import type { Restaurant, Organization, Tag } from '../types';
+import type { Restaurant, Organization, Tag, StaffMember } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
@@ -8,6 +8,7 @@ import { TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
   buildOrganizationTree,
+  type BranchNode,
 } from '../lib/restaurants_bento';
 import {
   Store,
@@ -27,14 +28,99 @@ import {
   ChevronRight,
   User,
   Mail,
+  ChefHat,
+  UserCheck,
+  Sliders,
+  Monitor,
+  Power,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const KDS_STORAGE_KEY = 'nfc_kds_stations_state_v1';
+const WAITER_TERM_STORAGE_KEY = 'nfc_waiter_terminal_state_v1';
+
+interface StatusBadgeAndSwitchProps {
+  isOn: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  labelOn?: string;
+  labelOff?: string;
+  title?: string;
+}
+
+const StatusBadgeAndSwitch: React.FC<StatusBadgeAndSwitchProps> = ({
+  isOn,
+  onToggle,
+  disabled = false,
+  labelOn = 'Prendido',
+  labelOff = 'Apagado',
+  title,
+}) => {
+  return (
+    <div className="inline-flex items-center gap-2.5">
+      {/* Badge de Estado Actual */}
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-colors ${
+          isOn
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-slate-100 text-slate-500 border-slate-200'
+        }`}
+      >
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            isOn ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+          }`}
+        />
+        <span>{isOn ? labelOn : labelOff}</span>
+      </span>
+
+      {/* Switch Interactivo Prendido / Apagado */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isOn}
+        disabled={disabled}
+        onClick={onToggle}
+        title={title || (isOn ? 'Cambiar a Apagado' : 'Cambiar a Prendido')}
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          disabled ? 'opacity-50 cursor-not-allowed' : ''
+        } ${isOn ? 'bg-emerald-600' : 'bg-slate-300'}`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+            isOn ? 'translate-x-4' : 'translate-x-0'
+          }`}
+        />
+      </button>
+    </div>
+  );
+};
 
 export const AdminRestaurantsPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Estado persistente de Pantallas KDS y Terminales de Meseros por sucursal
+  const [kdsStateByBranch, setKdsStateByBranch] = useState<Record<string, Record<string, boolean>>>(() => {
+    try {
+      const raw = localStorage.getItem(KDS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [waiterTerminalByBranch, setWaiterTerminalByBranch] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(WAITER_TERM_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Filtros de búsqueda y segmentación
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +129,7 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   // Estado de colapsado en el Árbol Tabular (Nivel 1 Organizaciones y Nivel 2 Sucursales)
   const [collapsedOrgs, setCollapsedOrgs] = useState<Record<string, boolean>>({});
-  const [expandedBranchTags, setExpandedBranchTags] = useState<Record<string, boolean>>({});
+  const [expandedBranchPanels, setExpandedBranchPanels] = useState<Record<string, boolean>>({});
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,14 +141,16 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [resList, orgList, tagList] = await Promise.all([
+    const [resList, orgList, tagList, staffList] = await Promise.all([
       api.getRestaurants(),
       api.getOrganizations(),
       api.getTags(),
+      api.getStaffMembers(),
     ]);
     setRestaurants(resList);
     setOrganizations(orgList);
     setTags(tagList);
+    setStaffMembers(staffList);
     setLoading(false);
   };
 
@@ -74,7 +162,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     return calculateRestaurantKpis(restaurants, tags);
   }, [restaurants, tags]);
 
-  // Construcción del Árbol Jerárquico en 3 Niveles
+  // Construcción del Árbol Jerárquico en 3 Niveles con Panel de Control por Sucursal
   const treeData = useMemo(() => {
     return buildOrganizationTree(
       organizations,
@@ -82,9 +170,20 @@ export const AdminRestaurantsPage: React.FC = () => {
       tags,
       searchQuery,
       selectedOrgFilter,
-      selectedTierFilter
+      selectedTierFilter,
+      staffMembers,
+      kdsStateByBranch
     );
-  }, [organizations, restaurants, tags, searchQuery, selectedOrgFilter, selectedTierFilter]);
+  }, [
+    organizations,
+    restaurants,
+    tags,
+    searchQuery,
+    selectedOrgFilter,
+    selectedTierFilter,
+    staffMembers,
+    kdsStateByBranch,
+  ]);
 
   const handleEdit = (r: Restaurant) => {
     setEditingRestaurant(r);
@@ -105,8 +204,8 @@ export const AdminRestaurantsPage: React.FC = () => {
     }));
   };
 
-  const toggleBranchTags = (restaurantId: string) => {
-    setExpandedBranchTags((prev) => ({
+  const toggleBranchPanel = (restaurantId: string) => {
+    setExpandedBranchPanels((prev) => ({
       ...prev,
       [restaurantId]: !prev[restaurantId],
     }));
@@ -118,7 +217,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     restaurants.forEach((r) => {
       branchMap[r.id] = true;
     });
-    setExpandedBranchTags(branchMap);
+    setExpandedBranchPanels(branchMap);
   };
 
   const handleCollapseAll = () => {
@@ -127,7 +226,401 @@ export const AdminRestaurantsPage: React.FC = () => {
       orgCollapseMap[o.id] = true;
     });
     setCollapsedOrgs(orgCollapseMap);
-    setExpandedBranchTags({});
+    setExpandedBranchPanels({});
+  };
+
+  // ==========================================
+  // Controladores de Switches Prendido / Apagado
+  // ==========================================
+
+  const handleToggleBranchActive = async (res: Restaurant) => {
+    const nextState = res.is_active === false;
+    setRestaurants((prev) =>
+      prev.map((item) => (item.id === res.id ? { ...item, is_active: nextState } : item))
+    );
+    await api.toggleRestaurantActive(res.id, nextState);
+  };
+
+  const handleToggleBranchAdFree = async (res: Restaurant) => {
+    const nextAdFree = !res.is_ad_free;
+    setRestaurants((prev) =>
+      prev.map((item) => (item.id === res.id ? { ...item, is_ad_free: nextAdFree } : item))
+    );
+    await api.saveRestaurant({ id: res.id, is_ad_free: nextAdFree });
+  };
+
+  const handleToggleTagActive = async (tag: Tag) => {
+    const nextActive = tag.is_active === false;
+    setTags((prev) =>
+      prev.map((item) => (item.id === tag.id ? { ...item, is_active: nextActive } : item))
+    );
+    await api.saveTag({ id: tag.id, is_active: nextActive });
+  };
+
+  const handleToggleKdsStation = (restaurantId: string, stationId: string, currentVal: boolean) => {
+    setKdsStateByBranch((prev) => {
+      const branchStations = prev[restaurantId] || {};
+      const updated = {
+        ...prev,
+        [restaurantId]: {
+          ...branchStations,
+          [stationId]: !currentVal,
+        },
+      };
+      try {
+        localStorage.setItem(KDS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return updated;
+    });
+  };
+
+  const handleToggleWaiterTerminal = (restaurantId: string, currentVal: boolean) => {
+    setWaiterTerminalByBranch((prev) => {
+      const updated = {
+        ...prev,
+        [restaurantId]: !currentVal,
+      };
+      try {
+        localStorage.setItem(WAITER_TERM_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return updated;
+    });
+  };
+
+  const handleToggleStaffActive = async (staff: StaffMember) => {
+    const nextActive = !staff.is_active;
+    setStaffMembers((prev) =>
+      prev.map((s) => (s.id === staff.id ? { ...s, is_active: nextActive } : s))
+    );
+    await api.toggleStaffMemberActive(staff.id, nextActive);
+  };
+
+  // ==========================================
+  // Renderizador del Panel de Control de Sucursal (Nivel 3 por Categorías)
+  // ==========================================
+  const renderBranchControlPanel = (branchNode: BranchNode) => {
+    const res = branchNode.restaurant;
+    const branchTags = branchNode.tags;
+    const { capabilities, kdsStations, staff } = branchNode;
+    const isBranchOn = res.is_active !== false;
+    const isWaiterTerminalOn =
+      waiterTerminalByBranch[res.id] !== undefined ? waiterTerminalByBranch[res.id] : true;
+
+    // Ordenar personal por categoría de rol: Meseros -> Cocina -> Capitán
+    const roleOrder: Record<string, number> = { waiter: 1, kitchen: 2, manager: 3 };
+    const sortedStaff = [...staff].sort(
+      (a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9)
+    );
+
+    const roleLabelMap: Record<string, string> = {
+      waiter: 'Mesero de Sala',
+      kitchen: 'Jefe de Cocina / KDS',
+      manager: 'Capitán / Gerente de Piso',
+    };
+
+    return (
+      <tr className="bg-slate-50/80 border-b-2 border-slate-200">
+        <td colSpan={5} className="p-0">
+          <div className="py-4 px-4 sm:px-8 lg:px-12 space-y-4">
+            {/* Cabecera del Panel de Control de la Sucursal */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                  <Sliders className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                      Panel de Control Operativo — {res.brand_name} ({res.branch_name})
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
+                      Giro: {capabilities.verticalLabel}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Controles ordenados por categoría con interruptores en tiempo real (solo se muestran las categorías que aplican a esta sucursal).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* CATEGORÍA 1: MÓDULOS Y SERVICIOS GENERALES DE LA SUCURSAL (Aplica a todas) */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Power className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                    Categoría 1: Servicios & Módulos de la Sucursal
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">2 controles aplicables</span>
+              </div>
+
+              <div className="divide-y divide-slate-100 text-xs">
+                {/* Fila 1.1: Estado Operativo General de la Sucursal */}
+                <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60">
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block">
+                      Servicio Interactivo en {capabilities.unitPlural} (Filtro Reputacional & Menú)
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Si se apaga, las placas NFC redirigen directo a Google Maps sin pasar por el filtro de quejas.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    <StatusBadgeAndSwitch
+                      isOn={isBranchOn}
+                      onToggle={() => handleToggleBranchActive(res)}
+                      title="Prender o apagar el servicio interactivo de la sucursal"
+                    />
+                  </div>
+                </div>
+
+                {/* Fila 1.2: Modalidad Marca Blanca Ad-Free */}
+                <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60">
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-900 block">
+                      Escudo Marca Blanca (Ad-Free • Sin Publicidad Cruzada)
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Prendido bloquea anuncios de terceros en las mesas; apagado permite pauta subsidiada de la red.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    <StatusBadgeAndSwitch
+                      isOn={Boolean(res.is_ad_free)}
+                      onToggle={() => handleToggleBranchAdFree(res)}
+                      title="Prender o apagar Marca Blanca sin anuncios"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CATEGORÍA 2: HARDWARE NFC & PLACAS EN MESA */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+              <div className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-3.5 h-3.5 text-purple-600" />
+                  <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider">
+                    Categoría 2: Hardware NFC & Placas en {capabilities.unitPlural}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-purple-700">
+                  {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} prendidas
+                </span>
+              </div>
+
+              {branchTags.length === 0 ? (
+                <div className="px-4 py-3 text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>No hay placas físicas asignadas a esta sucursal todavía.</span>
+                  <Link
+                    to={`/admin/tags?restaurant=${res.id}`}
+                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold hover:bg-purple-100"
+                  >
+                    + Asignar Placas NFC
+                  </Link>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 text-xs">
+                  {branchTags.map((tag) => {
+                    const isTagOn = tag.is_active !== false;
+                    return (
+                      <div
+                        key={tag.id}
+                        className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-purple-50/20"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-mono font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {tag.tag_code}
+                          </span>
+                          <span className="font-bold text-slate-700">
+                            {tag.table_identifier
+                              ? `${capabilities.unitLabel}: ${tag.table_identifier}`
+                              : `${capabilities.unitLabel} General`}
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            ({tag.scan_count || 0} escaneos acumulados)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <StatusBadgeAndSwitch
+                            isOn={isTagOn}
+                            onToggle={() => handleToggleTagActive(tag)}
+                            title={`Prender o apagar placa ${tag.tag_code}`}
+                          />
+
+                          <a
+                            href={`/?t=${tag.tag_code}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                              isTagOn
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                            }`}
+                          >
+                            <span>Probar ?t=</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* CATEGORÍA 3: PANTALLAS DE COCINA / KDS (Solo aplica si capabilities.supportsKds === true) */}
+            {capabilities.supportsKds && (
+              <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                <div className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ChefHat className="w-3.5 h-3.5 text-orange-600" />
+                    <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
+                      Categoría 3: Pantallas de Cocina Activas & Estaciones KDS
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-orange-700">
+                    {kdsStations.filter((s) => s.isActive).length} de {kdsStations.length} estaciones prendidas
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-xs">
+                  {kdsStations.map((station) => (
+                    <div
+                      key={station.id}
+                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-orange-50/20"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                          <span className="font-bold text-slate-900">{station.name}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 block pl-5">
+                          {station.description}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-center">
+                        <StatusBadgeAndSwitch
+                          isOn={station.isActive}
+                          onToggle={() =>
+                            handleToggleKdsStation(res.id, station.id, station.isActive)
+                          }
+                          title={`Prender o apagar ${station.name}`}
+                        />
+
+                        <a
+                          href={station.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                            station.isActive
+                              ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
+                              : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                          }`}
+                        >
+                          <span>Abrir KDS</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* CATEGORÍA 4: PANTALLAS DE MESEROS & PERSONAL CON PIN (Solo aplica si capabilities.supportsFloorStaff === true) */}
+            {capabilities.supportsFloorStaff && (
+              <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                <div className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
+                      Categoría 4: Pantallas de Meseros & Personal Operativo con PIN
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700">
+                    {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores prendidos
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-xs">
+                  {/* Fila Principal: Terminal Móvil General de Meseros */}
+                  <div className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/40 hover:bg-emerald-50/20">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <span className="font-extrabold text-slate-900">
+                          Terminal Móvil de Sala (Recepción de Llamadas de Mesa & Alertas)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block pl-5">
+                        Pantalla de piso para atender llamados de cuenta, platos listos de cocina y quejas 1-3 estrellas.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center">
+                      <StatusBadgeAndSwitch
+                        isOn={isWaiterTerminalOn}
+                        onToggle={() => handleToggleWaiterTerminal(res.id, isWaiterTerminalOn)}
+                        title="Prender o apagar la Terminal Móvil de Meseros de esta sucursal"
+                      />
+
+                      <a
+                        href={`#/portal/mesero?branch=${res.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                          isWaiterTerminalOn
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                        }`}
+                      >
+                        <span>Abrir Terminal</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Filas de Personal Operativo ordenadas por categoría de rol */}
+                  {sortedStaff.map((member) => (
+                    <div
+                      key={member.id}
+                      className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20"
+                    >
+                      <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                        <span className="font-bold text-slate-900">{member.name}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold">
+                          {roleLabelMap[member.role] || member.role}
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                          PIN: {member.pin_code}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-center">
+                        <StatusBadgeAndSwitch
+                          isOn={member.is_active}
+                          onToggle={() => handleToggleStaffActive(member)}
+                          title={`Prender o apagar acceso PIN de ${member.name}`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
   };
 
   return (
@@ -137,7 +630,7 @@ export const AdminRestaurantsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-              Capa 2: Directorio de Cuentas & Árbol de Clientes
+              Capa 2: Directorio de Cuentas & Panel de Control por Sucursal
             </span>
             <span className="text-xs text-slate-400 font-mono">POL-002</span>
           </div>
@@ -145,7 +638,7 @@ export const AdminRestaurantsPage: React.FC = () => {
             Directorio de Cuentas & Sucursales
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Estructura jerárquica en filas de 3 niveles: Empresa Matriz &rarr; Sucursal Física &rarr; Placas NFC en Mesa.
+            Estructura jerárquica en filas de 3 niveles: Empresa Matriz &rarr; Sucursal Física &rarr; Panel de Control por Categorías.
           </p>
         </div>
 
@@ -198,7 +691,7 @@ export const AdminRestaurantsPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-emerald-700">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{kpis.activeBranches} sucursales físicas activas</span>
+              <span>{kpis.activeBranches} sucursales físicas prendidas</span>
             </div>
           </div>
         </div>
@@ -274,7 +767,7 @@ export const AdminRestaurantsPage: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por empresa, dueño, sucursal, tag o teléfono..."
+            placeholder="Buscar por empresa, dueño, sucursal, mesero, tag o teléfono..."
             className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 transition-all"
           />
           {searchQuery && (
@@ -314,8 +807,8 @@ export const AdminRestaurantsPage: React.FC = () => {
             <option value="tier_3">Tier 3: Linktree de Marca</option>
             <option value="ad_free">Marca Blanca (Ad-Free)</option>
             <option value="with_ads">Red de Anuncios</option>
-            <option value="active">Solo Locales Activos</option>
-            <option value="paused">Solo Locales Pausados</option>
+            <option value="active">Solo Locales Prendidos</option>
+            <option value="paused">Solo Locales Apagados</option>
           </select>
 
           {/* Botones de Expansión del Árbol */}
@@ -323,7 +816,7 @@ export const AdminRestaurantsPage: React.FC = () => {
             <button
               onClick={handleExpandAll}
               className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-all"
-              title="Expandir todas las empresas, sucursales y placas"
+              title="Expandir todas las empresas, sucursales y paneles de control"
             >
               Expandir Todo
             </button>
@@ -341,7 +834,7 @@ export const AdminRestaurantsPage: React.FC = () => {
       {/* TABLA JERÁRQUICA EN FILAS (TREE TABLE - 3 NIVELES) */}
       {loading ? (
         <div className="p-16 text-center text-slate-400 text-sm bg-white rounded-3xl border border-slate-200">
-          Cargando estructura jerárquica de cuentas...
+          Cargando estructura jerárquica y paneles de control...
         </div>
       ) : treeData.organizations.length === 0 && treeData.independentBranches.length === 0 ? (
         <div className="p-16 bg-white rounded-3xl border border-slate-200 text-center">
@@ -363,11 +856,11 @@ export const AdminRestaurantsPage: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 min-w-[280px]">Entidad & Jerarquía</th>
-                  <th className="py-3.5 px-4 min-w-[220px]">Titular / Ubicación</th>
-                  <th className="py-3.5 px-4 min-w-[170px]">Paquete & Pauta</th>
-                  <th className="py-3.5 px-4 min-w-[150px]">Hardware NFC</th>
-                  <th className="py-3.5 px-4 min-w-[200px] text-right">Acciones Ejecutivas</th>
+                  <th className="py-3.5 px-4 min-w-[270px]">Entidad & Jerarquía</th>
+                  <th className="py-3.5 px-4 min-w-[210px]">Titular / Ubicación</th>
+                  <th className="py-3.5 px-4 min-w-[180px]">Estado & Interruptor</th>
+                  <th className="py-3.5 px-4 min-w-[190px]">Panel de Control (Nivel 3)</th>
+                  <th className="py-3.5 px-4 min-w-[190px] text-right">Acciones Ejecutivas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -436,18 +929,17 @@ export const AdminRestaurantsPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Col 3: Paquete y Estado Corporativo */}
+                        {/* Col 3: Resumen de Sucursales */}
                         <td className="py-3.5 px-4">
                           {node.branches.length === 0 ? (
                             <span className="px-2 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold inline-flex items-center gap-1">
                               <span>0 Sucursales Asignadas</span>
                             </span>
                           ) : (
-                            <div className="space-y-1">
-                              <span className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-bold inline-block">
-                                {node.branches.length} Sucursales Físicas
-                              </span>
-                            </div>
+                            <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-bold inline-block">
+                              {node.branches.filter((b) => b.restaurant.is_active !== false).length} de{' '}
+                              {node.branches.length} Sucursales Prendidas
+                            </span>
                           )}
                         </td>
 
@@ -498,7 +990,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                     Empresa matriz registrada sin locales comerciales activos.
                                   </span>
                                   <span className="text-[11px] text-amber-700 block">
-                                    Registra su primera sucursal para vincular su ficha de Google Reviews y asignar placas NFC a las mesas.
+                                    Registra su primera sucursal para habilitar su panel de control, KDS y placas NFC.
                                   </span>
                                 </div>
                               </div>
@@ -521,7 +1013,8 @@ export const AdminRestaurantsPage: React.FC = () => {
                           const res = branchNode.restaurant;
                           const branchTags = branchNode.tags;
                           const tierInfo = TIERS[res.tier || 2];
-                          const areTagsExpanded = !!expandedBranchTags[res.id];
+                          const isPanelExpanded = !!expandedBranchPanels[res.id];
+                          const isBranchOn = res.is_active !== false;
 
                           return (
                             <React.Fragment key={res.id}>
@@ -556,9 +1049,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           ({res.branch_name})
                                         </span>
                                       </div>
-                                      <span className="text-[10px] text-slate-400 font-semibold block">
-                                        Nivel 2: Sucursal Física
-                                      </span>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border ${tierInfo.badgeColor}`}>
+                                          {tierInfo.name}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-semibold">
+                                          • {branchNode.capabilities.verticalLabel}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </td>
@@ -593,44 +1091,39 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   </div>
                                 </td>
 
-                                {/* Col 3: Paquete y Modalidad Ad-Free */}
+                                {/* Col 3: Badge de Estado Actual + Switch Maestro de la Sucursal */}
                                 <td className="py-3 px-4">
-                                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
-                                    <span className={`px-2 py-0.5 rounded-lg border ${tierInfo.badgeColor}`}>
-                                      {tierInfo.name}
-                                    </span>
-                                    {res.is_ad_free ? (
-                                      <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                                        <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                                        <span>Ad-Free</span>
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-                                        Red Ads
-                                      </span>
-                                    )}
-                                    {res.is_active === false && (
-                                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
-                                        Pausado
-                                      </span>
-                                    )}
-                                  </div>
+                                  <StatusBadgeAndSwitch
+                                    isOn={isBranchOn}
+                                    onToggle={() => handleToggleBranchActive(res)}
+                                    title="Prender o apagar servicio general de esta sucursal"
+                                  />
                                 </td>
 
-                                {/* Col 4: Toggle de Placas NFC (Nivel 3) */}
+                                {/* Col 4: Botón Desplegable del Panel de Control de Sucursal (Nivel 3) */}
                                 <td className="py-3 px-4">
                                   <button
-                                    onClick={() => toggleBranchTags(res.id)}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors ${
-                                      areTagsExpanded
-                                        ? 'bg-purple-100 text-purple-900 border-purple-300'
-                                        : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                    onClick={() => toggleBranchPanel(res.id)}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                      isPanelExpanded
+                                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                                        : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
                                     }`}
-                                    title="Desplegar hardware NFC asignado en mesas"
+                                    title="Abrir Panel de Control por Categorías (Placas NFC, Pantallas KDS y Meseros)"
                                   >
-                                    <QrCode className="w-3.5 h-3.5 text-purple-600" />
-                                    <span>{branchTags.length} Placas en Mesa</span>
-                                    {areTagsExpanded ? (
+                                    <Sliders className="w-3.5 h-3.5" />
+                                    <span>Panel de Control</span>
+                                    <span
+                                      className={`px-1.5 py-0.2 rounded text-[10px] ${
+                                        isPanelExpanded
+                                          ? 'bg-white/20 text-white'
+                                          : 'bg-white text-slate-600 border border-slate-200'
+                                      }`}
+                                    >
+                                      {branchTags.length} Tags
+                                      {branchNode.capabilities.supportsKds ? ' • KDS' : ''}
+                                    </span>
+                                    {isPanelExpanded ? (
                                       <ChevronDown className="w-3.5 h-3.5" />
                                     ) : (
                                       <ChevronRight className="w-3.5 h-3.5" />
@@ -672,96 +1165,8 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 </td>
                               </tr>
 
-                              {/* Filas Nivel 3: Placas NFC en Mesa (Sub-filas de hardware) */}
-                              {areTagsExpanded && (
-                                <>
-                                  {branchTags.length === 0 ? (
-                                    <tr className="bg-purple-50/15 border-b border-purple-100/60">
-                                      <td colSpan={5} className="py-2.5 px-4 pl-16 sm:pl-20 text-[11px] text-slate-400 italic">
-                                        No hay placas asignadas a este local. Asigna códigos NFC desde el Activador In-Situ en{' '}
-                                        <Link
-                                          to={`/admin/tags?restaurant=${res.id}`}
-                                          className="text-blue-600 font-bold hover:underline"
-                                        >
-                                          /admin/tags
-                                        </Link>
-                                        .
-                                      </td>
-                                    </tr>
-                                  ) : (
-                                    branchTags.map((tag) => (
-                                      <tr
-                                        key={tag.id}
-                                        className="bg-purple-50/20 hover:bg-purple-50/40 border-b border-purple-100/50 transition-colors text-xs"
-                                      >
-                                        {/* Col 1: Indentación de Tag */}
-                                        <td className="py-2 px-4 pl-14 sm:pl-16">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-purple-300 font-mono text-xs select-none">└──</span>
-                                            <QrCode className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
-                                            <span className="font-mono font-bold text-slate-800">
-                                              {tag.tag_code}
-                                            </span>
-                                            <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[9px] font-bold">
-                                              Nivel 3: Hardware
-                                            </span>
-                                          </div>
-                                        </td>
-
-                                        {/* Col 2: Mesa asignada */}
-                                        <td className="py-2 px-4 text-slate-700 font-semibold text-[11px]">
-                                          {tag.table_identifier ? (
-                                            <span>Mesa: {tag.table_identifier}</span>
-                                          ) : (
-                                            <span className="text-slate-400 italic">Sin mesa especificada</span>
-                                          )}
-                                        </td>
-
-                                        {/* Col 3: Estado del chip */}
-                                        <td className="py-2 px-4 text-slate-500 text-[11px]">
-                                          {tag.is_active !== false ? (
-                                            <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                              <span>Activo en mesa</span>
-                                            </span>
-                                          ) : (
-                                            <span className="text-slate-400">Desactivado</span>
-                                          )}
-                                        </td>
-
-                                        {/* Col 4: Escaneos acumulados */}
-                                        <td className="py-2 px-4 text-slate-600 font-bold text-[11px]">
-                                          {tag.scan_count || 0} escaneos
-                                        </td>
-
-                                        {/* Col 5: Acción Probar */}
-                                        <td className="py-2 px-4 text-right">
-                                          <div className="flex items-center justify-end gap-2">
-                                            <a
-                                              href={`/?t=${tag.tag_code}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                                              title="Probar resolución del chip en navegador"
-                                            >
-                                              <span>Probar ?t=</span>
-                                              <ExternalLink className="w-2.5 h-2.5" />
-                                            </a>
-
-                                            <Link
-                                              to={`/admin/tags?restaurant=${res.id}`}
-                                              className="text-[10px] text-slate-400 hover:text-slate-600"
-                                              title="Ver en gestión de tags"
-                                            >
-                                              Configurar
-                                            </Link>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))
-                                  )}
-                                </>
-                              )}
+                              {/* Fila Nivel 3: Panel de Control de la Sucursal por Categorías */}
+                              {isPanelExpanded && renderBranchControlPanel(branchNode)}
                             </React.Fragment>
                           );
                         })}
@@ -791,36 +1196,45 @@ export const AdminRestaurantsPage: React.FC = () => {
                     {treeData.independentBranches.map((branchNode) => {
                       const res = branchNode.restaurant;
                       const branchTags = branchNode.tags;
-                      const tierInfo = TIERS[res.tier || 2];
+                      const isPanelExpanded = !!expandedBranchPanels[res.id];
+                      const isBranchOn = res.is_active !== false;
 
                       return (
-                        <tr key={res.id} className="bg-white hover:bg-slate-50 border-b border-slate-100">
-                          <td className="py-3 px-4 pl-8">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-300">&bull;</span>
-                              <span className="font-bold text-slate-900">{res.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-slate-500">{res.address || 'Sin dirección'}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold ${tierInfo.badgeColor}`}>
-                              {tierInfo.name}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold">
-                              {branchTags.length} Placas
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => handleEdit(res)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
-                            >
-                              Vincular Empresa
-                            </button>
-                          </td>
-                        </tr>
+                        <React.Fragment key={res.id}>
+                          <tr className="bg-white hover:bg-slate-50 border-b border-slate-100">
+                            <td className="py-3 px-4 pl-8">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-300">&bull;</span>
+                                <span className="font-bold text-slate-900">{res.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-slate-500">{res.address || 'Sin dirección'}</td>
+                            <td className="py-3 px-4">
+                              <StatusBadgeAndSwitch
+                                isOn={isBranchOn}
+                                onToggle={() => handleToggleBranchActive(res)}
+                              />
+                            </td>
+                            <td className="py-3 px-4">
+                              <button
+                                onClick={() => toggleBranchPanel(res.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200"
+                              >
+                                <Sliders className="w-3.5 h-3.5" />
+                                <span>Panel ({branchTags.length} Tags)</span>
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => handleEdit(res)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+                              >
+                                Vincular Empresa
+                              </button>
+                            </td>
+                          </tr>
+                          {isPanelExpanded && renderBranchControlPanel(branchNode)}
+                        </React.Fragment>
                       );
                     })}
                   </>
