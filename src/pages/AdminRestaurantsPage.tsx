@@ -2677,6 +2677,13 @@ export const AdminRestaurantsPage: React.FC = () => {
     );
   };
 
+  const activeFiltersCount =
+    (searchQuery ? 1 : 0) +
+    (selectedOrgFilter !== 'all' ? 1 : 0) +
+    (selectedVerticalFilter !== 'all' ? 1 : 0) +
+    (selectedTierFilter !== 'all' ? 1 : 0) +
+    (selectedStatusFilter !== 'all' ? 1 : 0);
+
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-16">
       {/* Encabezado Bento Light */}
@@ -2783,6 +2790,35 @@ export const AdminRestaurantsPage: React.FC = () => {
               <ChevronDown className="w-3 h-3 text-slate-400" />
             )}
           </button>
+
+          {/* Botón Pequeño para Filtros (a lado de Ver KPIs Detallados) */}
+          <button
+            type="button"
+            onClick={() => setIsFiltersExpanded((prev) => !prev)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-[11px] font-bold transition-all shadow-2xs cursor-pointer ${
+              isFiltersExpanded
+                ? 'bg-blue-600 text-white border-blue-600 shadow-blue-600/20'
+                : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+            title={isFiltersExpanded ? 'Ocultar filtros y búsqueda' : 'Desplegar filtros y búsqueda'}
+          >
+            <SlidersHorizontal className={`w-3.5 h-3.5 ${isFiltersExpanded ? 'text-white' : 'text-slate-500'}`} />
+            <span>{isFiltersExpanded ? 'Ocultar Filtros' : 'Filtros'}</span>
+            {activeFiltersCount > 0 && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isFiltersExpanded ? 'bg-white text-blue-700' : 'bg-blue-600 text-white'
+                }`}
+              >
+                {activeFiltersCount}
+              </span>
+            )}
+            {isFiltersExpanded ? (
+              <ChevronUp className={`w-3 h-3 ${isFiltersExpanded ? 'text-white/80' : 'text-slate-400'}`} />
+            ) : (
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            )}
+          </button>
         </div>
       </div>
 
@@ -2880,13 +2916,6 @@ export const AdminRestaurantsPage: React.FC = () => {
 
       {/* Barra de Filtros Bento Light Colapsable con Animación Suave (Requerimiento 1) */}
       {(() => {
-        const activeFiltersCount =
-          (searchQuery ? 1 : 0) +
-          (selectedOrgFilter !== 'all' ? 1 : 0) +
-          (selectedVerticalFilter !== 'all' ? 1 : 0) +
-          (selectedTierFilter !== 'all' ? 1 : 0) +
-          (selectedStatusFilter !== 'all' ? 1 : 0);
-
         return (
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-300">
             {/* Barra de Conmutación Superior de Filtros */}
@@ -2895,7 +2924,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsFiltersExpanded((prev) => !prev)}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold border transition-all shadow-2xs cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all shadow-2xs cursor-pointer ${
                     isFiltersExpanded
                       ? 'bg-blue-600 text-white border-blue-600 shadow-blue-600/20'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -2903,7 +2932,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                   title={isFiltersExpanded ? 'Ocultar barra de filtros y búsqueda' : 'Desplegar barra de filtros y búsqueda'}
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>{isFiltersExpanded ? 'Ocultar Filtros y Búsqueda' : 'Filtros y Búsqueda'}</span>
+                  <span>{isFiltersExpanded ? 'Ocultar Filtros' : 'Filtros'}</span>
                   {activeFiltersCount > 0 && (
                     <span
                       className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
