@@ -68,6 +68,9 @@ import {
   BarChart3,
   UtensilsCrossed,
   Ticket,
+  BarChart2,
+  SlidersHorizontal,
+  ChevronUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -391,6 +394,10 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [couponModalRestaurantId, setCouponModalRestaurantId] = useState<string>('');
   const [couponModalBranchName, setCouponModalBranchName] = useState<string>('');
 
+  // Estados de Colapso Inteligente y Renderizado Suave
+  const [isTopKpisExpanded, setIsTopKpisExpanded] = useState<boolean>(true);
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
+
   // Interruptores Maestros de Categorías por Sucursal (Cat 3, 4, 5, 6) (Requerimiento 3)
   const [branchMasterCategoriesState, setBranchMasterCategoriesState] = useState<
     Record<string, Record<number, boolean>>
@@ -586,17 +593,29 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   const toggleOrgCollapse = (orgId: string) => {
-    setCollapsedOrgs((prev) => ({
-      ...prev,
-      [orgId]: !prev[orgId],
-    }));
+    setCollapsedOrgs((prev) => {
+      const willBeExpanded = !!prev[orgId];
+      if (willBeExpanded) {
+        setIsTopKpisExpanded(false);
+      }
+      return {
+        ...prev,
+        [orgId]: !prev[orgId],
+      };
+    });
   };
 
   const toggleBranchPanel = (restaurantId: string) => {
-    setExpandedBranchPanels((prev) => ({
-      ...prev,
-      [restaurantId]: !prev[restaurantId],
-    }));
+    setExpandedBranchPanels((prev) => {
+      const willBeExpanded = !prev[restaurantId];
+      if (willBeExpanded) {
+        setIsTopKpisExpanded(false);
+      }
+      return {
+        ...prev,
+        [restaurantId]: willBeExpanded,
+      };
+    });
   };
 
   const toggleBranchCategory = (restaurantId: string, categoryNum: number) => {
@@ -714,6 +733,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   const handleExpandAll = () => {
+    setIsTopKpisExpanded(false);
     setCollapsedOrgs({});
     const branchMap: Record<string, boolean> = {};
     restaurants.forEach((r) => {
@@ -955,7 +975,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     return (
       <tr className="bg-slate-50/80 border-b-2 border-slate-200">
         <td colSpan={5} className="p-0">
-          <div className="py-4 px-4 sm:px-8 lg:px-12 space-y-4">
+          <div className="py-4 px-4 sm:px-8 lg:px-12 space-y-4 animate-fadeIn transition-all duration-300">
             {/* Cabecera del Panel de Control de la Sucursal */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
               <div className="flex items-center gap-2.5">
@@ -1955,8 +1975,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {isCat4Expanded && (
-                  <>
+                  <div
+                    className={`grid transition-all duration-300 ease-in-out ${
+                      isCat4Expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
                     {(() => {
                       const isAllowed = getBranchCategoryAllowed(res, 4);
                       const isMasterOn =
@@ -2089,11 +2113,11 @@ export const AdminRestaurantsPage: React.FC = () => {
                   })}
                   </div>
                     )}
-                  </>
-                )}
-              </div>
-            );
-          })()}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* CATEGORÍA 5: GERENCIA & CORTES DE TURNO */}
             {(() => {
@@ -2163,10 +2187,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {isCat5Expanded && (
-                <>
-                  {(() => {
-                    const isAllowed = getBranchCategoryAllowed(res, 5);
+                  <div
+                    className={`grid transition-all duration-300 ease-in-out ${
+                      isCat5Expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      {(() => {
+                        const isAllowed = getBranchCategoryAllowed(res, 5);
                     const isMasterOn =
                       isAllowed && branchMasterCategoriesState[res.id]?.[5] !== false;
                     if (!isMasterOn) {
@@ -2419,13 +2447,13 @@ export const AdminRestaurantsPage: React.FC = () => {
                   </div>
                 </div>
               )}
-                  </>
-                )}
-                </>
-              )}
-            </div>
-          );
-        })()}
+                    </>
+                  )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* CATEGORÍA 6: MÉTRICAS & ANALÍTICA DE SUCURSAL (Requerimiento 5) */}
             {(() => {
@@ -2510,8 +2538,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {isCat6Expanded && (
-                    <>
+                  <div
+                    className={`grid transition-all duration-300 ease-in-out ${
+                      isCat6Expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
                       {!isMasterOn ? (
                         <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
                           <p className="text-xs font-bold text-slate-500">
@@ -2634,8 +2666,8 @@ export const AdminRestaurantsPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                    </>
-                  )}
+                    </div>
+                  </div>
                 </div>
               );
             })()}
@@ -2648,315 +2680,476 @@ export const AdminRestaurantsPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-16">
       {/* Encabezado Bento Light */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-              Capa 2: Directorio de Organizaciones, Marcas & Sucursales
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                Capa 2: Directorio de Organizaciones, Marcas & Sucursales
+              </span>
+              <span className="text-xs text-slate-400 font-mono">POL-002</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Directorio de Cuentas & Sucursales
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Estructura jerárquica: Organización Matriz &rarr; Marca Comercial (Giro Universal) &rarr; Sucursal Física &rarr; Panel de Control.
+            </p>
+          </div>
+
+          {/* Acciones Superiores */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleOpenNewOrganizationWizard}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-xs transition-all cursor-pointer"
+              title="Dar de alta una nueva organización con sus datos fiscales, marcas comerciales y sucursales"
+            >
+              <Building2 className="w-4 h-4 text-emerald-600" />
+              <span>Dar de Alta Organización</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedOrgForUserModal(undefined);
+                setIsUserModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all cursor-pointer"
+            >
+              <KeyRound className="w-4 h-4 text-blue-600" />
+              <span>Accesos al Portal</span>
+            </button>
+
+            <button
+              onClick={() => handleCreateNewBranch()}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Dar de Alta Sucursal</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Micro-Comentarios Coloridos de KPIs debajo del Título y Subtítulo (Requerimiento 1) */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {/* Micro-KPI 1: Empresas & Sucursales (Azul) */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50/90 border border-blue-200/80 text-[11px] text-blue-950 shadow-2xs">
+            <Building2 className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+            <span className="font-extrabold">{organizations.length} empresas</span>
+            <span className="text-slate-300">·</span>
+            <span className="flex items-center gap-1 text-emerald-700 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {kpis.activeBranches} sucursales prendidas
             </span>
-            <span className="text-xs text-slate-400 font-mono">POL-002</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Directorio de Cuentas & Sucursales
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Estructura jerárquica: Organización Matriz &rarr; Marca Comercial (Giro Universal) &rarr; Sucursal Física &rarr; Panel de Control.
-          </p>
-        </div>
 
-        {/* Acciones Superiores */}
-        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Micro-KPI 2: Placas en Mesas (Púrpura) */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-50/90 border border-purple-200/80 text-[11px] text-purple-950 shadow-2xs">
+            <QrCode className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+            <span className="font-extrabold">{kpis.totalTagsDeployed} placas NFC</span>
+            <span className="text-slate-300">·</span>
+            <span className="text-purple-700 font-semibold">Promedio: {kpis.avgTagsPerBranch} / local</span>
+          </div>
+
+          {/* Micro-KPI 3: Ad-Free vs Red (Ámbar) */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50/90 border border-amber-200/80 text-[11px] text-amber-950 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+            <span className="font-extrabold">{kpis.adFreePercentage}% Ad-Free</span>
+            <span className="text-slate-400 font-medium">({kpis.adFreeCount} locales)</span>
+            <span className="text-slate-300">·</span>
+            <span className="text-amber-800 font-bold">{kpis.networkAdsCount} con Red de Anuncios</span>
+          </div>
+
+          {/* Micro-KPI 4: Escudo Reputacional (Esmeralda) */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50/90 border border-emerald-200/80 text-[11px] text-emerald-950 shadow-2xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+            <span className="font-extrabold">Escudo:</span>
+            <span className="font-mono text-[10px] text-slate-700">T1: {kpis.tierBreakdown.tier1} · T2: {kpis.tierBreakdown.tier2} · T3+: {kpis.tierBreakdown.tier3}</span>
+            <span className="text-slate-300">·</span>
+            <span className="text-emerald-700 font-bold">{kpis.tierBreakdown.tier2 + kpis.tierBreakdown.tier3} con filtro</span>
+          </div>
+
+          {/* Botón para Alternar Tarjetas de Métricas Detalladas */}
           <button
-            onClick={handleOpenNewOrganizationWizard}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-xs transition-all"
-            title="Dar de alta una nueva organización con sus datos fiscales, marcas comerciales y sucursales"
+            type="button"
+            onClick={() => setIsTopKpisExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+            title={isTopKpisExpanded ? 'Contraer tarjetas de métricas detalladas' : 'Desplegar tarjetas de métricas detalladas'}
           >
-            <Building2 className="w-4 h-4 text-emerald-600" />
-            <span>Dar de Alta Organización</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setSelectedOrgForUserModal(undefined);
-              setIsUserModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all"
-          >
-            <KeyRound className="w-4 h-4 text-blue-600" />
-            <span>Accesos al Portal</span>
-          </button>
-
-          <button
-            onClick={() => handleCreateNewBranch()}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Dar de Alta Sucursal</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Fila Superior de KPIs Bento (Col-Span-4) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Empresas & Locales Operativos */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cuentas Corporativas</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
-              <Building2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              {organizations.length}{' '}
-              <span className="text-sm font-semibold text-slate-400">empresas</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-emerald-700">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{kpis.activeBranches} sucursales físicas prendidas</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 2: Parque de Placas NFC en Mesa */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Placas en Mesas</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
-              <QrCode className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              {kpis.totalTagsDeployed}{' '}
-              <span className="text-sm font-semibold text-slate-400">antenas</span>
-            </div>
-            <div className="flex items-center justify-between mt-2 text-[11px] font-semibold text-slate-500">
-              <span>Promedio: {kpis.avgTagsPerBranch} / local</span>
-              <Link to="/admin/tags" className="text-blue-600 hover:underline">
-                Ver Tags
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 3: Penetración Ad-Free */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Marca Blanca Ad-Free</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              {kpis.adFreePercentage}%{' '}
-              <span className="text-sm font-semibold text-slate-400">({kpis.adFreeCount} locales)</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-amber-700">
-              <span>{kpis.networkAdsCount} con Red de Anuncios</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 4: Desglose de Paquetes */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Escudo Reputacional</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-sm font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs">T1: {kpis.tierBreakdown.tier1}</span>
-              <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-xs">T2: {kpis.tierBreakdown.tier2}</span>
-              <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 text-xs">T3+: {kpis.tierBreakdown.tier3}</span>
-            </div>
-            <div className="mt-2 text-[11px] font-semibold text-slate-500">
-              {kpis.tierBreakdown.tier2 + kpis.tierBreakdown.tier3} locales con filtro 5 estrellas
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Barra de Filtros Bento Light Avanzada */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-4 space-y-3">
-        {/* Fila 1: Buscador Reactivo Flexible + Selectores + Controles de Árbol */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Campo de búsqueda flexible al 100% de su espacio */}
-          <div className="relative flex-1 min-w-[280px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por empresa, marca, sucursal, dueño, mesero, tag o teléfono..."
-              className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 transition-all font-medium"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                title="Limpiar búsqueda"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+            <BarChart2 className="w-3.5 h-3.5 text-slate-500" />
+            <span>{isTopKpisExpanded ? 'Ocultar KPIs Detallados' : 'Ver KPIs Detallados'}</span>
+            {isTopKpisExpanded ? (
+              <ChevronUp className="w-3 h-3 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             )}
-          </div>
+          </button>
+        </div>
+      </div>
 
-          {/* Selectores de Segmentación y Controles de Expansión */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Selector de Empresa */}
-            <select
-              value={selectedOrgFilter}
-              onChange={(e) => setSelectedOrgFilter(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-            >
-              <option value="all">Todas las Empresas ({organizations.length})</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-              <option value="independent">Locales Independientes</option>
-            </select>
+      {/* Fila Superior de KPIs Bento con Animación Suave (CSS Grid) */}
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          isTopKpisExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-1">
+            {/* KPI 1: Empresas & Locales Operativos */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cuentas Corporativas</span>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {organizations.length}{' '}
+                  <span className="text-sm font-semibold text-slate-400">empresas</span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{kpis.activeBranches} sucursales físicas prendidas</span>
+                </div>
+              </div>
+            </div>
 
-            {/* Selector de Giro Comercial Universal */}
-            <select
-              value={selectedVerticalFilter}
-              onChange={(e) => setSelectedVerticalFilter(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-            >
-              <option value="all">Todos los Giros</option>
-              {businessVerticals.map((v) => (
-                <option key={v.id} value={v.slug}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+            {/* KPI 2: Parque de Placas NFC en Mesa */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Placas en Mesas</span>
+                <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
+                  <QrCode className="w-4 h-4" />
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {kpis.totalTagsDeployed}{' '}
+                  <span className="text-sm font-semibold text-slate-400">antenas</span>
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[11px] font-semibold text-slate-500">
+                  <span>Promedio: {kpis.avgTagsPerBranch} / local</span>
+                  <Link to="/admin/tags" className="text-blue-600 hover:underline">
+                    Ver Tags
+                  </Link>
+                </div>
+              </div>
+            </div>
 
-            {/* Selector de Paquete / Modalidad */}
-            <select
-              value={selectedTierFilter}
-              onChange={(e) => setSelectedTierFilter(e.target.value)}
-              className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-            >
-              <option value="all">Todos los Paquetes</option>
-              <option value="tier_1">Tier 1: Enlace Directo</option>
-              <option value="tier_2">Tier 2: Filtro Inteligente</option>
-              <option value="tier_3">Tier 3: Menú Digital + Wi-Fi</option>
-              <option value="tier_4">Tier 4: Red Publicitaria</option>
-              <option value="ad_free">Marca Blanca (Ad-Free)</option>
-              <option value="with_ads">Red de Anuncios</option>
-            </select>
+            {/* KPI 3: Penetración Ad-Free */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Marca Blanca Ad-Free</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {kpis.adFreePercentage}%{' '}
+                  <span className="text-sm font-semibold text-slate-400">({kpis.adFreeCount} locales)</span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] font-semibold text-amber-700">
+                  <span>{kpis.networkAdsCount} con Red de Anuncios</span>
+                </div>
+              </div>
+            </div>
 
-            {/* Botones de Expansión del Árbol */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-2xl border border-slate-200">
-              <button
-                type="button"
-                onClick={handleExpandAll}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs"
-                title="Expandir todas las empresas, sucursales y paneles de control"
-              >
-                Expandir Todo
-              </button>
-              <button
-                type="button"
-                onClick={handleCollapseAll}
-                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs"
-                title="Colapsar todas las empresas"
-              >
-                Colapsar Todo
-              </button>
+            {/* KPI 4: Desglose de Paquetes */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Escudo Reputacional</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs">T1: {kpis.tierBreakdown.tier1}</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-xs">T2: {kpis.tierBreakdown.tier2}</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 text-xs">T3+: {kpis.tierBreakdown.tier3}</span>
+                </div>
+                <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                  {kpis.tierBreakdown.tier2 + kpis.tierBreakdown.tier3} locales con filtro 5 estrellas
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Fila 2: Píldoras de Estado Rápido + Resumen de Coincidencias & Reset */}
-        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
-              <Filter className="w-3 h-3 text-slate-400" />
-              <span>Estado:</span>
-            </span>
-
-            <button
-              type="button"
-              onClick={() => setSelectedStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors ${
-                selectedStatusFilter === 'all'
-                  ? 'bg-slate-900 text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Todas ({restaurants.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedStatusFilter('active')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
-                selectedStatusFilter === 'active'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>Prendidas ({kpis.activeBranches})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedStatusFilter('paused')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
-                selectedStatusFilter === 'paused'
-                  ? 'bg-slate-700 text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <span>Apagadas ({kpis.pausedBranches})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedStatusFilter('with_complaints')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
-                selectedStatusFilter === 'with_complaints'
-                  ? 'bg-rose-600 text-white shadow-2xs'
-                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
-              }`}
-            >
-              <MessageSquareWarning className="w-3 h-3 text-rose-600" />
-              <span>Con Quejas ({feedbacks.length})</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <span className="text-[11px] text-slate-500 font-medium">
-              Mostrando <strong className="text-slate-900">{treeData.stats.totalBranches}</strong> sucursales en{' '}
-              <strong className="text-slate-900">{treeData.stats.totalOrganizations}</strong> organizaciones
-            </span>
-
-            {(searchQuery ||
-              selectedOrgFilter !== 'all' ||
-              selectedTierFilter !== 'all' ||
-              selectedVerticalFilter !== 'all' ||
-              selectedStatusFilter !== 'all') && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
-                title="Restablecer todos los filtros y términos de búsqueda"
-              >
-                <RotateCcw className="w-3 h-3 text-slate-500" />
-                <span>Limpiar Filtros</span>
-              </button>
-            )}
-          </div>
-        </div>
       </div>
+
+      {/* Barra de Filtros Bento Light Colapsable con Animación Suave (Requerimiento 1) */}
+      {(() => {
+        const activeFiltersCount =
+          (searchQuery ? 1 : 0) +
+          (selectedOrgFilter !== 'all' ? 1 : 0) +
+          (selectedVerticalFilter !== 'all' ? 1 : 0) +
+          (selectedTierFilter !== 'all' ? 1 : 0) +
+          (selectedStatusFilter !== 'all' ? 1 : 0);
+
+        return (
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-300">
+            {/* Barra de Conmutación Superior de Filtros */}
+            <div className="p-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFiltersExpanded((prev) => !prev)}
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold border transition-all shadow-2xs cursor-pointer ${
+                    isFiltersExpanded
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-blue-600/20'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                  title={isFiltersExpanded ? 'Ocultar barra de filtros y búsqueda' : 'Desplegar barra de filtros y búsqueda'}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>{isFiltersExpanded ? 'Ocultar Filtros y Búsqueda' : 'Filtros y Búsqueda'}</span>
+                  {activeFiltersCount > 0 && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                        isFiltersExpanded ? 'bg-white text-blue-700' : 'bg-blue-600 text-white'
+                      }`}
+                    >
+                      {activeFiltersCount} activo{activeFiltersCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {isFiltersExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+
+                {/* Resumen Compacto cuando los Filtros están Contraídos */}
+                {!isFiltersExpanded && activeFiltersCount > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                    {searchQuery && (
+                      <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                        &quot;{searchQuery}&quot;
+                      </span>
+                    )}
+                    {selectedOrgFilter !== 'all' && (
+                      <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
+                        Empresa
+                      </span>
+                    )}
+                    {selectedVerticalFilter !== 'all' && (
+                      <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-700 border border-teal-200 font-bold">
+                        Giro
+                      </span>
+                    )}
+                    {selectedTierFilter !== 'all' && (
+                      <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 font-bold">
+                        Paquete
+                      </span>
+                    )}
+                    {selectedStatusFilter !== 'all' && (
+                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 font-bold">
+                        Estado: {selectedStatusFilter}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="text-[10px] text-slate-400 hover:text-rose-600 font-bold ml-1 cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Conteo de Resultados y Botones de Expansión del Árbol */}
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Mostrando <strong className="text-slate-900">{treeData.stats.totalBranches}</strong> sucursales en{' '}
+                  <strong className="text-slate-900">{treeData.stats.totalOrganizations}</strong> organizaciones
+                </span>
+
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-2xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={handleExpandAll}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs cursor-pointer"
+                    title="Expandir todas las empresas, sucursales y paneles de control"
+                  >
+                    Expandir Todo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCollapseAll}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-white transition-all shadow-2xs cursor-pointer"
+                    title="Colapsar todas las empresas"
+                  >
+                    Colapsar Todo
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Panel Desplegable con Animación Suave (CSS Grid) */}
+            <div
+              className={`grid transition-all duration-300 ease-in-out ${
+                isFiltersExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="p-4 pt-2 border-t border-slate-100 space-y-3">
+                  {/* Fila 1: Buscador Reactivo Flexible + Selectores */}
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                    {/* Campo de búsqueda flexible al 100% de su espacio */}
+                    <div className="relative flex-1 min-w-[280px]">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Buscar por empresa, marca, sucursal, dueño, mesero, tag o teléfono..."
+                        className="w-full pl-9 pr-8 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 transition-all font-medium"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                          title="Limpiar búsqueda"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Selectores de Segmentación */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Selector de Empresa */}
+                      <select
+                        value={selectedOrgFilter}
+                        onChange={(e) => setSelectedOrgFilter(e.target.value)}
+                        className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                      >
+                        <option value="all">Todas las Empresas ({organizations.length})</option>
+                        {organizations.map((org) => (
+                          <option key={org.id} value={org.id}>
+                            {org.name}
+                          </option>
+                        ))}
+                        <option value="independent">Locales Independientes</option>
+                      </select>
+
+                      {/* Selector de Giro Comercial Universal */}
+                      <select
+                        value={selectedVerticalFilter}
+                        onChange={(e) => setSelectedVerticalFilter(e.target.value)}
+                        className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                      >
+                        <option value="all">Todos los Giros</option>
+                        {businessVerticals.map((v) => (
+                          <option key={v.id} value={v.slug}>
+                            {v.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Selector de Paquete / Modalidad */}
+                      <select
+                        value={selectedTierFilter}
+                        onChange={(e) => setSelectedTierFilter(e.target.value)}
+                        className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                      >
+                        <option value="all">Todos los Paquetes</option>
+                        <option value="tier_1">Tier 1: Enlace Directo</option>
+                        <option value="tier_2">Tier 2: Filtro Inteligente</option>
+                        <option value="tier_3">Tier 3: Menú Digital + Wi-Fi</option>
+                        <option value="tier_4">Tier 4: Red Publicitaria</option>
+                        <option value="ad_free">Marca Blanca (Ad-Free)</option>
+                        <option value="with_ads">Red de Anuncios</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Fila 2: Píldoras de Estado Rápido + Resumen de Coincidencias & Reset */}
+                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+                        <Filter className="w-3 h-3 text-slate-400" />
+                        <span>Estado:</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusFilter('all')}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          selectedStatusFilter === 'all'
+                            ? 'bg-slate-900 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        Todas ({restaurants.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusFilter('active')}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+                          selectedStatusFilter === 'active'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span>Prendidas ({kpis.activeBranches})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusFilter('paused')}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+                          selectedStatusFilter === 'paused'
+                            ? 'bg-slate-700 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        <span>Apagadas ({kpis.pausedBranches})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatusFilter('with_complaints')}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer ${
+                          selectedStatusFilter === 'with_complaints'
+                            ? 'bg-rose-600 text-white shadow-2xs'
+                            : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
+                        }`}
+                      >
+                        <MessageSquareWarning className="w-3 h-3 text-rose-600" />
+                        <span>Con Quejas ({feedbacks.length})</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      {(searchQuery ||
+                        selectedOrgFilter !== 'all' ||
+                        selectedTierFilter !== 'all' ||
+                        selectedVerticalFilter !== 'all' ||
+                        selectedStatusFilter !== 'all') && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors cursor-pointer"
+                          title="Restablecer todos los filtros y términos de búsqueda"
+                        >
+                          <RotateCcw className="w-3 h-3 text-slate-500" />
+                          <span>Limpiar Filtros</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TABLA JERÁRQUICA EN FILAS (TREE TABLE - 3 NIVELES) */}
       {loading ? (
