@@ -25,7 +25,21 @@ export const tiersApi = {
       }
     }
 
-    return getLocalItem<CustomTierDefinition[]>(TIERS_STORAGE_KEY, DEFAULT_CUSTOM_TIERS);
+    const rawTiers = getLocalItem<CustomTierDefinition[]>(TIERS_STORAGE_KEY, DEFAULT_CUSTOM_TIERS);
+    return rawTiers.map((t) => {
+      const def = DEFAULT_CUSTOM_TIERS.find((d) => d.tier === t.tier);
+      if (!def) return t;
+      const features = Array.from(new Set([...t.included_features]));
+      if (def.included_features.includes('feat_digital_menu') && !features.includes('feat_digital_menu')) {
+        features.push('feat_digital_menu');
+      }
+      const allowedCategories = t.allowed_categories && t.allowed_categories.length > 0 ? t.allowed_categories : def.allowed_categories;
+      return {
+        ...t,
+        included_features: features,
+        allowed_categories: allowedCategories,
+      };
+    });
   },
 
   /**

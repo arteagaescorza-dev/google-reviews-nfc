@@ -220,6 +220,30 @@ export const MASTER_TIER_STATIONS: MasterStationItem[] = [
   },
 ];
 
+export const STATION_ID_MAP: Record<string, string> = {
+  gerente: 'station_manager',
+  hostess: 'station_hostess',
+  mesero: 'station_waiter',
+  all: 'station_kds_general',
+  cocina: 'station_kds_cocina',
+  barra: 'station_kds_barra',
+  postres: 'station_kds_postres',
+  turnero: 'station_turnero',
+  pickup: 'station_pickup',
+};
+
+export const REVERSE_STATION_ID_MAP: Record<string, string> = {
+  station_manager: 'gerente',
+  station_hostess: 'hostess',
+  station_waiter: 'mesero',
+  station_kds_general: 'all',
+  station_kds_cocina: 'cocina',
+  station_kds_barra: 'barra',
+  station_kds_postres: 'postres',
+  station_turnero: 'turnero',
+  station_pickup: 'pickup',
+};
+
 export interface MasterCategoryItem {
   id: number;
   name: string;
@@ -272,12 +296,12 @@ export const DEFAULT_CUSTOM_TIERS = [
     name: 'Tier 2: Filtro de Reputación (Cliente Fundador)',
     badge_label: 'Tier 2',
     price_mxn: 399,
-    description: 'Calificaciones de 4-5 estrellas van a Google; 1-3 a buzón privado con cupones de gerente.',
-    included_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons'],
+    description: 'Calificaciones de 4-5 estrellas van a Google; 1-3 a buzón privado con cupones de gerente y menú digital.',
+    included_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons', 'feat_digital_menu'],
     included_stations: ['station_manager'],
-    client_visible_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons'],
+    client_visible_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons', 'feat_digital_menu'],
     client_visible_stations: ['station_manager'],
-    allowed_categories: [1, 2, 5, 6],
+    allowed_categories: [1, 2, 3, 5, 6],
   },
   {
     tier: 3 as const,

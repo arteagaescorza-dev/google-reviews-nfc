@@ -9,7 +9,9 @@ import {
   type BusinessType,
   type TierType,
   type Feedback,
+  type CustomTierDefinition,
 } from '../types';
+import { STATION_ID_MAP, DEFAULT_CUSTOM_TIERS } from './constants';
 
 export interface RestaurantKpiMetrics {
   totalBranches: number;
@@ -40,6 +42,7 @@ export type TierFeatureKey =
   | 'tier_2_reputation_shield'
   | 'tier_3_digital_menu_wifi'
   | 'tier_3_digital_menu'
+  | 'feat_digital_menu'
   | 'tier_3_linktree'
   | 'tier_3_wifi'
   | 'tier_4_ad_network_analytics'
@@ -182,7 +185,8 @@ export function isBranchTrialActive(restaurant: Restaurant): {
  */
 export function getTierFeaturesForBranch(
   restaurant: Restaurant,
-  overrides: Record<string, boolean> = {}
+  overrides: Record<string, boolean> = {},
+  customTiers?: CustomTierDefinition[]
 ): TierFeatureConfig[] {
   const trialInfo = isBranchTrialActive(restaurant);
   const baseTier: TierType = restaurant.tier || 2;
@@ -191,6 +195,7 @@ export function getTierFeaturesForBranch(
       ? (Math.max(baseTier, trialInfo.trialTier) as TierType)
       : baseTier;
   const isBranchActive = restaurant.is_active !== false;
+  const currentTierDef = customTiers?.find((t) => t.tier === currentTier);
 
   const definitions: Omit<TierFeatureConfig, 'isActive'>[] = [
     {
@@ -216,8 +221,8 @@ export function getTierFeaturesForBranch(
     },
     {
       key: 'tier_3_digital_menu',
-      tierLevel: 3,
-      badgeLabel: 'Tier 3',
+      tierLevel: (currentTierDef && currentTierDef.included_features.includes('feat_digital_menu')) ? currentTier : 2,
+      badgeLabel: 'Menú Digital',
       name: 'Menú Digital Interactivo con Carrito a Cocina',
       description: 'Carta digital con fotos, precios y envío directo de comandas al KDS.',
     },
@@ -259,9 +264,30 @@ export function getTierFeaturesForBranch(
       };
     }
 
-    const defaultByTier = isBranchActive && typeof def.tierLevel === 'number' && currentTier >= def.tierLevel;
+    let defaultByTier = isBranchActive && typeof def.tierLevel === 'number' && currentTier >= def.tierLevel;
+
+    // Sincronización reactiva con la matriz de Tiers (customTiers)
+    if (currentTierDef && isBranchActive) {
+      if (def.key === 'tier_3_digital_menu') {
+        defaultByTier = currentTierDef.included_features.includes('feat_digital_menu') || currentTierDef.included_features.includes('tier_3_digital_menu');
+      } else if (def.key === 'tier_1_redirect') {
+        defaultByTier = currentTierDef.included_features.includes('feat_redirect') || currentTierDef.included_features.includes('tier_1_redirect');
+      } else if (def.key === 'tier_2_reputation_shield') {
+        defaultByTier = currentTierDef.included_features.includes('feat_reputation_shield') || currentTierDef.included_features.includes('tier_2_reputation_shield');
+      } else if (def.key === 'tier_3_linktree') {
+        defaultByTier = currentTierDef.included_features.includes('feat_linktree') || currentTierDef.included_features.includes('tier_3_linktree');
+      } else if (def.key === 'tier_3_wifi') {
+        defaultByTier = currentTierDef.included_features.includes('feat_wifi') || currentTierDef.included_features.includes('tier_3_wifi');
+      } else if (def.key === 'tier_4_ad_network_analytics') {
+        defaultByTier = currentTierDef.included_features.includes('feat_ad_network') || currentTierDef.included_features.includes('tier_4_ad_network_analytics');
+      }
+    }
+
     const legacyOverride = def.key.startsWith('tier_3_') ? overrides['tier_3_digital_menu_wifi'] : undefined;
-    const directOverride = overrides[def.key] !== undefined ? overrides[def.key] : legacyOverride;
+    const directOverride = overrides[def.key] !== undefined
+      ? overrides[def.key]
+      : (def.key === 'tier_3_digital_menu' && overrides['feat_digital_menu'] !== undefined ? overrides['feat_digital_menu'] : legacyOverride);
+
     return {
       ...def,
       isActive: directOverride !== undefined ? directOverride : defaultByTier,
@@ -274,7 +300,8 @@ export function getTierFeaturesForBranch(
  */
 export function getDefaultKdsStations(
   restaurantId: string,
-  overrides: Record<string, boolean> = {}
+  overrides: Record<string, boolean> = {},
+  includedStations?: string[]
 ): KdsStationConfig[] {
   const stations: Omit<KdsStationConfig, 'isActive'>[] = [
     {
@@ -315,19 +342,22 @@ export function getDefaultKdsStations(
     },
   ];
 
-  const defaultActive: Record<string, boolean> = {
-    all: true,
-    cocina: true,
-    barra: true,
-    postres: false,
-    turnero: false,
-    pickup: true,
-  };
+  return stations.map((st) => {
+    const masterStationId = STATION_ID_MAP[st.id] || st.id;
+    // Si se pasa includedStations del Tier, la estación solo nace activa si el Tier la incluye
+    const isAllowedByTier = includedStations
+      ? includedStations.includes(masterStationId) || includedStations.includes(st.id)
+      : true;
 
-  return stations.map((st) => ({
-    ...st,
-    isActive: overrides[st.id] !== undefined ? overrides[st.id] : defaultActive[st.id],
-  }));
+    const directOverride = overrides[st.id] !== undefined
+      ? overrides[st.id]
+      : (overrides[masterStationId] !== undefined ? overrides[masterStationId] : undefined);
+
+    return {
+      ...st,
+      isActive: directOverride !== undefined ? directOverride : isAllowedByTier,
+    };
+  });
 }
 
 /**
@@ -435,7 +465,8 @@ export function buildOrganizationTree(
   organizationBrands: OrganizationBrand[] = [],
   businessVerticals: BusinessVertical[] = [],
   selectedVerticalFilter: string = 'all',
-  selectedStatusFilter: string = 'all'
+  selectedStatusFilter: string = 'all',
+  customTiers?: CustomTierDefinition[]
 ): TreeViewData {
   // Mapa de tags agrupados por restaurant_id
   const tagsByRestaurant: Record<string, Tag[]> = {};
@@ -505,10 +536,15 @@ export function buildOrganizationTree(
 
     const capabilities = getBranchCapabilities(res, businessVerticals);
     const branchStaff = staffByRestaurant[res.id] || (capabilities.supportsFloorStaff ? genericStaff : []);
+
+    const trialInfo = isBranchTrialActive(res);
+    const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (res.tier || 1);
+    const tierDef = customTiers?.find((t) => t.tier === effectiveTier) || DEFAULT_CUSTOM_TIERS.find((t) => t.tier === effectiveTier);
+
     const kdsStations = capabilities.supportsKds
-      ? getDefaultKdsStations(res.id, kdsStateByBranch[res.id] || {})
+      ? getDefaultKdsStations(res.id, kdsStateByBranch[res.id] || {}, tierDef?.included_stations)
       : [];
-    const tierFeatures = getTierFeaturesForBranch(res, tierFeatureOverridesByBranch[res.id] || {});
+    const tierFeatures = getTierFeaturesForBranch(res, tierFeatureOverridesByBranch[res.id] || {}, customTiers);
     const branchFeedbacks = feedbacksByRestaurant[res.id] || [];
 
     const branchNode: BranchNode = {

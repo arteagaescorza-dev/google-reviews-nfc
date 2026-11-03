@@ -150,3 +150,14 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
   - **Alta**: Botón `[+ Añadir Empleado]` en la cabecera de Categoría 4 con modal [`StaffMemberModal.tsx`](file:///c:/Users/Mickey/Documents/DEV/Google%20Rese%C3%B1as/src/components/admin/StaffMemberModal.tsx), autogenerador de PIN de 4 dígitos, selector de rol y estaciones KDS autorizadas.
   - **Edición**: Cada fila de empleado en Categoría 4 incluye botón `[Editar]` para modificar sus datos, puesto o PIN directamente.
   - **Eliminación**: Botón `[Eliminar]` con confirmación previa y eliminación persistida mediante `api.deleteStaffMember`.
+
+### 9.11 Permeación Automática de Tiers sobre Estaciones KDS, Paridad en Categoría 3 y Reactividad de Menú Digital
+* **Permeación Automática de Tiers a Cada Sucursal (POL-008)**: Toda configuración guardada en la matriz de Tiers (`/admin/tiers`) permea de forma automática, reactiva y obligatoria a los paneles de control de todas las sucursales del sistema sin requerir recargar la página.
+* **Gobierno Estricto de Pantallas KDS (Categoría 3)**:
+  - En Tier 2 (Filtro de Reputación), la matriz define únicamente 1 de 9 pantallas autorizadas (`station_manager` - Consola Operativa de Gerente).
+  - Las 8 pantallas restantes (`Hostess`, `Terminal Móvil Mesero`, `Monitor Maestro KDS`, `Cocina Caliente`, `Barra & Coctelería`, `Repostería & Café`, `Turnero 4K` y `Pick Up & Collect`) nacen apagadas por defecto.
+  - Los interruptores de pantallas no autorizadas por el Tier contratado se muestran en estado **APAGADO** y bloqueados (`disabled={true}`) con tooltip explicativo (*"Pantalla no incluida en el Tier X. Requiere upgrade de Tier o Periodo de Prueba"*), y sus enlaces de apertura quedan inhabilitados (`pointer-events-none`).
+  - La cabecera de Categoría 3 refleja fielmente el aforo autorizado (ej. `1 de 9 prendidas` en Tier 2).
+* **Limpieza Reactiva al Conmutar de Tier en Sucursal**: Al cambiar de Tier a una sucursal desde el selector del directorio, se purgan de inmediato las sobreescrituras locales en memoria y en `localStorage` (`kds_state_by_branch` y `waiter_term_state_by_branch`), garantizando que la sucursal herede limpiamente la matriz de pantallas del nuevo Tier sin residuos.
+* **Reactividad y Acceso al Menú Digital desde Tier 2**: La funcionalidad de Menú Digital Interactivo con Carrito a Cocina (`feat_digital_menu`) permea como activa desde Tier 2 según la regla comercial del sistema, mostrando el botón de acceso directo `[Gestionar Carta & Menú]` en la cabecera del panel de sucursal, en la Categoría 3 y en la fila del directorio.
+* **Paridad de Datos con Supabase**: Se integró la tabla `public.tier_definitions` con RLS y columnas en `restaurants` (`has_digital_menu`, `trial_tier`, `trial_start_date`, `trial_end_date`, `trial_days`) garantizando persistencia bidireccional y paridad total entre la nube y la interfaz.

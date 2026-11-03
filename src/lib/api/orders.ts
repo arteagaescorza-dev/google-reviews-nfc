@@ -645,6 +645,8 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
   },
 
 async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
+    const localStaff = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, []);
+
     if (isSupabaseConfigured) {
       try {
         let query = supabase.from('restaurant_staff').select('*');
@@ -652,14 +654,33 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
           query = query.eq('restaurant_id', restaurantId);
         }
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          return (data as StaffMember[]).map((s) => ({
+        if (!error && data) {
+          const remoteList = (data as StaffMember[]).map((s) => ({
             ...s,
             allowed_stations:
               s.allowed_stations && s.allowed_stations.length > 0
                 ? s.allowed_stations
                 : getDefaultStationsForRole(s.role),
           }));
+
+          const merged = [...remoteList];
+          localStaff.forEach((ls) => {
+            if (!merged.some((m) => m.id === ls.id)) {
+              if (!restaurantId || ls.restaurant_id === restaurantId || restaurantId === 'res-1') {
+                merged.push({
+                  ...ls,
+                  allowed_stations:
+                    ls.allowed_stations && ls.allowed_stations.length > 0
+                      ? ls.allowed_stations
+                      : getDefaultStationsForRole(ls.role),
+                });
+              }
+            }
+          });
+
+          if (merged.length > 0) {
+            return merged;
+          }
         }
       } catch (err) {
         console.warn('Fallo al obtener restaurant_staff de Supabase, usando respaldo local:', err);
@@ -916,9 +937,13 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
           .update(clean)
           .eq('id', id)
           .select()
-          .single();
-        if (error) throw error;
-        return { success: true, data: data as StaffMember };
+          .maybeSingle();
+        if (!error && data) {
+          const current = await ordersApi.getStaffMembers();
+          const updated = current.map((s) => (s.id === id ? { ...s, ...updates } : s));
+          setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
+          return { success: true, data: data as StaffMember };
+        }
       } catch (err: any) {
         console.warn('Error actualizando restaurant_staff en Supabase:', err.message);
       }

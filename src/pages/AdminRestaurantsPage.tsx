@@ -28,7 +28,7 @@ import { ManagerEditModal } from '../components/admin/ManagerEditModal';
 import { MenuManagementModal } from '../components/admin/MenuManagementModal';
 import { ManagerCouponModal } from '../components/admin/ManagerCouponModal';
 import { StaffMemberModal } from '../components/admin/StaffMemberModal';
-import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
+import { TIERS, DEFAULT_CUSTOM_TIERS, STATION_ID_MAP } from '../lib/constants';
 import {
   calculateRestaurantKpis,
   buildOrganizationTree,
@@ -439,10 +439,11 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   const getBranchCategoryAllowed = (branch: Restaurant, catNum: number): boolean => {
-    const branchTier = branch.tier || 1;
+    const trialInfo = isBranchTrialActive(branch);
+    const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (branch.tier || 1);
     const tierDef =
-      customTiers.find((t) => t.tier === branchTier) ||
-      DEFAULT_CUSTOM_TIERS.find((t) => t.tier === branchTier);
+      customTiers.find((t) => t.tier === effectiveTier) ||
+      DEFAULT_CUSTOM_TIERS.find((t) => t.tier === effectiveTier);
     if (!tierDef || !tierDef.allowed_categories) return true;
     return tierDef.allowed_categories.includes(catNum);
   };
@@ -551,7 +552,8 @@ export const AdminRestaurantsPage: React.FC = () => {
       organizationBrands,
       businessVerticals,
       selectedVerticalFilter,
-      selectedStatusFilter
+      selectedStatusFilter,
+      customTiers
     );
   }, [
     organizations,
@@ -568,6 +570,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     businessVerticals,
     selectedVerticalFilter,
     selectedStatusFilter,
+    customTiers,
   ]);
 
   const handleEdit = (r: Restaurant) => {
@@ -778,6 +781,29 @@ export const AdminRestaurantsPage: React.FC = () => {
       }
       return next;
     });
+
+    // Limpiar overrides manuales de pantallas KDS y terminal de meseros para que adopte limpiamente la matriz de pantallas del nuevo Tier
+    setKdsStateByBranch((prev) => {
+      const next = { ...prev };
+      delete next[res.id];
+      try {
+        localStorage.setItem(KDS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return next;
+    });
+
+    setWaiterTerminalByBranch((prev) => {
+      const next = { ...prev };
+      delete next[res.id];
+      try {
+        localStorage.setItem(WAITER_TERM_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignorar errores de almacenamiento
+      }
+      return next;
+    });
     await api.saveRestaurant({ id: res.id, tier: newTier });
   };
 
@@ -800,7 +826,7 @@ export const AdminRestaurantsPage: React.FC = () => {
       return;
     }
 
-    if (feature.key === 'tier_3_digital_menu') {
+    if (feature.key === 'tier_3_digital_menu' || feature.key === 'feat_digital_menu') {
       setRestaurants((prev) =>
         prev.map((item) => (item.id === res.id ? { ...item, has_digital_menu: nextVal } : item))
       );
@@ -953,8 +979,6 @@ export const AdminRestaurantsPage: React.FC = () => {
     const res = branchNode.restaurant;
     const branchTags = branchNode.tags;
     const { capabilities, kdsStations, staff, tierFeatures, feedbacksCount, pendingFeedbacksCount } = branchNode;
-    const isWaiterTerminalOn =
-      waiterTerminalByBranch[res.id] !== undefined ? waiterTerminalByBranch[res.id] : true;
 
     // Datos cruzados de Fase B y Fase C para esta sucursal
     const branchTables = restaurantTables.filter(
@@ -1050,8 +1074,23 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Acceso Rápido a Solicitudes de Quejas y Botones de Colapso de Categorías */}
-              <div className="flex items-center gap-2 self-start sm:self-center">
+              {/* Acceso Rápido a Solicitudes de Quejas, Menú y Botones de Colapso de Categorías */}
+              <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+                {capabilities.supportsKds && ((res.tier || 1) >= 2) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMenuRestaurant(res);
+                      setIsMenuModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                    title="Administrar la carta gastronómica y platillos de esta sucursal"
+                  >
+                    <UtensilsCrossed className="w-3.5 h-3.5" />
+                    <span>Gestionar Carta & Menú</span>
+                  </button>
+                )}
+
                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
                   <button
                     type="button"
@@ -1349,7 +1388,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           </Link>
                                         )}
 
-                                        {feature.key === 'tier_3_digital_menu' && (
+                                        {(feature.key === 'tier_3_digital_menu' || feature.key === 'feat_digital_menu') && (
                                           <button
                                             type="button"
                                             onClick={() => {
@@ -1580,16 +1619,52 @@ export const AdminRestaurantsPage: React.FC = () => {
               const isCat3Allowed = tierDef?.allowed_categories ? tierDef.allowed_categories.includes(3) : true;
               const isCat3MasterOn = isCat3Allowed && branchMasterCategoriesState[res.id]?.[3] !== false;
 
-              const rawScreensOn = (isWaiterTerminalOn ? 1 : 0) +
-                (kdsStateByBranch[res.id]?.hostess !== false ? 1 : 0) +
-                (kdsStateByBranch[res.id]?.gerente !== false ? 1 : 0) +
-                kdsStations.filter((s) => s.isActive).length;
+              const isManagerAllowedByTier = tierDef?.included_stations
+                ? (tierDef.included_stations.includes('station_manager') || tierDef.included_stations.includes('gerente'))
+                : true;
+              const isManagerScreenOn = isManagerAllowedByTier && (kdsStateByBranch[res.id]?.gerente !== undefined
+                ? kdsStateByBranch[res.id].gerente
+                : true);
+
+              const isHostessAllowedByTier = tierDef?.included_stations
+                ? (tierDef.included_stations.includes('station_hostess') || tierDef.included_stations.includes('hostess'))
+                : false;
+              const isHostessScreenOn = isHostessAllowedByTier && (kdsStateByBranch[res.id]?.hostess !== undefined
+                ? kdsStateByBranch[res.id].hostess
+                : true);
+
+              const isWaiterAllowedByTier = tierDef?.included_stations
+                ? (tierDef.included_stations.includes('station_waiter') || tierDef.included_stations.includes('mesero'))
+                : false;
+              const isWaiterTerminalOnBranch = isWaiterAllowedByTier && (
+                waiterTerminalByBranch[res.id] !== undefined
+                  ? waiterTerminalByBranch[res.id]
+                  : (kdsStateByBranch[res.id]?.mesero !== undefined ? kdsStateByBranch[res.id].mesero : true)
+              );
+
+              const activeKdsStationsCount = kdsStations.filter((s) => {
+                const masterId = STATION_ID_MAP[s.id] || s.id;
+                const isAllowed = tierDef?.included_stations
+                  ? (tierDef.included_stations.includes(masterId) || tierDef.included_stations.includes(s.id))
+                  : true;
+                return isAllowed && s.isActive;
+              }).length;
+
+              const rawScreensOn =
+                (isManagerScreenOn ? 1 : 0) +
+                (isHostessScreenOn ? 1 : 0) +
+                (isWaiterTerminalOnBranch ? 1 : 0) +
+                activeKdsStationsCount;
               const totalScreens = kdsStations.length + 3;
               const activeScreensCount = isCat3MasterOn ? rawScreensOn : 0;
 
-              // Menú Digital según tabla de tiers mandatoria:
-              const hasDigitalMenuInTier = tierDef?.included_features ? tierDef.included_features.includes('tier_3_digital_menu') : false;
-              const isDigitalMenuBranchActive = hasDigitalMenuInTier && res.has_digital_menu !== false && (tierFeatureOverridesByBranch[res.id]?.tier_3_digital_menu !== false);
+              // Menú Digital según regla de negocio (activo desde Tier 2 o si customTiers lo autoriza):
+              const isDigitalMenuBranchActive =
+                effectiveTier >= 2 ||
+                Boolean(
+                  tierDef?.included_features &&
+                  (tierDef.included_features.includes('feat_digital_menu') || tierDef.included_features.includes('tier_3_digital_menu'))
+                );
 
               return (
                 <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
@@ -1617,7 +1692,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                         {activeScreensCount} de {totalScreens} prendidas
                       </span>
 
-                      {/* 2. Botón de Funcionalidad: Solo si la tabla de Tiers mandatoria lo autoriza */}
+                      {/* 2. Botón de Funcionalidad: Visible desde Tier 2 */}
                       {isDigitalMenuBranchActive && (
                         <button
                           type="button"
@@ -1626,10 +1701,10 @@ export const AdminRestaurantsPage: React.FC = () => {
                             setSelectedMenuRestaurant(res);
                             setIsMenuModalOpen(true);
                           }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-orange-100 text-orange-800 border border-orange-200 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white border border-orange-600 text-[10px] font-extrabold shadow-2xs transition-colors cursor-pointer"
                           title="Administrar categorías y platillos del menú digital de esta sucursal"
                         >
-                          <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                          <UtensilsCrossed className="w-3 h-3 text-white" />
                           <span>Gestionar Carta & Menú</span>
                         </button>
                       )}
@@ -1679,10 +1754,6 @@ export const AdminRestaurantsPage: React.FC = () => {
                   <div className="divide-y divide-slate-100 text-xs">
                   {/* Pantalla 1: Consola de Gerente de Tienda & Capitán de Piso */}
                   {(() => {
-                    const isManagerScreenOn =
-                      kdsStateByBranch[res.id]?.gerente !== undefined
-                        ? kdsStateByBranch[res.id].gerente
-                        : true;
                     const assignedBranchManagers = organizationManagers.filter(
                       (m) =>
                         m.assigned_branch_ids?.includes(res.id) &&
@@ -1722,7 +1793,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                             onToggle={() =>
                               handleToggleKdsStation(res.id, 'gerente', isManagerScreenOn)
                             }
-                            title="Prender o apagar la Consola Operativa de Gerente de Tienda en esta sucursal"
+                            disabled={!isManagerAllowedByTier}
+                            title={
+                              !isManagerAllowedByTier
+                                ? `Pantalla de Gerencia no incluida en el Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                                : `Prender o apagar la Consola Operativa de Gerente de Tienda en esta sucursal`
+                            }
                           />
 
                           <a
@@ -1745,10 +1821,6 @@ export const AdminRestaurantsPage: React.FC = () => {
 
                   {/* Pantalla 2: Pantalla de Hostess & Recepción */}
                   {(() => {
-                    const isHostessScreenOn =
-                      kdsStateByBranch[res.id]?.hostess !== undefined
-                        ? kdsStateByBranch[res.id].hostess
-                        : true;
                     const hostessOperators = sortedStaff.filter((s) => s.role === 'hostess');
 
                     return (
@@ -1779,7 +1851,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                             onToggle={() =>
                               handleToggleKdsStation(res.id, 'hostess', isHostessScreenOn)
                             }
-                            title="Prender o apagar la Pantalla de Hostess de esta sucursal"
+                            disabled={!isHostessAllowedByTier}
+                            title={
+                              !isHostessAllowedByTier
+                                ? `Pantalla de Hostess no incluida en el Tier ${res.tier || 1}. Requiere upgrade a Tier 3/4 o Periodo de Prueba.`
+                                : `Prender o apagar la Pantalla de Hostess de esta sucursal`
+                            }
                           />
 
                           <a
@@ -1830,9 +1907,14 @@ export const AdminRestaurantsPage: React.FC = () => {
 
                         <div className="flex items-center gap-3 self-end sm:self-center">
                           <StatusBadgeAndSwitch
-                            isOn={isWaiterTerminalOn}
-                            onToggle={() => handleToggleWaiterTerminal(res.id, isWaiterTerminalOn)}
-                            title="Prender o apagar la Terminal Móvil de Meseros de esta sucursal"
+                            isOn={isWaiterTerminalOnBranch}
+                            onToggle={() => handleToggleWaiterTerminal(res.id, isWaiterTerminalOnBranch)}
+                            disabled={!isWaiterAllowedByTier}
+                            title={
+                              !isWaiterAllowedByTier
+                                ? `Terminal Móvil de Meseros no incluida en el Tier ${res.tier || 1}. Requiere upgrade a Tier 3/4 o Periodo de Prueba.`
+                                : `Prender o apagar la Terminal Móvil de Meseros de esta sucursal`
+                            }
                           />
 
                           <a
@@ -1840,7 +1922,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                              isWaiterTerminalOn
+                              isWaiterTerminalOnBranch
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
                             }`}
@@ -1856,6 +1938,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                   {/* Pantallas 4 a 9: Estaciones KDS, Turnero 4K & Pick Up & Collect */}
                   {capabilities.supportsKds &&
                     kdsStations.map((station) => {
+                      const masterStationId = STATION_ID_MAP[station.id] || station.id;
+                      const isStationAllowed = tierDef?.included_stations
+                        ? (tierDef.included_stations.includes(masterStationId) || tierDef.included_stations.includes(station.id))
+                        : true;
+                      const isStationOn = isStationAllowed && station.isActive;
+
                       const isBaristaStation =
                         station.id.includes('barra') ||
                         station.id.includes('barista') ||
@@ -1927,11 +2015,16 @@ export const AdminRestaurantsPage: React.FC = () => {
 
                           <div className="flex items-center gap-3 self-end sm:self-center">
                             <StatusBadgeAndSwitch
-                              isOn={station.isActive}
+                              isOn={isStationOn}
                               onToggle={() =>
-                                handleToggleKdsStation(res.id, station.id, station.isActive)
+                                handleToggleKdsStation(res.id, station.id, isStationOn)
                               }
-                              title={`Prender o apagar ${station.name}`}
+                              disabled={!isStationAllowed}
+                              title={
+                                !isStationAllowed
+                                  ? `Esta pantalla no está incluida en el Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                                  : `Prender o apagar ${station.name}`
+                              }
                             />
 
                             <a
@@ -1939,7 +2032,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                                station.isActive
+                                isStationOn
                                   ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100'
                                   : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
                               }`}
@@ -4225,6 +4318,21 @@ export const AdminRestaurantsPage: React.FC = () => {
                                             <Sparkles className="w-3 h-3 text-purple-600" />
                                             <span>Prueba</span>
                                           </button>
+
+                                          {branchNode.capabilities.supportsKds && ((res.tier || 1) >= 2) && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedMenuRestaurant(res);
+                                                setIsMenuModalOpen(true);
+                                              }}
+                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                                              title="Gestionar carta, categorías y platillos del menú digital"
+                                            >
+                                              <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                                              <span>Menú</span>
+                                            </button>
+                                          )}
 
                                           <Link
                                             to={`/portal?restaurantId=${res.id}`}
