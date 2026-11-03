@@ -115,6 +115,35 @@
 
 ---
 
+### POL-009: Categoria 6 Obligatoria de Metricas & Analitica por Sucursal con Filtros Temporales
+* **Declaracion:** Toda sucursal en el sistema debe incorporar de forma permanente y mandatoria una seccion de analitica de sucursal denominada **Categoria 6: Metricas & Analitica de Sucursal**.
+* **Mecanismo Tecnico:**
+  1. Debe contar con un interruptor maestro de prendido y apagado condicionado por la tabla maestra de Tiers (`allowed_categories`).
+  2. Debe incluir un selector de ventana temporal homologado (`Hoy`, `Ultimos 7 Dias`, `Este Mes (30 Dias)` e `Historico Completo`).
+  3. Despliega tarjetas Bento de KPIs para: Reputacion Google & Reseñas, Escudo de Quejas Privadas, Total de Ventas en Cortes de Turno y Aforo/Mesas atendidas.
+  4. Sincroniza sus totales con el panel desplegable de **Metricas de Empresa** de la Organizacion Matriz.
+* **Documentos Incidentes:**
+  * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
+  * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)
+
+---
+
+### POL-010: Identificador Unico Universal por Usuario y Directorio Central de Credenciales
+* **Declaracion:** Cada usuario registrado en el ecosistema (dueño de restaurante, gerente de turno o personal operativo de sala y cocina) debe generar y portar un identificador unico universal inmutable (`ID: {id}`).
+* **Directrices de Interfaz y Auditoria:**
+  1. El identificador debe mostrarse de forma visible y sobria con tipografia monoespaciada en insignia de contraste suave (`bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200`).
+  2. Debe figurar en:
+     * Fila de personal operativo en Categoría 4.
+     * Fila de gerentes de tienda y capitanes en Categoría 5.
+     * Lista de accesos de clientes en el modal de usuarios del portal de suscriptores (`OrganizationUserModal`).
+  3. Queda prohibida la utilizacion de nombres como llaves primarias en relaciones de asignacion de turnos o generacion de cupones; toda auditoria vincula obligatoriamente el `user_id` o `manager_id`.
+* **Documentos Incidentes:**
+  * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
+  * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)
+  * [`src/components/admin/OrganizationUserModal.tsx`](../src/components/admin/OrganizationUserModal.tsx)
+
+---
+
 ## Protocolo de Actualizacion por Nuevas Politicas
 
 Cuando el usuario instruya **"Quedo inamovible"** o **"Vuelvelo politica"**:

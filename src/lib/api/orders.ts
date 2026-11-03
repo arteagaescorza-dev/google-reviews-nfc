@@ -1647,6 +1647,27 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
     return { success: true, data: created };
   },
 
+  async updateManagerRetentionCoupon(
+    couponId: string,
+    updates: Partial<ManagerRetentionCoupon>
+  ): Promise<{ success: boolean; data?: ManagerRetentionCoupon }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured && !couponId.startsWith('mcoup-')) {
+      try {
+        await supabase
+          .from('manager_retention_coupons')
+          .update(sanitizeSupabasePayload(updates, false))
+          .eq('id', couponId);
+      } catch (e) {
+        console.warn('Error actualizando manager_retention_coupon en Supabase:', e);
+      }
+    }
+    const current = await ordersApi.getManagerRetentionCoupons();
+    const updated = current.map((c) => (c.id === couponId ? { ...c, ...updates } : c));
+    setLocalItem(STORAGE_KEYS.MANAGER_RETENTION_COUPONS, updated);
+    return { success: true, data: updated.find((c) => c.id === couponId) };
+  },
+
   async authorizeComplaintDiscountOrCoupon(params: {
     feedbackId: string;
     restaurantId: string;

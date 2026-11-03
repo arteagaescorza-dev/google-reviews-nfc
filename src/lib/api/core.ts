@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   CORPORATE_ORDERS: 'nfc_demo_corporate_orders',
   RESTAURANT_TABLES: 'nfc_demo_restaurant_tables',
   ORGANIZATION_MANAGERS: 'nfc_demo_organization_managers',
+  DELETED_MANAGER_IDS: 'nfc_deleted_manager_ids',
   STAFF_SHIFTS: 'nfc_demo_staff_shifts',
   MANAGER_RETENTION_COUPONS: 'nfc_demo_manager_retention_coupons',
   MANAGER_SHIFT_REPORTS: 'nfc_demo_manager_shift_reports',

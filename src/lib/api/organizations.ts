@@ -463,9 +463,10 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
   // ==========================================
   async getOrganizationManagers(organizationId?: string): Promise<OrganizationManager[]> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const deletedIds = new Set(getLocalItem<string[]>(STORAGE_KEYS.DELETED_MANAGER_IDS, []));
     const nowIso = new Date().toISOString();
     const targetOrgId = organizationId || 'org-1';
-    const defaultManagers: OrganizationManager[] = [
+    const defaultManagers: OrganizationManager[] = ([
       {
         id: 'mgr-1',
         organization_id: targetOrgId,
@@ -473,11 +474,11 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         email: 'mauricio.gerente@restaurante.mx',
         phone: '+525544332211',
         pin_code: '8888',
-        manager_role: 'gerente_tienda',
+        manager_role: 'gerente_tienda' as StoreManagerRole,
         assigned_branch_ids: ['res-1', 'res-2'],
         branch_roles: {
-          'res-1': 'gerente_tienda',
-          'res-2': 'gerente_tienda',
+          'res-1': 'gerente_tienda' as StoreManagerRole,
+          'res-2': 'gerente_tienda' as StoreManagerRole,
         },
         is_active: true,
         created_at: nowIso,
@@ -489,15 +490,15 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         email: 'sofia.piso@restaurante.mx',
         phone: '+525566778899',
         pin_code: '9999',
-        manager_role: 'capitan_piso',
+        manager_role: 'capitan_piso' as StoreManagerRole,
         assigned_branch_ids: ['res-1'],
         branch_roles: {
-          'res-1': 'capitan_piso',
+          'res-1': 'capitan_piso' as StoreManagerRole,
         },
         is_active: true,
         created_at: nowIso,
       },
-    ];
+    ] as OrganizationManager[]).filter((m) => !deletedIds.has(m.id));
 
     if (!isDemo && isSupabaseConfigured) {
       try {
@@ -510,9 +511,12 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         }
         const { data, error } = await query;
         if (!error && data && data.length > 0) {
-          const localItems = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, []);
+          const localItems = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, [])
+            .filter((m) => !deletedIds.has(m.id));
           const mergedMap = new Map<string, OrganizationManager>();
-          (data as OrganizationManager[]).forEach((m) => mergedMap.set(m.id, m));
+          (data as OrganizationManager[])
+            .filter((m) => !deletedIds.has(m.id))
+            .forEach((m) => mergedMap.set(m.id, m));
           localItems.forEach((m) => {
             if (!mergedMap.has(m.id)) {
               if (!organizationId || m.organization_id === organizationId || m.organization_id === 'org-1') {
@@ -523,7 +527,7 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
           // Asegurar gerentes demo si la consulta es para org demo o sin ID
           if (!organizationId || organizationId === 'org-1' || organizationId.startsWith('org-')) {
             defaultManagers.forEach((m) => {
-              if (!mergedMap.has(m.id)) {
+              if (!mergedMap.has(m.id) && !deletedIds.has(m.id)) {
                 mergedMap.set(m.id, m);
               }
             });
@@ -538,12 +542,12 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
     const list = getLocalItem<OrganizationManager[]>(
       STORAGE_KEYS.ORGANIZATION_MANAGERS,
       defaultManagers
-    );
+    ).filter((m) => !deletedIds.has(m.id));
     if (!organizationId) return list;
     const filtered = list.filter(
       (m) => m.organization_id === organizationId || m.organization_id === 'org-1'
     );
-    return filtered.length > 0 ? filtered : defaultManagers;
+    return filtered;
   },
 
   async saveOrganizationManager(
@@ -649,7 +653,12 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         console.warn('Error eliminando organization_manager en Supabase:', e);
       }
     }
-    const current = await organizationsApi.getOrganizationManagers();
+    // Registrar en IDs eliminados para evitar resurrección de gerentes default o de Supabase
+    const deletedIds = getLocalItem<string[]>(STORAGE_KEYS.DELETED_MANAGER_IDS, []);
+    if (!deletedIds.includes(managerId)) {
+      setLocalItem(STORAGE_KEYS.DELETED_MANAGER_IDS, [...deletedIds, managerId]);
+    }
+    const current = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, []);
     setLocalItem(
       STORAGE_KEYS.ORGANIZATION_MANAGERS,
       current.filter((m) => m.id !== managerId)

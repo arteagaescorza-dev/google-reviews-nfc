@@ -14,7 +14,6 @@ import type {
   StoreManagerRole,
   RestaurantTable,
   RestaurantTableStatus,
-  StaffShift,
   ManagerRetentionCoupon,
   ManagerShiftReport,
   KitchenStation,
@@ -27,6 +26,7 @@ import { OrganizationEditModal } from '../components/admin/OrganizationEditModal
 import { TrialPeriodModal } from '../components/admin/TrialPeriodModal';
 import { ManagerEditModal } from '../components/admin/ManagerEditModal';
 import { MenuManagementModal } from '../components/admin/MenuManagementModal';
+import { ManagerCouponModal } from '../components/admin/ManagerCouponModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -67,6 +67,7 @@ import {
   ShoppingBag,
   BarChart3,
   UtensilsCrossed,
+  Ticket,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -304,7 +305,6 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [organizationManagers, setOrganizationManagers] = useState<OrganizationManager[]>([]);
   const [restaurantTables, setRestaurantTables] = useState<RestaurantTable[]>([]);
-  const [staffShifts, setStaffShifts] = useState<StaffShift[]>([]);
   const [managerCoupons, setManagerCoupons] = useState<ManagerRetentionCoupon[]>([]);
   const [managerShiftReports, setManagerShiftReports] = useState<ManagerShiftReport[]>([]);
   const [newMgrNameByOrg, setNewMgrNameByOrg] = useState<Record<string, string>>({});
@@ -354,8 +354,8 @@ export const AdminRestaurantsPage: React.FC = () => {
   // Estado de colapsado en el Árbol Tabular
   const [collapsedOrgs, setCollapsedOrgs] = useState<Record<string, boolean>>({});
   const [expandedBranchPanels, setExpandedBranchPanels] = useState<Record<string, boolean>>({});
-  // Estado de colapsado por categoría dentro de cada panel de sucursal (Categoría 1 a 5)
-  const [collapsedCategoriesByBranch, setCollapsedCategoriesByBranch] = useState<
+  // Estado de expansión por categoría dentro de cada panel de sucursal (Categoría 1 a 6) (Requerimiento 2: colapsado por defecto)
+  const [expandedCategoriesByBranch, setExpandedCategoriesByBranch] = useState<
     Record<string, Record<number, boolean>>
   >({});
 
@@ -379,11 +379,17 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [trialModalTargetOrg, setTrialModalTargetOrg] = useState<Organization | null>(null);
   const [trialModalTargetBranch, setTrialModalTargetBranch] = useState<Restaurant | null>(null);
   const [trialModalDefaultTier, setTrialModalDefaultTier] = useState<TierType>(3);
-  const [collapsedTierSections, setCollapsedTierSections] = useState<Record<string, Record<string, boolean>>>({});
+  const [expandedTierSections, setExpandedTierSections] = useState<Record<string, Record<string, boolean>>>({});
 
   // Edición de Gerentes (Requerimiento 4)
   const [editingManager, setEditingManager] = useState<OrganizationManager | null>(null);
   const [isManagerEditModalOpen, setIsManagerEditModalOpen] = useState(false);
+
+  // Agente Creador de Cupones por Gerente (Requerimiento 8)
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
+  const [couponModalManager, setCouponModalManager] = useState<OrganizationManager | null>(null);
+  const [couponModalRestaurantId, setCouponModalRestaurantId] = useState<string>('');
+  const [couponModalBranchName, setCouponModalBranchName] = useState<string>('');
 
   // Interruptores Maestros de Categorías por Sucursal (Cat 3, 4, 5, 6) (Requerimiento 3)
   const [branchMasterCategoriesState, setBranchMasterCategoriesState] = useState<
@@ -467,7 +473,6 @@ export const AdminRestaurantsPage: React.FC = () => {
       fbList,
       mgrList,
       tablesList,
-      shiftsList,
       couponsList,
       reportsList,
       tierDefsList,
@@ -481,7 +486,6 @@ export const AdminRestaurantsPage: React.FC = () => {
       api.getFeedbacks(),
       api.getOrganizationManagers(),
       api.getRestaurantTables(),
-      api.getStaffShifts(),
       api.getManagerRetentionCoupons(),
       api.getManagerShiftReports(),
       api.getTierDefinitions(),
@@ -495,7 +499,6 @@ export const AdminRestaurantsPage: React.FC = () => {
     setFeedbacks(fbList);
     setOrganizationManagers(mgrList);
     setRestaurantTables(tablesList);
-    setStaffShifts(shiftsList);
     setManagerCoupons(couponsList);
     setManagerShiftReports(reportsList);
     setCustomTiers(tierDefsList);
@@ -597,7 +600,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   const toggleBranchCategory = (restaurantId: string, categoryNum: number) => {
-    setCollapsedCategoriesByBranch((prev) => {
+    setExpandedCategoriesByBranch((prev) => {
       const branchCats = prev[restaurantId] || {};
       return {
         ...prev,
@@ -609,15 +612,16 @@ export const AdminRestaurantsPage: React.FC = () => {
     });
   };
 
-  const toggleAllCategoriesForBranch = (restaurantId: string, collapse: boolean) => {
-    setCollapsedCategoriesByBranch((prev) => ({
+  const toggleAllCategoriesForBranch = (restaurantId: string, expand: boolean) => {
+    setExpandedCategoriesByBranch((prev) => ({
       ...prev,
       [restaurantId]: {
-        1: collapse,
-        2: collapse,
-        3: collapse,
-        4: collapse,
-        5: collapse,
+        1: expand,
+        2: expand,
+        3: expand,
+        4: expand,
+        5: expand,
+        6: expand,
       },
     }));
   };
@@ -654,7 +658,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   };
 
   const toggleTierSection = (branchId: string, tierId: string) => {
-    setCollapsedTierSections((prev) => ({
+    setExpandedTierSections((prev) => ({
       ...prev,
       [branchId]: {
         ...prev[branchId],
@@ -901,9 +905,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     const occupiedTablesCount = branchTables.filter((t) => t.status === 'ocupada').length;
     const cleaningTablesCount = branchTables.filter((t) => t.status === 'en_limpieza').length;
 
-    const branchShifts = staffShifts.filter(
-      (sh) => sh.restaurant_id === res.id || (res.id === restaurants[0]?.id && sh.restaurant_id === 'res-1')
-    );
+
     const branchCoupons = managerCoupons.filter(
       (cp) => cp.restaurant_id === res.id || (res.id === restaurants[0]?.id && cp.restaurant_id === 'res-1')
     );
@@ -1025,44 +1027,47 @@ export const AdminRestaurantsPage: React.FC = () => {
             </div>
 
             {/* CATEGORÍA 1: FUNCIONALIDADES DE CADA TIER & CUPONES DE QUEJAS */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <div
-                onClick={() => toggleBranchCategory(res.id, 1)}
-                className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-blue-100/60 transition-colors select-none"
-              >
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {collapsedCategoriesByBranch[res.id]?.[1] ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-blue-700" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-blue-700" />
-                  )}
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
-                    Cat 1: Nivel Contratado (Tier {res.tier || 2}) & Periodo de Prueba
-                  </span>
-                  {(() => {
-                    const trial = isBranchTrialActive(res);
-                    if (!trial.isActive) return null;
-                    return (
-                      <span className="px-2 py-0.2 rounded-full bg-purple-600 text-white text-[9px] font-extrabold flex items-center gap-1 animate-pulse">
-                        <Sparkles className="w-2.5 h-2.5" />
-                        <span>Prueba Tier {trial.trialTier} ({trial.daysRemaining}d)</span>
+            {(() => {
+              const isCat1Expanded = !!expandedCategoriesByBranch[res.id]?.[1];
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 1)}
+                    className="bg-blue-50/70 px-4 py-2 border-b border-blue-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-blue-100/60 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isCat1Expanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-blue-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-blue-700" />
+                      )}
+                      <Layers className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
+                        Cat 1: Nivel Contratado (Tier {res.tier || 2}) & Periodo de Prueba
                       </span>
-                    );
-                  })()}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[10px] font-bold text-blue-700">
-                    {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} funciones activas
-                  </span>
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
-                    {collapsedCategoriesByBranch[res.id]?.[1] ? 'Expandir' : 'Colapsar'}
-                  </span>
-                </div>
-              </div>
+                      {(() => {
+                        const trial = isBranchTrialActive(res);
+                        if (!trial.isActive) return null;
+                        return (
+                          <span className="px-2 py-0.2 rounded-full bg-purple-600 text-white text-[9px] font-extrabold flex items-center gap-1 animate-pulse">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Prueba Tier {trial.trialTier} ({trial.daysRemaining}d)</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-blue-700">
+                        {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} funciones activas
+                      </span>
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
+                        {isCat1Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
+                    </div>
+                  </div>
 
-              {!collapsedCategoriesByBranch[res.id]?.[1] && (
-                <div className="p-3.5 space-y-3 bg-slate-50/40">
+                  {isCat1Expanded && (
+                    <div className="p-3.5 space-y-3 bg-slate-50/40">
                   {/* Banner de Periodo de Prueba Activo (si aplica) */}
                   {(() => {
                     const trialInfo = isBranchTrialActive(res);
@@ -1111,7 +1116,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                   {/* Listado de Tiers Configurables con Acordeones Desplegables (Política 4) */}
                   {(customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS).map((tierDef) => {
                     const tierKey = String(tierDef.tier);
-                    const isTierCollapsed = !!collapsedTierSections[res.id]?.[tierKey];
+                    const isTierCollapsed = !expandedTierSections[res.id]?.[tierKey];
                     const contractedTier = res.tier || 2;
                     const trialInfo = isBranchTrialActive(res);
 
@@ -1328,53 +1333,58 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </div>
               )}
             </div>
+          );
+        })()}
 
             {/* CATEGORÍA 2: HARDWARE NFC & MESAS */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <div
-                onClick={() => toggleBranchCategory(res.id, 2)}
-                className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-purple-100/60 transition-colors select-none"
-              >
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {collapsedCategoriesByBranch[res.id]?.[2] ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-purple-700" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-purple-700" />
-                  )}
-                  <QrCode className="w-3.5 h-3.5 text-purple-600" />
-                  <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider">
-                    Cat 2: Hardware NFC & {capabilities.unitPlural}
-                  </span>
-                  {branchTables.length > 0 && (
-                    <span
-                      title={`Aforo total: ${branchTables.length} mesas (${totalBranchCapacity} comensales) · ${freeTablesCount} Libres · ${occupiedTablesCount} Ocupadas · ${cleaningTablesCount} En Limpieza`}
-                      className="px-2 py-0.5 rounded-md bg-white border border-purple-200 text-purple-900 text-[10px] font-extrabold cursor-help"
-                    >
-                      Aforo: {branchTables.length} mesas ({totalBranchCapacity} comensales)
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[10px] font-bold text-purple-700">
-                    {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas
-                  </span>
-                  <a
-                    href={`#/portal/hostess?branch=${res.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold transition-colors"
+            {(() => {
+              const isCat2Expanded = !!expandedCategoriesByBranch[res.id]?.[2];
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 2)}
+                    className="bg-purple-50/70 px-4 py-2 border-b border-purple-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-purple-100/60 transition-colors select-none"
                   >
-                    <span>Abrir Hostess</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-purple-700 bg-white px-1.5 py-0.5 rounded border border-purple-200">
-                    {collapsedCategoriesByBranch[res.id]?.[2] ? 'Expandir' : 'Colapsar'}
-                  </span>
-                </div>
-              </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isCat2Expanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-purple-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-purple-700" />
+                      )}
+                      <QrCode className="w-3.5 h-3.5 text-purple-600" />
+                      <span className="text-[11px] font-extrabold text-purple-950 uppercase tracking-wider">
+                        Cat 2: Hardware NFC & {capabilities.unitPlural}
+                      </span>
+                      {branchTables.length > 0 && (
+                        <span
+                          title={`Aforo total: ${branchTables.length} mesas (${totalBranchCapacity} comensales) · ${freeTablesCount} Libres · ${occupiedTablesCount} Ocupadas · ${cleaningTablesCount} En Limpieza`}
+                          className="px-2 py-0.5 rounded-md bg-white border border-purple-200 text-purple-900 text-[10px] font-extrabold cursor-help"
+                        >
+                          Aforo: {branchTables.length} mesas ({totalBranchCapacity} comensales)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-purple-700">
+                        {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas
+                      </span>
+                      <a
+                        href={`#/portal/hostess?branch=${res.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold transition-colors"
+                      >
+                        <span>Abrir Hostess</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-purple-700 bg-white px-1.5 py-0.5 rounded border border-purple-200">
+                        {isCat2Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
+                    </div>
+                  </div>
 
-              {!collapsedCategoriesByBranch[res.id]?.[2] && (
+                  {isCat2Expanded && (
                 <>
                   {branchTags.length === 0 && branchTables.length === 0 ? (
                 <div className="px-4 py-3 text-[11px] text-slate-500 flex items-center justify-between">
@@ -1497,73 +1507,96 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </>
               )}
             </div>
+          );
+        })()}
 
             {/* CATEGORÍA 3: PANTALLAS OPERATIVAS KDS */}
-            {(capabilities.supportsKds || capabilities.supportsFloorStaff) && (
-              <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-                <div
-                  onClick={() => toggleBranchCategory(res.id, 3)}
-                  className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-orange-100/60 transition-colors select-none"
-                >
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {collapsedCategoriesByBranch[res.id]?.[3] ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-orange-700" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-orange-700" />
-                    )}
-                    <Monitor className="w-3.5 h-3.5 text-orange-600" />
-                    <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
-                      Cat 3: Pantallas Operativas KDS
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] font-bold text-orange-700">
-                      {(isWaiterTerminalOn ? 1 : 0) +
-                        (kdsStateByBranch[res.id]?.hostess !== false ? 1 : 0) +
-                        (kdsStateByBranch[res.id]?.gerente !== false ? 1 : 0) +
-                        kdsStations.filter((s) => s.isActive).length}{' '}
-                      de {kdsStations.length + 3} prendidas
-                    </span>
-                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-orange-700 bg-white px-1.5 py-0.5 rounded border border-orange-200">
-                      {collapsedCategoriesByBranch[res.id]?.[3] ? 'Expandir' : 'Colapsar'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMenuRestaurant(res);
-                        setIsMenuModalOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-orange-100 text-orange-800 border border-orange-200 text-[10px] font-bold shadow-2xs transition-colors"
-                      title="Administrar categorías y platillos del menú digital de esta sucursal"
-                    >
-                      <UtensilsCrossed className="w-3 h-3 text-orange-600" />
-                      <span>Gestionar Carta & Menú</span>
-                    </button>
-                    {(() => {
-                      const isAllowed = getBranchCategoryAllowed(res, 3);
-                      const isMasterOn =
-                        isAllowed && branchMasterCategoriesState[res.id]?.[3] !== false;
-                      return (
-                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
-                          <StatusBadgeAndSwitch
-                            isOn={isMasterOn}
-                            onToggle={() => handleToggleBranchCategoryMaster(res.id, 3)}
-                            disabled={!isAllowed}
-                            title={
-                              !isAllowed
-                                ? `Categoría 3 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
-                                : `Prender o apagar Categoría 3 en esta sucursal`
-                            }
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
+            {(capabilities.supportsKds || capabilities.supportsFloorStaff) && (() => {
+              const isCat3Expanded = !!expandedCategoriesByBranch[res.id]?.[3];
+              const trialInfo = isBranchTrialActive(res);
+              const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (res.tier || 1);
+              const tierDef = customTiers.find((t) => t.tier === effectiveTier) || DEFAULT_CUSTOM_TIERS.find((t) => t.tier === effectiveTier);
 
-                {!collapsedCategoriesByBranch[res.id]?.[3] && (
-                  <>
+              const isCat3Allowed = tierDef?.allowed_categories ? tierDef.allowed_categories.includes(3) : true;
+              const isCat3MasterOn = isCat3Allowed && branchMasterCategoriesState[res.id]?.[3] !== false;
+
+              const rawScreensOn = (isWaiterTerminalOn ? 1 : 0) +
+                (kdsStateByBranch[res.id]?.hostess !== false ? 1 : 0) +
+                (kdsStateByBranch[res.id]?.gerente !== false ? 1 : 0) +
+                kdsStations.filter((s) => s.isActive).length;
+              const totalScreens = kdsStations.length + 3;
+              const activeScreensCount = isCat3MasterOn ? rawScreensOn : 0;
+
+              // Menú Digital según tabla de tiers mandatoria:
+              const hasDigitalMenuInTier = tierDef?.included_features ? tierDef.included_features.includes('tier_3_digital_menu') : false;
+              const isDigitalMenuBranchActive = hasDigitalMenuInTier && res.has_digital_menu !== false && (tierFeatureOverridesByBranch[res.id]?.tier_3_digital_menu !== false);
+
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 3)}
+                    className="bg-orange-50/80 px-4 py-2 border-b border-orange-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-orange-100/60 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isCat3Expanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-orange-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-orange-700" />
+                      )}
+                      <Monitor className="w-3.5 h-3.5 text-orange-600" />
+                      <span className="text-[11px] font-extrabold text-orange-950 uppercase tracking-wider">
+                        Cat 3: Pantallas Operativas KDS
+                      </span>
+                    </div>
+
+                    {/* Orden estricto de controles (Requerimiento 4):
+                        (1. Resumen) -> (2. Funcionalidad) -> (3. Links consolas) -> (4 & 5. Badge + Switch) -> (6. Expandir/Contraer) */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* 1. Resumen */}
+                      <span className="text-[10px] font-bold text-orange-700">
+                        {activeScreensCount} de {totalScreens} prendidas
+                      </span>
+
+                      {/* 2. Botón de Funcionalidad: Solo si la tabla de Tiers mandatoria lo autoriza */}
+                      {isDigitalMenuBranchActive && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedMenuRestaurant(res);
+                            setIsMenuModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-orange-100 text-orange-800 border border-orange-200 text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                          title="Administrar categorías y platillos del menú digital de esta sucursal"
+                        >
+                          <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                          <span>Gestionar Carta & Menú</span>
+                        </button>
+                      )}
+
+                      {/* 4 & 5. Badge de estado + Switch de categoría */}
+                      <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                        <StatusBadgeAndSwitch
+                          isOn={isCat3MasterOn}
+                          onToggle={() => handleToggleBranchCategoryMaster(res.id, 3)}
+                          disabled={!isCat3Allowed}
+                          title={
+                            !isCat3Allowed
+                              ? `Categoría 3 no autorizada en la configuración del Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                              : `Prender o apagar Categoría 3 en esta sucursal`
+                          }
+                        />
+                      </div>
+
+                      {/* 6. Botón expandir y contraer */}
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-orange-700 bg-white px-1.5 py-0.5 rounded border border-orange-200">
+                        {isCat3Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCat3Expanded && (
+                    <>
                     {(() => {
                       const isAllowed = getBranchCategoryAllowed(res, 3);
                       const isMasterOn =
@@ -1869,56 +1902,60 @@ export const AdminRestaurantsPage: React.FC = () => {
                   </>
                 )}
               </div>
-            )}
+            );
+          })()}
 
             {/* CATEGORÍA 4: PERSONAL OPERATIVO & TURNOS */}
-            {capabilities.supportsFloorStaff && (
-              <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-                <div
-                  onClick={() => toggleBranchCategory(res.id, 4)}
-                  className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
-                >
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {collapsedCategoriesByBranch[res.id]?.[4] ? (
-                      <ChevronRight className="w-3.5 h-3.5 text-emerald-700" />
-                    ) : (
-                      <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
-                    )}
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
-                      Cat 4: Personal Operativo & Turnos (60 Días)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] font-bold text-emerald-700">
-                      {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores
-                    </span>
-                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
-                      {collapsedCategoriesByBranch[res.id]?.[4] ? 'Expandir' : 'Colapsar'}
-                    </span>
-                    {(() => {
-                      const isAllowed = getBranchCategoryAllowed(res, 4);
-                      const isMasterOn =
-                        isAllowed && branchMasterCategoriesState[res.id]?.[4] !== false;
-                      return (
-                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
-                          <StatusBadgeAndSwitch
-                            isOn={isMasterOn}
-                            onToggle={() => handleToggleBranchCategoryMaster(res.id, 4)}
-                            disabled={!isAllowed}
-                            title={
-                              !isAllowed
-                                ? `Categoría 4 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
-                                : `Prender o apagar Categoría 4 en esta sucursal`
-                            }
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
+            {capabilities.supportsFloorStaff && (() => {
+              const isCat4Expanded = !!expandedCategoriesByBranch[res.id]?.[4];
+              const isAllowed = getBranchCategoryAllowed(res, 4);
+              const isMasterOn = isAllowed && branchMasterCategoriesState[res.id]?.[4] !== false;
 
-                {!collapsedCategoriesByBranch[res.id]?.[4] && (
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 4)}
+                    className="bg-emerald-50/80 px-4 py-2 border-b border-emerald-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isCat4Expanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-emerald-700" />
+                      )}
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider">
+                        Cat 4: Personal Operativo & Turnos (60 Días)
+                      </span>
+                    </div>
+
+                    {/* Orden estricto de controles (Requerimiento 4):
+                        (1. Resumen) -> (4 & 5. Badge + Switch) -> (6. Expandir/Contraer) */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-emerald-700">
+                        {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores
+                      </span>
+
+                      <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                        <StatusBadgeAndSwitch
+                          isOn={isMasterOn}
+                          onToggle={() => handleToggleBranchCategoryMaster(res.id, 4)}
+                          disabled={!isAllowed}
+                          title={
+                            !isAllowed
+                              ? `Categoría 4 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                              : `Prender o apagar Categoría 4 en esta sucursal`
+                          }
+                        />
+                      </div>
+
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                        {isCat4Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCat4Expanded && (
                   <>
                     {(() => {
                       const isAllowed = getBranchCategoryAllowed(res, 4);
@@ -1949,15 +1986,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                         ? ['barista']
                         : ['cocina'];
 
-                    const nextShift = branchShifts.find(
-                      (sh) =>
-                        sh.staff_id === member.id ||
-                        sh.staff_name.toLowerCase() === member.name.toLowerCase()
-                    );
 
-                    const empMetric = latestReport?.employee_metrics?.find(
-                      (em) => em.staff_name.toLowerCase() === member.name.toLowerCase()
-                    );
 
                     return (
                       <div
@@ -1966,6 +1995,9 @@ export const AdminRestaurantsPage: React.FC = () => {
                       >
                         <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <span className="font-bold text-slate-900">{member.name}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                            ID: {member.id}
+                          </span>
 
                           {/* Selector Interactivo de Rol / Puesto Operativo */}
                           <select
@@ -2043,20 +2075,6 @@ export const AdminRestaurantsPage: React.FC = () => {
                               </button>
                             </div>
                           )}
-
-                          {/* Próximo Turno Programado (hasta 2 meses) */}
-                          {nextShift && (
-                            <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] font-bold">
-                              Turno {nextShift.shift_type}: {nextShift.shift_date} ({nextShift.start_time}–{nextShift.end_time})
-                            </span>
-                          )}
-
-                          {/* Métricas del Empleado en el último corte de turno */}
-                          {empMetric && (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
-                              Corte: {empMetric.tables_served} mesas · ${Number(empMetric.sales_generated).toFixed(0)} · Prop: ${Number(empMetric.tips_estimated).toFixed(0)}
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-3 self-end sm:self-center">
@@ -2074,44 +2092,58 @@ export const AdminRestaurantsPage: React.FC = () => {
                   </>
                 )}
               </div>
-            )}
+            );
+          })()}
 
             {/* CATEGORÍA 5: GERENCIA & CORTES DE TURNO */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
-              <div
-                onClick={() => toggleBranchCategory(res.id, 5)}
-                className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-indigo-100/60 transition-colors select-none"
-              >
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {collapsedCategoriesByBranch[res.id]?.[5] ? (
-                    <ChevronRight className="w-3.5 h-3.5 text-indigo-700" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5 text-indigo-700" />
-                  )}
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
-                    Cat 5: Gerencia & Cortes de Turno
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <a
-                    href={`#/portal/gerente?branch=${res.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
+            {(() => {
+              const isCat5Expanded = !!expandedCategoriesByBranch[res.id]?.[5];
+              const isAllowed = getBranchCategoryAllowed(res, 5);
+              const isMasterOn =
+                isAllowed && branchMasterCategoriesState[res.id]?.[5] !== false;
+              const branchManagers = organizationManagers.filter(
+                (m) =>
+                  !res.organization_id ||
+                  m.organization_id === res.organization_id ||
+                  m.organization_id === 'org-1'
+              );
+
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 5)}
+                    className="bg-indigo-50/80 px-4 py-2 border-b border-indigo-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-indigo-100/60 transition-colors select-none"
                   >
-                    <span>Abrir Consola</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200">
-                    {collapsedCategoriesByBranch[res.id]?.[5] ? 'Expandir' : 'Colapsar'}
-                  </span>
-                  {(() => {
-                    const isAllowed = getBranchCategoryAllowed(res, 5);
-                    const isMasterOn =
-                      isAllowed && branchMasterCategoriesState[res.id]?.[5] !== false;
-                    return (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isCat5Expanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-indigo-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-indigo-700" />
+                      )}
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      <span className="text-[11px] font-extrabold text-indigo-950 uppercase tracking-wider">
+                        Cat 5: Gerencia & Cortes de Turno
+                      </span>
+                    </div>
+
+                    {/* Orden estricto de controles (Requerimiento 4):
+                        (1. Resumen) -> (3. Link Consola) -> (4 & 5. Badge + Switch) -> (6. Expandir/Contraer) */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-indigo-700">
+                        {branchManagers.length} gerentes
+                      </span>
+
+                      <a
+                        href={`#/portal/gerente?branch=${res.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 transition-colors"
+                      >
+                        <span>Abrir Consola</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+
                       <div onClick={(e) => e.stopPropagation()} className="flex items-center">
                         <StatusBadgeAndSwitch
                           isOn={isMasterOn}
@@ -2124,12 +2156,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                           }
                         />
                       </div>
-                    );
-                  })()}
-                </div>
-              </div>
 
-              {!collapsedCategoriesByBranch[res.id]?.[5] && (
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200">
+                        {isCat5Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCat5Expanded && (
                 <>
                   {(() => {
                     const isAllowed = getBranchCategoryAllowed(res, 5);
@@ -2250,6 +2284,9 @@ export const AdminRestaurantsPage: React.FC = () => {
                       >
                         <div className="flex flex-wrap items-center gap-2.5 min-w-0">
                           <span className="font-extrabold text-slate-900">{mgr.name}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                            ID: {mgr.id}
+                          </span>
                           {mgr.email && (
                             <span className="text-[11px] text-slate-500">({mgr.email})</span>
                           )}
@@ -2287,6 +2324,24 @@ export const AdminRestaurantsPage: React.FC = () => {
                             <option value="capitan_piso">Capitán / Gerente de Piso</option>
                             <option value="sin_acceso">Sin Acceso en esta Sucursal</option>
                           </select>
+
+                          {/* Botón Agente Creador de Cupones (Requerimiento 8) */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCouponModalManager(mgr);
+                              setCouponModalRestaurantId(res.id);
+                              setCouponModalBranchName(res.name);
+                              setIsCouponModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold transition-colors shadow-2xs"
+                            title={`Agente Creador de Cupones de Retención de ${mgr.name}`}
+                          >
+                            <Ticket className="w-3.5 h-3.5" />
+                            <span>
+                              Agente de Cupones ({branchCoupons.filter((c) => c.manager_id === mgr.id || c.manager_name === mgr.name).length})
+                            </span>
+                          </button>
 
                           {/* Botón Editar Gerente (Requerimiento 4) */}
                           <button
@@ -2369,9 +2424,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                 </>
               )}
             </div>
+          );
+        })()}
 
             {/* CATEGORÍA 6: MÉTRICAS & ANALÍTICA DE SUCURSAL (Requerimiento 5) */}
             {(() => {
+              const isCat6Expanded = !!expandedCategoriesByBranch[res.id]?.[6];
               const isAllowed = getBranchCategoryAllowed(res, 6);
               const isMasterOn =
                 isAllowed && branchMasterCategoriesState[res.id]?.[6] !== false;
@@ -2415,10 +2473,10 @@ export const AdminRestaurantsPage: React.FC = () => {
                     className="bg-sky-50/80 px-4 py-2 border-b border-sky-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-sky-100/60 transition-colors select-none"
                   >
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {collapsedCategoriesByBranch[res.id]?.[6] ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-sky-700" />
-                      ) : (
+                      {isCat6Expanded ? (
                         <ChevronDown className="w-3.5 h-3.5 text-sky-700" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-sky-700" />
                       )}
                       <BarChart3 className="w-3.5 h-3.5 text-sky-600" />
                       <span className="text-[11px] font-extrabold text-sky-950 uppercase tracking-wider">
@@ -2426,13 +2484,13 @@ export const AdminRestaurantsPage: React.FC = () => {
                       </span>
                     </div>
 
+                    {/* Orden estricto de controles (Requerimiento 4):
+                        (1. Resumen) -> (4 & 5. Badge + Switch) -> (6. Expandir/Contraer) */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-[10px] font-bold text-sky-700">
                         {filteredReports.length} cortes · {filteredFeedbacks.length} reseñas
                       </span>
-                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">
-                        {collapsedCategoriesByBranch[res.id]?.[6] ? 'Expandir' : 'Colapsar'}
-                      </span>
+
                       <div onClick={(e) => e.stopPropagation()} className="flex items-center">
                         <StatusBadgeAndSwitch
                           isOn={isMasterOn}
@@ -2445,10 +2503,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                           }
                         />
                       </div>
+
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">
+                        {isCat6Expanded ? 'Colapsar' : 'Expandir'}
+                      </span>
                     </div>
                   </div>
 
-                  {!collapsedCategoriesByBranch[res.id]?.[6] && (
+                  {isCat6Expanded && (
                     <>
                       {!isMasterOn ? (
                         <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
@@ -4124,6 +4186,19 @@ export const AdminRestaurantsPage: React.FC = () => {
           setSelectedMenuRestaurant(null);
         }}
         restaurant={selectedMenuRestaurant}
+      />
+
+      {/* Modal de Agente Creador de Cupones por Gerente (Requerimiento 8) */}
+      <ManagerCouponModal
+        isOpen={isCouponModalOpen}
+        onClose={() => {
+          setIsCouponModalOpen(false);
+          setCouponModalManager(null);
+        }}
+        manager={couponModalManager}
+        restaurantId={couponModalRestaurantId}
+        branchName={couponModalBranchName}
+        onCouponCreated={loadData}
       />
     </div>
   );

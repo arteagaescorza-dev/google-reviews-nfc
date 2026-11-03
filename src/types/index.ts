@@ -724,7 +724,9 @@ export interface StaffShift {
 
 export interface ManagerRetentionCoupon {
   id: string;
+  organization_id?: string;
   restaurant_id: string;
+  manager_id?: string;
   manager_name: string;
   coupon_code: string;
   title: string;

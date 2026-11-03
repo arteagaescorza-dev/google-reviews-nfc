@@ -257,8 +257,8 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
                   onChange={(e) => setRole(e.target.value as MemberRole)}
                   className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
                 >
-                  <option value="owner">👑 Dueño (Acceso Total a Locales)</option>
-                  <option value="manager">🧑‍💼 Gerente de Turno</option>
+                  <option value="owner">Dueño (Acceso Total a Locales)</option>
+                  <option value="manager">Gerente de Turno</option>
                 </select>
               </div>
             </div>
@@ -291,9 +291,14 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
                 {members.map((m) => (
                   <div key={m.id} className="p-3 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-bold text-slate-800 block">
-                        {m.user_email || `Usuario ID: ${m.user_id.slice(0, 8)}...`}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-800 block">
+                          {m.user_email || `Usuario ID: ${m.user_id.slice(0, 8)}...`}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                          ID: {m.id}
+                        </span>
+                      </div>
                       <span className="text-[10px] text-slate-400">
                         Registrado el {new Date(m.created_at).toLocaleDateString()}
                       </span>
