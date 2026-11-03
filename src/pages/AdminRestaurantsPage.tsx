@@ -18,15 +18,18 @@ import type {
   ManagerRetentionCoupon,
   ManagerShiftReport,
   KitchenStation,
+  CustomTierDefinition,
 } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
 import { OrganizationEditModal } from '../components/admin/OrganizationEditModal';
-import { TIERS } from '../lib/constants';
+import { TrialPeriodModal } from '../components/admin/TrialPeriodModal';
+import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
   buildOrganizationTree,
+  isBranchTrialActive,
   type BranchNode,
   type TierFeatureConfig,
 } from '../lib/restaurants_bento';
@@ -59,6 +62,7 @@ import {
   Trash2,
   Filter,
   RotateCcw,
+  ShoppingBag,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -337,6 +341,14 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [isEditOrgModalOpen, setIsEditOrgModalOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
 
+  // Definición de Tiers Personalizados y Periodos de Prueba (Políticas 2, 3, 4, 5)
+  const [customTiers, setCustomTiers] = useState<CustomTierDefinition[]>([]);
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
+  const [trialModalTargetOrg, setTrialModalTargetOrg] = useState<Organization | null>(null);
+  const [trialModalTargetBranch, setTrialModalTargetBranch] = useState<Restaurant | null>(null);
+  const [trialModalDefaultTier, setTrialModalDefaultTier] = useState<TierType>(3);
+  const [collapsedTierSections, setCollapsedTierSections] = useState<Record<string, Record<string, boolean>>>({});
+
   const loadData = async () => {
     setLoading(true);
     const [
@@ -352,6 +364,7 @@ export const AdminRestaurantsPage: React.FC = () => {
       shiftsList,
       couponsList,
       reportsList,
+      tierDefsList,
     ] = await Promise.all([
       api.getRestaurants(),
       api.getOrganizations(),
@@ -365,6 +378,7 @@ export const AdminRestaurantsPage: React.FC = () => {
       api.getStaffShifts(),
       api.getManagerRetentionCoupons(),
       api.getManagerShiftReports(),
+      api.getTierDefinitions(),
     ]);
     setRestaurants(resList);
     setOrganizations(orgList);
@@ -378,6 +392,7 @@ export const AdminRestaurantsPage: React.FC = () => {
     setStaffShifts(shiftsList);
     setManagerCoupons(couponsList);
     setManagerShiftReports(reportsList);
+    setCustomTiers(tierDefsList);
     setLoading(false);
   };
 
@@ -497,6 +512,42 @@ export const AdminRestaurantsPage: React.FC = () => {
   const handleOpenEditOrg = (org: Organization) => {
     setEditingOrg(org);
     setIsEditOrgModalOpen(true);
+  };
+
+  const handleOpenTrialModalForOrg = (org: Organization) => {
+    setTrialModalTargetOrg(org);
+    setTrialModalTargetBranch(null);
+    setTrialModalDefaultTier(3);
+    setIsTrialModalOpen(true);
+  };
+
+  const handleOpenTrialModalForBranch = (branch: Restaurant, defaultTier?: TierType) => {
+    setTrialModalTargetBranch(branch);
+    setTrialModalTargetOrg(null);
+    setTrialModalDefaultTier(defaultTier || 3);
+    setIsTrialModalOpen(true);
+  };
+
+  const handleCancelBranchTrial = async (branchId: string) => {
+    if (!window.confirm('¿Deseas finalizar anticipadamente el periodo de prueba de esta sucursal?')) {
+      return;
+    }
+    const res = await api.cancelTrialPeriod({ restaurantId: branchId });
+    if (res.success) {
+      await loadData();
+    } else {
+      alert(res.error || 'No se pudo cancelar el periodo de prueba.');
+    }
+  };
+
+  const toggleTierSection = (branchId: string, tierId: string) => {
+    setCollapsedTierSections((prev) => ({
+      ...prev,
+      [branchId]: {
+        ...prev[branchId],
+        [tierId]: !prev[branchId]?.[tierId],
+      },
+    }));
   };
 
   const handleDeleteOrganization = async (orgId: string, orgName: string) => {
@@ -741,13 +792,14 @@ export const AdminRestaurantsPage: React.FC = () => {
     );
     const latestReport = branchReports[0];
 
-    // Ordenar personal por categoría de rol: Hostess -> Meseros -> Barista -> Jefe de Cocina -> Capitán
+    // Ordenar personal por categoría de rol: Hostess -> Cajero -> Meseros -> Barista -> Jefe de Cocina -> Capitán
     const roleOrder: Record<string, number> = {
       hostess: 1,
-      waiter: 2,
-      barista: 3,
-      kitchen: 4,
-      manager: 5,
+      cashier: 2,
+      waiter: 3,
+      barista: 4,
+      kitchen: 5,
+      manager: 6,
     };
     const sortedStaff = [...staff].sort(
       (a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9)
@@ -755,6 +807,7 @@ export const AdminRestaurantsPage: React.FC = () => {
 
     const roleSelectColors: Record<string, string> = {
       hostess: 'bg-violet-50 text-violet-700 border-violet-200',
+      cashier: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       waiter: 'bg-blue-50 text-blue-700 border-blue-200',
       barista: 'bg-teal-50 text-teal-800 border-teal-200',
       kitchen: 'bg-amber-50 text-amber-800 border-amber-200',
@@ -862,12 +915,22 @@ export const AdminRestaurantsPage: React.FC = () => {
                   )}
                   <Layers className="w-3.5 h-3.5 text-blue-600" />
                   <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider">
-                    Cat 1: Nivel Contratado (Tier {res.tier || 2}) & Cupones
+                    Cat 1: Nivel Contratado (Tier {res.tier || 2}) & Periodo de Prueba
                   </span>
+                  {(() => {
+                    const trial = isBranchTrialActive(res);
+                    if (!trial.isActive) return null;
+                    return (
+                      <span className="px-2 py-0.2 rounded-full bg-purple-600 text-white text-[9px] font-extrabold flex items-center gap-1 animate-pulse">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        <span>Prueba Tier {trial.trialTier} ({trial.daysRemaining}d)</span>
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-[10px] font-bold text-blue-700">
-                    {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} activas
+                    {tierFeatures.filter((f) => f.isActive).length} de {tierFeatures.length} funciones activas
                   </span>
                   <span className="text-[9px] uppercase tracking-wider font-extrabold text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
                     {collapsedCategoriesByBranch[res.id]?.[1] ? 'Expandir' : 'Colapsar'}
@@ -876,67 +939,235 @@ export const AdminRestaurantsPage: React.FC = () => {
               </div>
 
               {!collapsedCategoriesByBranch[res.id]?.[1] && (
-                <div className="divide-y divide-slate-100 text-xs">
-                {tierFeatures.map((feature) => (
-                  <div
-                    key={feature.key}
-                    className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/20"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
-                            tierBadgeColors[feature.badgeLabel] || 'bg-slate-100 text-slate-700 border-slate-200'
+                <div className="p-3.5 space-y-3 bg-slate-50/40">
+                  {/* Banner de Periodo de Prueba Activo (si aplica) */}
+                  {(() => {
+                    const trialInfo = isBranchTrialActive(res);
+                    if (!trialInfo.isActive) return null;
+                    return (
+                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-xs text-purple-950">
+                                Periodo de Prueba Activo: Tier {trialInfo.trialTier}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold">
+                                {trialInfo.daysRemaining} días restantes ({trialInfo.hoursRemaining}h)
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-purple-700 mt-0.5">
+                              Vence el {trialInfo.endDate?.toLocaleDateString()} a las {trialInfo.endDate?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Al expirar revierte automáticamente al plan contratado (Tier {res.tier || 2}).
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTrialModalForBranch(res, trialInfo.trialTier || 3)}
+                            className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200 hover:bg-purple-100 text-purple-800 text-xs font-bold transition-colors shadow-2xs"
+                          >
+                            Modificar Días
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancelBranchTrial(res.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors shadow-2xs"
+                          >
+                            Finalizar Prueba
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Listado de Tiers Configurables con Acordeones Desplegables (Política 4) */}
+                  {(customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS).map((tierDef) => {
+                    const tierKey = String(tierDef.tier);
+                    const isTierCollapsed = !!collapsedTierSections[res.id]?.[tierKey];
+                    const contractedTier = res.tier || 2;
+                    const trialInfo = isBranchTrialActive(res);
+
+                    const isBaseContract = typeof tierDef.tier === 'number' && contractedTier >= tierDef.tier;
+                    const isTrialActiveThisTier = trialInfo.isActive && trialInfo.trialTier && (
+                      typeof tierDef.tier === 'number' && trialInfo.trialTier >= tierDef.tier
+                    );
+                    const isAddonActive = tierDef.tier === 'addon' && Boolean(res.is_ad_free);
+
+                    // Filtrar las funcionalidades de la sucursal que corresponden a este tier
+                    const assignedFeatures = tierFeatures.filter((f) => {
+                      if (tierDef.tier === 'addon') return f.tierLevel === 'addon';
+                      return tierDef.included_features.includes(f.key) || f.tierLevel === tierDef.tier;
+                    });
+
+                    const activeCount = assignedFeatures.filter((f) => f.isActive).length;
+
+                    return (
+                      <div
+                        key={tierKey}
+                        className={`rounded-2xl border transition-all overflow-hidden ${
+                          isTrialActiveThisTier && !isBaseContract
+                            ? 'bg-purple-50/20 border-purple-200'
+                            : isBaseContract
+                            ? 'bg-white border-blue-200/80 shadow-2xs'
+                            : 'bg-white border-slate-200 shadow-2xs'
+                        }`}
+                      >
+                        {/* Cabecera del Tier */}
+                        <div
+                          onClick={() => toggleTierSection(res.id, tierKey)}
+                          className={`px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer select-none transition-colors ${
+                            isTrialActiveThisTier && !isBaseContract
+                              ? 'bg-purple-100/60 hover:bg-purple-100/80 border-b border-purple-200'
+                              : isBaseContract
+                              ? 'bg-blue-50/50 hover:bg-blue-100/50 border-b border-blue-100'
+                              : 'bg-slate-50/70 hover:bg-slate-100/60 border-b border-slate-100'
                           }`}
                         >
-                          {feature.badgeLabel}
-                        </span>
-                        <span className="font-bold text-slate-900">{feature.name}</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 block mt-0.5">
-                        {feature.description}
-                      </span>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {isTierCollapsed ? (
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            )}
 
-                      {/* Desglose en vivo de Cupones de Quejas del Gerente con Límite Mensual dentro de Tier 2 */}
-                      {feature.key === 'tier_2_reputation_shield' && branchCoupons.length > 0 && (
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] font-extrabold uppercase text-rose-700">
-                            Cupones del Gerente por Quejas:
-                          </span>
-                          {branchCoupons.map((cp) => (
                             <span
-                              key={cp.id}
-                              className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold"
-                              title={`Creado por ${cp.manager_name}: ${cp.discount_description}`}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
+                                tierBadgeColors[tierDef.badge_label] || 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
                             >
-                              {cp.coupon_code} ({cp.discount_percentage}% · Uso mensual: {cp.used_this_month}/{cp.monthly_limit})
+                              {tierDef.badge_label}
                             </span>
-                          ))}
+
+                            <span className="font-extrabold text-xs text-slate-900 truncate">
+                              {tierDef.name}
+                            </span>
+
+                            {isBaseContract ? (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                                Plan Base Contratado
+                              </span>
+                            ) : isTrialActiveThisTier ? (
+                              <span className="px-2 py-0.5 rounded-md bg-purple-600 text-white text-[10px] font-extrabold animate-pulse">
+                                Prueba Activa · {trialInfo.daysRemaining}d restantes
+                              </span>
+                            ) : isAddonActive ? (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-bold">
+                                Add-on Activo
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-medium">
+                                Nivel Superior No Contratado
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                            {/* Botón Periodo de Prueba por Tier (Políticas 3.1 y 4) */}
+                            {typeof tierDef.tier === 'number' && tierDef.tier > 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTrialModalForBranch(res, tierDef.tier as TierType);
+                                }}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border transition-all shadow-2xs ${
+                                  isTrialActiveThisTier
+                                    ? 'bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200'
+                                    : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-50'
+                                }`}
+                                title={`Otorgar 7, 14 o 28 días de prueba para ${tierDef.name}`}
+                              >
+                                <Sparkles className="w-3 h-3 text-purple-600" />
+                                <span>{isTrialActiveThisTier ? 'Gestionar Prueba' : 'Periodo de Prueba'}</span>
+                              </button>
+                            )}
+
+                            <span className="text-[10px] font-bold text-slate-500">
+                              {activeCount} de {assignedFeatures.length} activas
+                            </span>
+
+                            <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                              {isTierCollapsed ? 'Expandir' : 'Colapsar'}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
-                      {feature.key === 'tier_2_reputation_shield' && (
-                        <Link
-                          to={`/admin/feedback?restaurant=${res.id}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors"
-                          title="Abrir buzón de quejas retenidas de esta sucursal"
-                        >
-                          <MessageSquareWarning className="w-3 h-3 text-rose-600" />
-                          <span>Ver Quejas ({feedbacksCount})</span>
-                        </Link>
-                      )}
+                        {/* Contenido Desglosado del Tier (Política 1 & 4) */}
+                        {!isTierCollapsed && (
+                          <div className="divide-y divide-slate-100 text-xs bg-white">
+                            {assignedFeatures.map((feature) => (
+                              <div
+                                key={feature.key}
+                                className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/20"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-slate-900">{feature.name}</span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                                    {feature.description}
+                                  </span>
 
-                      <StatusBadgeAndSwitch
-                        isOn={feature.isActive}
-                        onToggle={() => handleToggleTierFeature(res, feature)}
-                        title={`Prender o apagar ${feature.name}`}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                                  {/* Desglose en vivo de Cupones de Quejas dentro de Tier 2 */}
+                                  {feature.key === 'tier_2_reputation_shield' && branchCoupons.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                      <span className="text-[10px] font-extrabold uppercase text-rose-700">
+                                        Cupones del Gerente por Quejas:
+                                      </span>
+                                      {branchCoupons.map((cp) => (
+                                        <span
+                                          key={cp.id}
+                                          className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold"
+                                          title={`Creado por ${cp.manager_name}: ${cp.discount_description}`}
+                                        >
+                                          {cp.coupon_code} ({cp.discount_percentage}% · Uso mensual: {cp.used_this_month}/{cp.monthly_limit})
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
+                                  {feature.key === 'tier_2_reputation_shield' && (
+                                    <Link
+                                      to={`/admin/feedback?restaurant=${res.id}`}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors"
+                                      title="Abrir buzón de quejas retenidas de esta sucursal"
+                                    >
+                                      <MessageSquareWarning className="w-3 h-3 text-rose-600" />
+                                      <span>Ver Quejas ({feedbacksCount})</span>
+                                    </Link>
+                                  )}
+
+                                  <StatusBadgeAndSwitch
+                                    isOn={feature.isActive}
+                                    onToggle={() => handleToggleTierFeature(res, feature)}
+                                    title={`Prender o apagar ${feature.name}`}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Indicador de pantallas operativas de la categoría 3 vinculadas a este tier */}
+                            {tierDef.included_stations && tierDef.included_stations.length > 0 && (
+                              <div className="px-4 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center gap-2 text-[10px] font-semibold text-slate-500">
+                                <Monitor className="w-3 h-3 text-slate-400" />
+                                <span>
+                                  Pantallas operativas incluidas: {tierDef.included_stations.join(', ').toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -1319,7 +1550,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     );
                   })()}
 
-                  {/* Pantallas 4 a 8: Estaciones KDS (Jefe de Cocina vs Barista) */}
+                  {/* Pantallas 4 a 9: Estaciones KDS, Turnero 4K & Pick Up & Collect */}
                   {capabilities.supportsKds &&
                     kdsStations.map((station) => {
                       const isBaristaStation =
@@ -1328,8 +1559,13 @@ export const AdminRestaurantsPage: React.FC = () => {
                         station.name.toLowerCase().includes('barra') ||
                         station.name.toLowerCase().includes('café') ||
                         station.name.toLowerCase().includes('repostería');
+                      const isPickupStation = station.id === 'pickup';
+                      const isTurneroStation = station.id === 'turnero';
 
                       const assignedOperators = sortedStaff.filter((op) => {
+                        if (isPickupStation) {
+                          return op.role === 'cashier' || op.allowed_stations?.includes('pickup');
+                        }
                         const opStations =
                           op.allowed_stations && op.allowed_stations.length > 0
                             ? op.allowed_stations
@@ -1350,16 +1586,28 @@ export const AdminRestaurantsPage: React.FC = () => {
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                              {isPickupStation ? (
+                                <ShoppingBag className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                              ) : (
+                                <Monitor className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
+                              )}
                               <span className="font-bold text-slate-900">{station.name}</span>
                               <span
                                 className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${
-                                  isBaristaStation
+                                  isPickupStation
+                                    ? 'bg-orange-50 text-orange-800 border-orange-200'
+                                    : isTurneroStation
+                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    : isBaristaStation
                                     ? 'bg-teal-50 text-teal-800 border-teal-200'
                                     : 'bg-amber-50 text-amber-800 border-amber-200'
                                 }`}
                               >
-                                {isBaristaStation
+                                {isPickupStation
+                                  ? 'Rol Exclusivo: Cajero / Despachador de Mostrador & Pick Up'
+                                  : isTurneroStation
+                                  ? 'Pantalla Pública: Turnero 4K en Sala'
+                                  : isBaristaStation
                                   ? 'Rol Exclusivo: Barista (Barra, Coctelería, Repostería & Café)'
                                   : 'Rol Exclusivo: Jefe de Cocina (Estaciones KDS)'}
                               </span>
@@ -1393,7 +1641,13 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   : 'bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
                               }`}
                             >
-                              <span>Abrir KDS</span>
+                              <span>
+                                {isPickupStation
+                                  ? 'Abrir Pick Up'
+                                  : isTurneroStation
+                                  ? 'Abrir Turnero'
+                                  : 'Abrir KDS'}
+                              </span>
                               <ExternalLink className="w-3 h-3" />
                             </a>
                           </div>
@@ -1485,6 +1739,9 @@ export const AdminRestaurantsPage: React.FC = () => {
                             <option value="kitchen" className="bg-white text-slate-900 font-bold">
                               Jefe de Cocina (KDS Cocina)
                             </option>
+                            <option value="cashier" className="bg-white text-slate-900 font-bold">
+                              Cajero / Despachador (Mostrador & Pick Up)
+                            </option>
                             <option value="manager" className="bg-white text-slate-900 font-bold">
                               Capitán / Gerente de Piso
                             </option>
@@ -1494,8 +1751,8 @@ export const AdminRestaurantsPage: React.FC = () => {
                             PIN: {member.pin_code}
                           </span>
 
-                          {/* Selector de incidencia sobre pantallas KDS (Cocina vs Barra/Barista) */}
-                          {(member.role === 'kitchen' || member.role === 'barista' || member.role === 'manager') && (
+                          {/* Selector de incidencia sobre pantallas KDS (Cocina vs Barra/Barista vs Pick Up) */}
+                          {(member.role === 'kitchen' || member.role === 'barista' || member.role === 'cashier' || member.role === 'manager') && (
                             <div className="inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-lg border border-slate-200">
                               <span className="text-[9px] font-extrabold text-slate-500 uppercase">
                                 Pantallas:
@@ -1521,6 +1778,17 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 }`}
                               >
                                 Barra & Café
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStaffStation(member, 'pickup')}
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                  memberStations.includes('pickup')
+                                    ? 'bg-orange-600 text-white'
+                                    : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                Pick Up
                               </button>
                             </div>
                           )}
@@ -2238,6 +2506,15 @@ export const AdminRestaurantsPage: React.FC = () => {
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button
+                              onClick={() => handleOpenTrialModalForOrg(org)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold shadow-2xs transition-all"
+                              title="Otorgar periodo de prueba de 7, 14 o 28 días a todas las sucursales de esta organización"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                              <span>+ Periodo de Prueba</span>
+                            </button>
+
+                            <button
                               onClick={() => handleOpenAddBrandForOrg(org)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold shadow-2xs transition-all"
                               title="Añadir una nueva marca comercial y giro a esta organización"
@@ -2492,6 +2769,20 @@ export const AdminRestaurantsPage: React.FC = () => {
                                               <span className="text-[10px] text-slate-400 font-semibold">
                                                 • {branchNode.capabilities.verticalLabel}
                                               </span>
+
+                                              {(() => {
+                                                const trial = isBranchTrialActive(res);
+                                                if (!trial.isActive) return null;
+                                                return (
+                                                  <span
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-extrabold animate-pulse"
+                                                    title={`Prueba Tier ${trial.trialTier} activa hasta el ${trial.endDate?.toLocaleDateString()}`}
+                                                  >
+                                                    <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                                                    <span>Prueba Tier {trial.trialTier} ({trial.daysRemaining}d)</span>
+                                                  </span>
+                                                );
+                                              })()}
                                             </div>
                                           </div>
                                         </div>
@@ -2618,6 +2909,15 @@ export const AdminRestaurantsPage: React.FC = () => {
                                             <ExternalLink className="w-3 h-3" />
                                           </a>
 
+                                          <button
+                                            onClick={() => handleOpenTrialModalForBranch(res)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold transition-colors shadow-2xs"
+                                            title="Otorgar o modificar periodo de prueba para esta sucursal"
+                                          >
+                                            <Sparkles className="w-3 h-3 text-purple-600" />
+                                            <span>Prueba</span>
+                                          </button>
+
                                           <Link
                                             to={`/portal?restaurantId=${res.id}`}
                                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
@@ -2714,6 +3014,20 @@ export const AdminRestaurantsPage: React.FC = () => {
                                       {TIERS[4].name}
                                     </option>
                                   </select>
+
+                                  {(() => {
+                                    const trial = isBranchTrialActive(res);
+                                    if (!trial.isActive) return null;
+                                    return (
+                                      <span
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-extrabold animate-pulse ml-1.5"
+                                        title={`Prueba Tier ${trial.trialTier} activa hasta el ${trial.endDate?.toLocaleDateString()}`}
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                                        <span>Prueba Tier {trial.trialTier} ({trial.daysRemaining}d)</span>
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </td>
@@ -2774,6 +3088,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 >
                                   Quejas ({branchNode.feedbacksCount})
                                 </Link>
+                                <button
+                                  onClick={() => handleOpenTrialModalForBranch(res)}
+                                  className="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold transition-colors shadow-2xs inline-flex items-center gap-1"
+                                  title="Otorgar o modificar periodo de prueba para esta sucursal"
+                                >
+                                  <Sparkles className="w-3 h-3 text-purple-600" />
+                                  <span>Prueba</span>
+                                </button>
                                 <button
                                   onClick={() => handleEdit(res)}
                                   className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
@@ -2862,6 +3184,20 @@ export const AdminRestaurantsPage: React.FC = () => {
             prev.map((o) => (o.id === updatedOrg.id ? updatedOrg : o))
           );
         }}
+      />
+
+      {/* Modal de Periodo de Prueba para Organización o Sucursal (Políticas 3, 3.1, 4 y 5) */}
+      <TrialPeriodModal
+        isOpen={isTrialModalOpen}
+        onClose={() => {
+          setIsTrialModalOpen(false);
+          setTrialModalTargetOrg(null);
+          setTrialModalTargetBranch(null);
+        }}
+        onSuccess={loadData}
+        targetOrg={trialModalTargetOrg}
+        targetBranch={trialModalTargetBranch}
+        defaultTier={trialModalDefaultTier}
       />
     </div>
   );

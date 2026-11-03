@@ -463,34 +463,6 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
   // ==========================================
   async getOrganizationManagers(organizationId?: string): Promise<OrganizationManager[]> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
-    if (!isDemo && isSupabaseConfigured) {
-      try {
-        let query = supabase
-          .from('organization_managers')
-          .select('*')
-          .order('created_at', { ascending: true });
-        if (organizationId && !organizationId.startsWith('org-')) {
-          query = query.eq('organization_id', organizationId);
-        }
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          const localItems = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, []);
-          const mergedMap = new Map<string, OrganizationManager>();
-          (data as OrganizationManager[]).forEach((m) => mergedMap.set(m.id, m));
-          localItems.forEach((m) => {
-            if (!mergedMap.has(m.id)) {
-              if (!organizationId || m.organization_id === organizationId || m.organization_id === 'org-1') {
-                mergedMap.set(m.id, m);
-              }
-            }
-          });
-          return Array.from(mergedMap.values());
-        }
-      } catch (e) {
-        console.warn('Error cargando organization_managers de Supabase:', e);
-      }
-    }
-
     const nowIso = new Date().toISOString();
     const targetOrgId = organizationId || 'org-1';
     const defaultManagers: OrganizationManager[] = [
@@ -526,6 +498,42 @@ async deleteOrganizationMember(organizationId: string, memberId: string): Promis
         created_at: nowIso,
       },
     ];
+
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('organization_managers')
+          .select('*')
+          .order('created_at', { ascending: true });
+        if (organizationId && !organizationId.startsWith('org-')) {
+          query = query.eq('organization_id', organizationId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          const localItems = getLocalItem<OrganizationManager[]>(STORAGE_KEYS.ORGANIZATION_MANAGERS, []);
+          const mergedMap = new Map<string, OrganizationManager>();
+          (data as OrganizationManager[]).forEach((m) => mergedMap.set(m.id, m));
+          localItems.forEach((m) => {
+            if (!mergedMap.has(m.id)) {
+              if (!organizationId || m.organization_id === organizationId || m.organization_id === 'org-1') {
+                mergedMap.set(m.id, m);
+              }
+            }
+          });
+          // Asegurar gerentes demo si la consulta es para org demo o sin ID
+          if (!organizationId || organizationId === 'org-1' || organizationId.startsWith('org-')) {
+            defaultManagers.forEach((m) => {
+              if (!mergedMap.has(m.id)) {
+                mergedMap.set(m.id, m);
+              }
+            });
+          }
+          return Array.from(mergedMap.values());
+        }
+      } catch (e) {
+        console.warn('Error cargando organization_managers de Supabase:', e);
+      }
+    }
 
     const list = getLocalItem<OrganizationManager[]>(
       STORAGE_KEYS.ORGANIZATION_MANAGERS,

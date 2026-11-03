@@ -14,10 +14,12 @@ import { AdminFinancesPage } from './pages/AdminFinancesPage';
 import { AdminSupportPage } from './pages/AdminSupportPage';
 import { AdminFeedbackPage } from './pages/AdminFeedbackPage';
 import { AdminCoveragePage } from './pages/AdminCoveragePage';
+import { AdminTiersPage } from './pages/AdminTiersPage';
 import { PortalKitchenPage } from './pages/portal/PortalKitchenPage';
 import { PortalStaffPage } from './pages/portal/PortalStaffPage';
 import { PortalHostessPage } from './pages/portal/PortalHostessPage';
 import { PortalManagerPage } from './pages/portal/PortalManagerPage';
+import { PortalPickupPage } from './pages/portal/PortalPickupPage';
 import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
@@ -53,11 +55,12 @@ export const App: React.FC = () => {
           <Route index element={<PortalDashboardPage />} />
         </Route>
 
-        {/* Terminales de Sala, Recepción (Hostess), Gerencia y Cocina */}
+        {/* Terminales de Sala, Recepción (Hostess), Gerencia, Cocina y Mostrador Pick Up */}
         <Route path="/portal/cocina" element={<PortalKitchenPage />} />
         <Route path="/portal/mesero" element={<PortalStaffPage />} />
         <Route path="/portal/hostess" element={<PortalHostessPage />} />
         <Route path="/portal/gerente" element={<PortalManagerPage />} />
+        <Route path="/portal/pickup" element={<PortalPickupPage />} />
 
         {/* Autenticación Administrativa */}
         <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -68,6 +71,7 @@ export const App: React.FC = () => {
             <Route index element={<AdminDashboardPage />} />
             <Route path="hardware" element={<AdminHardwarePage />} />
             <Route path="ventas" element={<AdminSalesPage />} />
+            <Route path="tiers" element={<AdminTiersPage />} />
             <Route path="restaurants" element={<AdminRestaurantsPage />} />
             <Route path="tags" element={<AdminTagsPage />} />
             <Route path="ads" element={<AdminAdsPage />} />

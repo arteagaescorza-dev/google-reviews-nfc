@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Layers,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { to: '/admin/hardware', label: 'Hardware & Bodega', icon: Cpu },
   { to: '/admin/ventas', label: 'Ventas & Pipeline', icon: Briefcase },
   { to: '/admin/tags', label: 'Tags NFC & Mesas', icon: QrCode },
+  { to: '/admin/tiers', label: 'Tiers & Servicios', icon: Layers },
   { to: '/admin/restaurants', label: 'Restaurantes', icon: Store },
   { to: '/admin/finanzas', label: 'Finanzas & EBITDA', icon: DollarSign },
   { to: '/admin/ads', label: 'Red de Anuncios', icon: Megaphone },

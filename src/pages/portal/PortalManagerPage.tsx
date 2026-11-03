@@ -23,6 +23,7 @@ import {
   Clock,
   Sliders,
   ArrowLeftRight,
+  ShoppingBag,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { filterBranchesBySameOrganization, isSameOrganizationAccessAllowed } from '../../lib/api/orders';
@@ -236,6 +237,8 @@ export const PortalManagerPage: React.FC = () => {
         ? ['barra']
         : newStaffStation === 'postres'
         ? ['postres']
+        : newStaffStation === 'pickup'
+        ? ['pickup']
         : ['all'];
 
     await api.createStaffMember({
@@ -267,6 +270,8 @@ export const PortalManagerPage: React.FC = () => {
         ? ['barra']
         : stationGroup === 'postres'
         ? ['postres']
+        : stationGroup === 'pickup'
+        ? ['pickup']
         : ['all'];
 
     await api.updateStaffMember(member.id, {
@@ -618,6 +623,13 @@ export const PortalManagerPage: React.FC = () => {
               <ChefHat className="w-3.5 h-3.5 text-amber-400" /> KDS Cocina & Barra
             </Link>
 
+            <Link
+              to={`/portal/pickup?branch=${selectedBranchId}`}
+              className="px-3 py-2 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-300 hover:bg-orange-600/30 text-xs font-bold flex items-center gap-1.5"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-orange-400" /> Pantalla Pick Up
+            </Link>
+
             <button
               onClick={loadBranchData}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
@@ -758,6 +770,7 @@ export const PortalManagerPage: React.FC = () => {
                       setNewStaffRole(r);
                       if (r === 'kitchen') setNewStaffStation('cocina');
                       else if (r === 'barista') setNewStaffStation('barista');
+                      else if (r === 'cashier') setNewStaffStation('pickup');
                       else setNewStaffStation('all');
                     }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
@@ -765,6 +778,7 @@ export const PortalManagerPage: React.FC = () => {
                     <option value="waiter">Mesero en Sala</option>
                     <option value="kitchen">Jefe de Cocina (Acceso exclusivo Cocina KDS)</option>
                     <option value="barista">Barista (Barra, Coctelería, Repostería y Café)</option>
+                    <option value="cashier">Cajero / Despachador (Mostrador & Pick Up)</option>
                     <option value="hostess">Hostess (Recepción, Mesas y Solicitud de Limpieza)</option>
                     <option value="manager">Capitán o Gerente de Piso</option>
                   </select>
@@ -782,6 +796,7 @@ export const PortalManagerPage: React.FC = () => {
                     <option value="all">Todas las Pantallas de su Rol</option>
                     <option value="cocina">Exclusivo: Estación Cocina Caliente (Jefe de Cocina)</option>
                     <option value="barista">Exclusivo: Barra, Coctelería, Repostería & Café (Barista)</option>
+                    <option value="pickup">Exclusivo: Estación Pick Up & Collect (Mostrador / Delivery)</option>
                     <option value="barra">Exclusivo: Solo Barra & Coctelería</option>
                     <option value="postres">Exclusivo: Solo Repostería & Café</option>
                   </select>
@@ -843,6 +858,10 @@ export const PortalManagerPage: React.FC = () => {
                             <ChefHat className="w-3.5 h-3.5 text-amber-400" />
                           ) : member.role === 'barista' ? (
                             <Coffee className="w-3.5 h-3.5 text-teal-400" />
+                          ) : member.role === 'cashier' ? (
+                            <ShoppingBag className="w-3.5 h-3.5 text-orange-400" />
+                          ) : member.role === 'hostess' ? (
+                            <Users className="w-3.5 h-3.5 text-violet-400" />
                           ) : (
                             <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
                           )}
@@ -869,6 +888,7 @@ export const PortalManagerPage: React.FC = () => {
                           <option value="waiter">Mesero en Sala</option>
                           <option value="barista">Barista (Barra & Café)</option>
                           <option value="kitchen">Jefe de Cocina</option>
+                          <option value="cashier">Cajero / Despachador Mostrador</option>
                           <option value="manager">Capitán / Gerente Piso</option>
                         </select>
 
@@ -883,6 +903,7 @@ export const PortalManagerPage: React.FC = () => {
                           <option value="all">Pantalla: General según Rol</option>
                           <option value="cocina">Pantalla: Solo Cocina Caliente KDS</option>
                           <option value="barista">Pantalla: Barra, Coctelería, Repostería & Café</option>
+                          <option value="pickup">Pantalla: Pick Up & Collect</option>
                           <option value="barra">Pantalla: Solo Barra & Coctelería</option>
                           <option value="postres">Pantalla: Solo Repostería & Café</option>
                         </select>
@@ -1072,6 +1093,7 @@ export const PortalManagerPage: React.FC = () => {
                     <option value="all">Salón General / Recepción</option>
                     <option value="cocina">Estación Cocina Caliente KDS</option>
                     <option value="barista">Estación Barista (Barra, Coctelería, Repostería y Café)</option>
+                    <option value="pickup">Estación Pick Up & Collect (Mostrador / Delivery)</option>
                     <option value="barra">Estación Barra de Bebidas</option>
                     <option value="postres">Estación Repostería y Café</option>
                   </select>

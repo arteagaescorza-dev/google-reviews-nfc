@@ -150,6 +150,10 @@ export interface Organization {
   owner_phone?: string | null;
   notify_negative_feedback: boolean;
   billing_info?: BillingInfo | null;
+  trial_tier?: TierType | null;
+  trial_start_date?: string | null;
+  trial_end_date?: string | null;
+  trial_days?: 7 | 14 | 28 | null;
   created_at: string;
 }
 
@@ -173,6 +177,10 @@ export interface Restaurant {
   opening_time?: string | null;
   closing_time?: string | null;
   operating_days?: string | null;
+  trial_tier?: TierType | null;
+  trial_start_date?: string | null;
+  trial_end_date?: string | null;
+  trial_days?: 7 | 14 | 28 | null;
   is_active: boolean;
   blocked_ad_ids?: string[];
   last_veto_date?: string | null;
@@ -421,7 +429,7 @@ export interface MenuItem {
   preparation_time_mins?: number;
 }
 
-export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'barista' | 'all';
+export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'barista' | 'turnero' | 'pickup' | 'all';
 
 export interface OrderItem {
   menu_item_id: string;
@@ -465,7 +473,24 @@ export interface TableCall {
   attended_by?: string;
 }
 
-export type StaffRole = 'waiter' | 'kitchen' | 'barista' | 'hostess' | 'manager';
+export type StaffRole = 'waiter' | 'kitchen' | 'barista' | 'hostess' | 'manager' | 'cashier';
+
+export interface TierFeatureItem {
+  id: string;
+  name: string;
+  description: string;
+  category: 'feature' | 'station';
+}
+
+export interface CustomTierDefinition {
+  tier: TierType | 'addon';
+  name: string;
+  badge_label: string;
+  price_mxn: number;
+  description: string;
+  included_features: string[]; // IDs de funcionalidades
+  included_stations: string[]; // IDs de pantallas operativas
+}
 
 export interface StaffMember {
   id: string;

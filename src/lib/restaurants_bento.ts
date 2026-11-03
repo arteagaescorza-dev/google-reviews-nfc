@@ -28,7 +28,7 @@ export interface RestaurantKpiMetrics {
 }
 
 export interface KdsStationConfig {
-  id: 'all' | 'cocina' | 'barra' | 'postres' | 'turnero';
+  id: 'all' | 'cocina' | 'barra' | 'postres' | 'turnero' | 'pickup';
   name: string;
   description: string;
   url: string;
@@ -39,6 +39,9 @@ export type TierFeatureKey =
   | 'tier_1_redirect'
   | 'tier_2_reputation_shield'
   | 'tier_3_digital_menu_wifi'
+  | 'tier_3_digital_menu'
+  | 'tier_3_linktree'
+  | 'tier_3_wifi'
   | 'tier_4_ad_network_analytics'
   | 'addon_ad_free';
 
@@ -143,15 +146,50 @@ export function getBranchCapabilities(
 }
 
 /**
+ * Evalúa si una sucursal tiene un periodo de prueba activo y calcula el tiempo restante
+ */
+export function isBranchTrialActive(restaurant: Restaurant): {
+  isActive: boolean;
+  trialTier: TierType | null;
+  daysRemaining: number;
+  hoursRemaining: number;
+  endDate: Date | null;
+} {
+  if (!restaurant.trial_tier || !restaurant.trial_end_date) {
+    return { isActive: false, trialTier: null, daysRemaining: 0, hoursRemaining: 0, endDate: null };
+  }
+  const end = new Date(restaurant.trial_end_date);
+  const now = new Date();
+  const diffMs = end.getTime() - now.getTime();
+  if (diffMs <= 0) {
+    return { isActive: false, trialTier: null, daysRemaining: 0, hoursRemaining: 0, endDate: end };
+  }
+  const hoursRemaining = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
+  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return {
+    isActive: true,
+    trialTier: restaurant.trial_tier as TierType,
+    daysRemaining,
+    hoursRemaining,
+    endDate: end,
+  };
+}
+
+/**
  * Construye la matriz de funcionalidades por Tier (1 a 4 + Add-On Marca Blanca) para el Panel de Control de la sucursal.
- * Por defecto se prenden las funcionalidades cuyo nivel sea <= al Tier contratado de la sucursal,
+ * Por defecto se prenden las funcionalidades cuyo nivel sea <= al Tier contratado de la sucursal (o el Tier de prueba activo),
  * permitiendo además overrides individuales mediante los switches del panel.
  */
 export function getTierFeaturesForBranch(
   restaurant: Restaurant,
   overrides: Record<string, boolean> = {}
 ): TierFeatureConfig[] {
-  const currentTier: TierType = restaurant.tier || 2;
+  const trialInfo = isBranchTrialActive(restaurant);
+  const baseTier: TierType = restaurant.tier || 2;
+  const currentTier: TierType =
+    trialInfo.isActive && trialInfo.trialTier
+      ? (Math.max(baseTier, trialInfo.trialTier) as TierType)
+      : baseTier;
   const isBranchActive = restaurant.is_active !== false;
 
   const definitions: Omit<TierFeatureConfig, 'isActive'>[] = [
@@ -159,7 +197,7 @@ export function getTierFeaturesForBranch(
       key: 'tier_1_redirect',
       tierLevel: 1,
       badgeLabel: 'Tier 1',
-      name: 'Enlace Directo & Bucle Viral en Mesa',
+      name: 'Enlace Directo a Google Reviews',
       description: 'Redirección instantánea a Google Reviews con semillero viral de placas ($100 MXN).',
     },
     {
@@ -175,6 +213,27 @@ export function getTierFeaturesForBranch(
       badgeLabel: 'Tier 3',
       name: 'Menú Digital Interactivo + Linktree + Wi-Fi 1-Toque',
       description: 'Carta digital con carrito a cocina, botones de redes sociales y conexión Wi-Fi automática.',
+    },
+    {
+      key: 'tier_3_digital_menu',
+      tierLevel: 3,
+      badgeLabel: 'Tier 3',
+      name: 'Menú Digital Interactivo con Carrito a Cocina',
+      description: 'Carta digital con fotos, precios y envío directo de comandas al KDS.',
+    },
+    {
+      key: 'tier_3_linktree',
+      tierLevel: 3,
+      badgeLabel: 'Tier 3',
+      name: 'Botonera Linktree (Redes Sociales, Contacto & Reservas)',
+      description: 'Enlaces rápidos a WhatsApp, Instagram, Facebook, TikTok y reservaciones.',
+    },
+    {
+      key: 'tier_3_wifi',
+      tierLevel: 3,
+      badgeLabel: 'Tier 3',
+      name: 'Conexión Wi-Fi 1-Toque Automática',
+      description: 'Conexión instantánea a la red Wi-Fi de la sucursal vía NFC o código QR.',
     },
     {
       key: 'tier_4_ad_network_analytics',
@@ -201,9 +260,11 @@ export function getTierFeaturesForBranch(
     }
 
     const defaultByTier = isBranchActive && typeof def.tierLevel === 'number' && currentTier >= def.tierLevel;
+    const legacyOverride = def.key.startsWith('tier_3_') ? overrides['tier_3_digital_menu_wifi'] : undefined;
+    const directOverride = overrides[def.key] !== undefined ? overrides[def.key] : legacyOverride;
     return {
       ...def,
-      isActive: overrides[def.key] !== undefined ? overrides[def.key] : defaultByTier,
+      isActive: directOverride !== undefined ? directOverride : defaultByTier,
     };
   });
 }
@@ -246,6 +307,12 @@ export function getDefaultKdsStations(
       description: 'Pantalla para comensales con estado En Preparación / Listo para Recoger',
       url: `#/turnero-plaza?branch=${restaurantId}`,
     },
+    {
+      id: 'pickup',
+      name: 'Estación Pick Up & Collect (Despacho & Delivery)',
+      description: 'Entrega de pedidos para llevar, mostrador y repartidores Uber/Rappi',
+      url: `#/portal/pickup?branch=${restaurantId}`,
+    },
   ];
 
   const defaultActive: Record<string, boolean> = {
@@ -254,6 +321,7 @@ export function getDefaultKdsStations(
     barra: true,
     postres: false,
     turnero: false,
+    pickup: true,
   };
 
   return stations.map((st) => ({

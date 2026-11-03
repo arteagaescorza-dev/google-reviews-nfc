@@ -337,3 +337,4 @@ export const OrganizationEditModal: React.FC<OrganizationEditModalProps> = ({
     </div>
   );
 };
+

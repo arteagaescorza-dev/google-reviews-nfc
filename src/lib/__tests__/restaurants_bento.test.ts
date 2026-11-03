@@ -198,10 +198,10 @@ describe('UI-EX-01: Sucursales & Restaurantes en Bento Grid Light', () => {
     const gastroBranch = org1?.branches.find((b) => b.restaurant.id === 'res-gastro');
     const dentalBranch = org1?.branches.find((b) => b.restaurant.id === 'res-dental');
 
-    // Giro Restaurante: KDS y Meseros activos
+    // Giro Restaurante: KDS y Meseros activos (6 estaciones incluyendo Pick Up & Collect)
     expect(gastroBranch?.capabilities.supportsKds).toBe(true);
     expect(gastroBranch?.capabilities.supportsFloorStaff).toBe(true);
-    expect(gastroBranch?.kdsStations.length).toBe(5);
+    expect(gastroBranch?.kdsStations.length).toBe(6);
     expect(gastroBranch?.kdsStations.find((s) => s.id === 'postres')?.isActive).toBe(true);
     expect(gastroBranch?.staff.length).toBe(1);
 
