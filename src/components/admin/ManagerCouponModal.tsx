@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Sparkles,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 
 interface ManagerCouponModalProps {
@@ -38,7 +39,6 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
   const [couponCode, setCouponCode] = useState('');
   const [discountPercentage, setDiscountPercentage] = useState(15);
   const [discountDescription, setDiscountDescription] = useState('Cortesía de gerencia por inconformidad o queja');
-  const [monthlyLimit, setMonthlyLimit] = useState(10);
   const [formError, setFormError] = useState('');
 
   const loadCoupons = async () => {
@@ -76,6 +76,15 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
+  const handleDeleteCoupon = async (couponId: string, code: string) => {
+    if (!confirm(`¿Eliminar el cupón ${code}?`)) return;
+    await api.deleteManagerRetentionCoupon(couponId);
+    setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+    setToastMsg(`Cupón "${code}" eliminado.`);
+    onCouponCreated?.();
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manager) return;
@@ -95,11 +104,6 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
       return;
     }
 
-    if (monthlyLimit <= 0) {
-      setFormError('El límite mensual debe ser mayor a 0.');
-      return;
-    }
-
     setFormError('');
     setIsCreating(true);
 
@@ -112,7 +116,7 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
       coupon_code: couponCode.trim().toUpperCase(),
       discount_percentage: Number(discountPercentage),
       discount_description: discountDescription.trim(),
-      monthly_limit: Number(monthlyLimit),
+      monthly_limit: 1, // Requerimiento 1: Cada cupón es de 1 solo uso estricto
       is_active: true,
     });
 
@@ -120,7 +124,7 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
 
     if (res.success && res.data) {
       setCoupons((prev) => [res.data!, ...prev]);
-      setToastMsg(`Cupón ${res.data.coupon_code} creado exitosamente.`);
+      setToastMsg(`Cupón ${res.data.coupon_code} de 1 solo uso creado exitosamente.`);
       generateRandomCode();
       onCouponCreated?.();
       setTimeout(() => setToastMsg(null), 3500);
@@ -150,14 +154,14 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Emisión de descuentos del gerente con tope mensual para contención de quejas en {branchName}.
+                Emisión de descuentos de 1 solo uso del gerente para contención de quejas en {branchName}.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -172,19 +176,19 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
         )}
 
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {/* Formulario de Alta de Cupón */}
+          {/* Formulario de Alta de Cupón de 1 Solo Uso */}
           <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-600" />
                 <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                  Emitir Nuevo Cupón de Gerente
+                  Emitir Nuevo Cupón de Gerente (1 Solo Uso)
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={generateRandomCode}
-                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
               >
                 Autogenerar código
               </button>
@@ -235,16 +239,12 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
 
                 <div>
                   <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">
-                    Límite Mensual (usos)
+                    Modalidad de Uso
                   </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={monthlyLimit}
-                    onChange={(e) => setMonthlyLimit(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
+                  <div className="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 font-bold text-xs text-indigo-900 flex items-center justify-between">
+                    <span>1 solo uso por cupón</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white">Único</span>
+                  </div>
                 </div>
               </div>
 
@@ -294,39 +294,50 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {coupons.map((cp) => {
-                  const used = cp.used_this_month || 0;
-                  const limit = cp.monthly_limit || 10;
-                  const percentUsed = Math.min(100, Math.round((used / limit) * 100));
-                  const isExhausted = used >= limit;
+                  const isUsed = (cp.used_this_month || 0) >= (cp.monthly_limit || 1);
 
                   return (
                     <div
                       key={cp.id}
                       className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        cp.is_active
+                        isUsed
+                          ? 'bg-slate-50 border-slate-200 opacity-70'
+                          : cp.is_active
                           ? 'bg-white border-slate-200 shadow-2xs hover:border-slate-300'
                           : 'bg-slate-50 border-slate-200 opacity-60'
                       }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-black text-sm text-slate-900 tracking-wide bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                          <span
+                            className={`font-mono font-black text-sm tracking-wide px-2 py-0.5 rounded-lg border ${
+                              isUsed
+                                ? 'line-through text-slate-400 bg-slate-100 border-slate-200'
+                                : 'text-slate-900 bg-slate-100 border-slate-200'
+                            }`}
+                          >
                             {cp.coupon_code}
                           </span>
-                          <span className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 font-black text-[11px]">
+                          <span
+                            className={`px-2 py-0.5 rounded-md font-black text-[11px] border ${
+                              isUsed
+                                ? 'bg-slate-100 text-slate-500 border-slate-200'
+                                : 'bg-rose-50 border-rose-200 text-rose-700'
+                            }`}
+                          >
                             {cp.discount_percentage}% OFF
                           </span>
-                          {isExhausted ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              Tope Mensual Alcanzado
+                          {isUsed ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 text-slate-700 border border-slate-300">
+                              Canjeado (1/1 Usado)
                             </span>
                           ) : cp.is_active ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Disponible
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Disponible (1 Solo Uso)
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                              Desactivado
+                              Pausado
                             </span>
                           )}
                         </div>
@@ -335,34 +346,41 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
                           {cp.discount_description}
                         </p>
 
-                        {/* Barra de progreso de uso mensual */}
-                        <div className="mt-2 flex items-center gap-2.5">
-                          <div className="flex-1 max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                isExhausted ? 'bg-amber-500' : 'bg-indigo-600'
-                              }`}
-                              style={{ width: `${percentUsed}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-500">
-                            {used} de {limit} usados este mes
-                          </span>
+                        <div className="mt-1.5 flex items-center gap-2 text-[11px]">
+                          {isUsed ? (
+                            <span className="font-semibold text-slate-500">
+                              Este cupón ya fue canjeado en una queja o cortesía.
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-emerald-700">
+                              Válido para un único canje en cuenta o buzón de quejas.
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {/* Switch Activo / Inactivo */}
+                      {/* Botones de acción */}
                       <div className="flex items-center gap-2 self-end sm:self-center">
+                        {!isUsed && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCouponActive(cp)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-2xs cursor-pointer ${
+                              cp.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            {cp.is_active ? 'Habilitado' : 'Pausado'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleToggleCouponActive(cp)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
-                            cp.is_active
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
-                          }`}
+                          onClick={() => handleDeleteCoupon(cp.id, cp.coupon_code)}
+                          title="Eliminar este cupón"
+                          className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          {cp.is_active ? 'Habilitado' : 'Pausado'}
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -377,12 +395,12 @@ export const ManagerCouponModal: React.FC<ManagerCouponModalProps> = ({
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Los cupones emitidos quedan registrados con firma del gerente en el buzón de quejas.</span>
+            <span>Los cupones de 1 solo uso quedan vinculados a la queja autorizada en el buzón.</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors cursor-pointer"
           >
             Cerrar
           </button>

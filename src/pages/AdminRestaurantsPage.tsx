@@ -27,6 +27,7 @@ import { TrialPeriodModal } from '../components/admin/TrialPeriodModal';
 import { ManagerEditModal } from '../components/admin/ManagerEditModal';
 import { MenuManagementModal } from '../components/admin/MenuManagementModal';
 import { ManagerCouponModal } from '../components/admin/ManagerCouponModal';
+import { StaffMemberModal } from '../components/admin/StaffMemberModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -71,6 +72,7 @@ import {
   BarChart2,
   SlidersHorizontal,
   ChevronUp,
+  Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -393,6 +395,12 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [couponModalManager, setCouponModalManager] = useState<OrganizationManager | null>(null);
   const [couponModalRestaurantId, setCouponModalRestaurantId] = useState<string>('');
   const [couponModalBranchName, setCouponModalBranchName] = useState<string>('');
+
+  // Estados para Modal de Empleados de Categoría 4 (Requerimiento 3)
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [staffModalBranchId, setStaffModalBranchId] = useState<string>('');
+  const [staffModalBranchName, setStaffModalBranchName] = useState<string>('');
 
   // Estados de Colapso Inteligente y Renderizado Suave
   const [isTopKpisExpanded, setIsTopKpisExpanded] = useState<boolean>(true);
@@ -872,6 +880,38 @@ export const AdminRestaurantsPage: React.FC = () => {
       prev.map((s) => (s.id === staff.id ? { ...s, role: newRole } : s))
     );
     await api.updateStaffMember(staff.id, { role: newRole });
+  };
+
+  const handleCreateNewStaff = (branchId: string, branchName: string) => {
+    setEditingStaff(null);
+    setStaffModalBranchId(branchId);
+    setStaffModalBranchName(branchName);
+    setIsStaffModalOpen(true);
+  };
+
+  const handleEditStaff = (member: StaffMember, branchName: string) => {
+    setEditingStaff(member);
+    setStaffModalBranchId(member.restaurant_id);
+    setStaffModalBranchName(branchName);
+    setIsStaffModalOpen(true);
+  };
+
+  const handleDeleteStaff = async (member: StaffMember) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al empleado "${member.name}" (PIN: ${member.pin_code})?`)) return;
+    const res = await api.deleteStaffMember(member.id);
+    if (res.success) {
+      setStaffMembers((prev) => prev.filter((s) => s.id !== member.id));
+    }
+  };
+
+  const handleStaffSaved = (savedStaff: StaffMember) => {
+    setStaffMembers((prev) => {
+      const exists = prev.some((s) => s.id === savedStaff.id);
+      if (exists) {
+        return prev.map((s) => (s.id === savedStaff.id ? savedStaff : s));
+      }
+      return [savedStaff, ...prev];
+    });
   };
 
   const handleToggleStaffStation = async (staff: StaffMember, station: KitchenStation) => {
@@ -1956,6 +1996,19 @@ export const AdminRestaurantsPage: React.FC = () => {
                         {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores
                       </span>
 
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateNewStaff(res.id, res.name || res.branch_name);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer"
+                        title={`Dar de alta un nuevo empleado operativo en ${res.branch_name}`}
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Añadir Empleado</span>
+                      </button>
+
                       <div onClick={(e) => e.stopPropagation()} className="flex items-center">
                         <StatusBadgeAndSwitch
                           isOn={isMasterOn}
@@ -2001,6 +2054,59 @@ export const AdminRestaurantsPage: React.FC = () => {
                     {getBranchCategoryAllowed(res, 4) &&
                       branchMasterCategoriesState[res.id]?.[4] !== false && (
                   <div className="divide-y divide-slate-100 text-xs">
+                  {/* Fila Informativa de Horarios Operativos de la Sucursal por Día (Requerimiento 2) */}
+                  {(() => {
+                    let scheduleList: { name: string; isOpen: boolean; open: string; close: string }[] = [];
+                    if (res.daily_operating_hours) {
+                      try {
+                        const parsed = typeof res.daily_operating_hours === 'string'
+                          ? JSON.parse(res.daily_operating_hours)
+                          : res.daily_operating_hours;
+                        if (Array.isArray(parsed)) {
+                          scheduleList = parsed;
+                        } else if (typeof parsed === 'object') {
+                          scheduleList = Object.values(parsed);
+                        }
+                      } catch {}
+                    }
+                    if (scheduleList.length === 0) {
+                      const defDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                      scheduleList = defDays.map((name) => ({
+                        name,
+                        isOpen: true,
+                        open: res.opening_time || '08:00',
+                        close: res.closing_time || '23:00',
+                      }));
+                    }
+
+                    return (
+                      <div className="px-4 py-2 bg-emerald-50/50 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <div className="flex items-center gap-1.5 font-bold text-emerald-950">
+                          <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Horario Semanal de la Sucursal:</span>
+                          <span className="text-emerald-700 font-medium">
+                            {res.operating_days || 'Lun - Dom'} ({res.opening_time || '08:00'} &ndash; {res.closing_time || '23:00'})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {scheduleList.map((d, i) => (
+                            <span
+                              key={i}
+                              title={`${d.name}: ${d.isOpen ? `${d.open} - ${d.close}` : 'Cerrado'}`}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold border ${
+                                d.isOpen
+                                  ? 'bg-white text-emerald-800 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-400 border-slate-200'
+                              }`}
+                            >
+                              {d.name.slice(0, 2)}: {d.isOpen ? `${d.open.slice(0, 5)}` : 'Cerrado'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Filas de Personal Operativo con Rol, Incidencia en Pantallas KDS, Turno a 60 días y Métricas */}
                   {sortedStaff.map((member) => {
                     const memberStations: KitchenStation[] =
@@ -2101,7 +2207,25 @@ export const AdminRestaurantsPage: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 self-end sm:self-center">
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleEditStaff(member, res.name || res.branch_name)}
+                            className="p-1 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors cursor-pointer"
+                            title={`Editar datos y PIN de ${member.name}`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStaff(member)}
+                            className="p-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer"
+                            title={`Eliminar empleado ${member.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
                           <StatusBadgeAndSwitch
                             isOn={member.is_active}
                             onToggle={() => handleToggleStaffActive(member)}
@@ -4421,6 +4545,19 @@ export const AdminRestaurantsPage: React.FC = () => {
         restaurantId={couponModalRestaurantId}
         branchName={couponModalBranchName}
         onCouponCreated={loadData}
+      />
+
+      {/* Modal de Creación / Edición de Empleados de Categoría 4 (Requerimiento 3) */}
+      <StaffMemberModal
+        isOpen={isStaffModalOpen}
+        onClose={() => {
+          setIsStaffModalOpen(false);
+          setEditingStaff(null);
+        }}
+        staff={editingStaff}
+        restaurantId={staffModalBranchId}
+        branchName={staffModalBranchName}
+        onSaved={handleStaffSaved}
       />
     </div>
   );

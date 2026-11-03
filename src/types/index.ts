@@ -1,3 +1,13 @@
+export interface DayOperatingSchedule {
+  key: string;
+  name: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+export type WeeklyOperatingHours = Record<string, DayOperatingSchedule>;
+
 export type BusinessType =
   | 'restaurant'
   | 'barberia'
@@ -177,6 +187,7 @@ export interface Restaurant {
   opening_time?: string | null;
   closing_time?: string | null;
   operating_days?: string | null;
+  daily_operating_hours?: WeeklyOperatingHours | string | null;
   trial_tier?: TierType | null;
   trial_start_date?: string | null;
   trial_end_date?: string | null;

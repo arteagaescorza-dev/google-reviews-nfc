@@ -185,4 +185,86 @@ describe('Fase C: Tabla de Gerentes por Organización, Turnos a 60 Días, Cortes
     expect(ownerReports[0].table_metrics.length).toBe(2);
     expect(ownerReports[0].employee_metrics[0].staff_name).toBe('Carlos (Mesero)');
   });
+
+  it('permite crear cupones de retención de 1 solo uso, agotarse tras su primer canje y eliminarlos', async () => {
+    // 1. Crear cupón con límite de 1 solo uso
+    const createRes = await api.createManagerRetentionCoupon({
+      organization_id: 'org-1',
+      restaurant_id: 'res-1',
+      manager_id: 'mgr-1',
+      manager_name: 'Lic. Mauricio Salinas',
+      title: 'Cupón 25% Cortesía Queja',
+      coupon_code: 'UNICO-25',
+      discount_percentage: 25,
+      discount_description: 'Cortesía de 1 solo uso por demora en mesa',
+      monthly_limit: 1,
+      is_active: true,
+    });
+
+    expect(createRes.success).toBe(true);
+    expect(createRes.data?.monthly_limit).toBe(1);
+    expect(createRes.data?.used_this_month).toBe(0);
+    const couponId = createRes.data!.id;
+
+    // 2. Canjear el cupón en una queja (primer y único uso)
+    const auth1 = await api.authorizeComplaintDiscountOrCoupon({
+      feedbackId: 'fb-test-1',
+      restaurantId: 'res-1',
+      couponId,
+      managerName: 'Lic. Mauricio Salinas',
+    });
+    expect(auth1.success).toBe(true);
+    expect(auth1.coupon?.used_this_month).toBe(1);
+
+    // 3. Intentar un segundo uso debe ser rechazado
+    const auth2 = await api.authorizeComplaintDiscountOrCoupon({
+      feedbackId: 'fb-test-2',
+      restaurantId: 'res-1',
+      couponId,
+      managerName: 'Lic. Mauricio Salinas',
+    });
+    expect(auth2.success).toBe(false);
+    expect(auth2.error).toContain('límite mensual');
+
+    // 4. Eliminar el cupón quemado
+    const delRes = await api.deleteManagerRetentionCoupon(couponId);
+    expect(delRes.success).toBe(true);
+    const allAfterDel = await api.getManagerRetentionCoupons('res-1');
+    expect(allAfterDel.some((c) => c.id === couponId)).toBe(false);
+  });
+
+  it('permite dar de alta, editar y eliminar empleados de Categoría 4 desde la sucursal', async () => {
+    // 1. Crear nuevo empleado
+    const newStaff = await api.createStaffMember({
+      restaurant_id: 'res-1',
+      name: 'Esteban Garibay',
+      role: 'waiter',
+      pin_code: '7788',
+      allowed_stations: ['cocina'],
+      is_active: true,
+    });
+
+    expect(newStaff.success).toBe(true);
+    expect(newStaff.data?.name).toBe('Esteban Garibay');
+    expect(newStaff.data?.pin_code).toBe('7788');
+    const staffId = newStaff.data!.id;
+
+    // 2. Editar empleado (cambiar puesto y PIN)
+    const updateRes = await api.updateStaffMember(staffId, {
+      role: 'barista',
+      pin_code: '9900',
+      allowed_stations: ['barista', 'pickup'],
+    });
+
+    expect(updateRes.success).toBe(true);
+    expect(updateRes.data?.role).toBe('barista');
+    expect(updateRes.data?.pin_code).toBe('9900');
+    expect(updateRes.data?.allowed_stations).toContain('barista');
+
+    // 3. Eliminar empleado
+    const deleteRes = await api.deleteStaffMember(staffId);
+    expect(deleteRes.success).toBe(true);
+    const staffList = await api.getStaffMembers('res-1');
+    expect(staffList.some((s) => s.id === staffId)).toBe(false);
+  });
 });

@@ -23,9 +23,28 @@ import {
   Tag as TagIcon,
   Search,
   Layers,
+  Clock,
 } from 'lucide-react';
 import { NewOrganizationModal } from './NewOrganizationModal';
 import { PhoneInputWithCountry } from '../common/PhoneInputWithCountry';
+
+interface DayScheduleItem {
+  key: string;
+  name: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+const INITIAL_WEEKLY_SCHEDULE: DayScheduleItem[] = [
+  { key: 'lunes', name: 'Lunes', isOpen: true, open: '08:00', close: '23:00' },
+  { key: 'martes', name: 'Martes', isOpen: true, open: '08:00', close: '23:00' },
+  { key: 'miercoles', name: 'Miércoles', isOpen: true, open: '08:00', close: '23:00' },
+  { key: 'jueves', name: 'Jueves', isOpen: true, open: '08:00', close: '23:00' },
+  { key: 'viernes', name: 'Viernes', isOpen: true, open: '08:00', close: '23:00' },
+  { key: 'sabado', name: 'Sábado', isOpen: true, open: '09:00', close: '23:30' },
+  { key: 'domingo', name: 'Domingo', isOpen: true, open: '09:00', close: '22:00' },
+];
 
 interface RestaurantFormModalProps {
   isOpen: boolean;
@@ -90,9 +109,19 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [address, setAddress] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
-  const [openingTime, setOpeningTime] = useState('08:00');
-  const [closingTime, setClosingTime] = useState('23:00');
-  const [operatingDays, setOperatingDays] = useState('Lun - Dom');
+  const [weeklySchedule, setWeeklySchedule] = useState<DayScheduleItem[]>(INITIAL_WEEKLY_SCHEDULE);
+
+  const handleCopyMondayHoursToAll = () => {
+    const monday = weeklySchedule.find((d) => d.key === 'lunes') || weeklySchedule[0];
+    setWeeklySchedule((prev) =>
+      prev.map((d) => ({
+        ...d,
+        open: monday.open,
+        close: monday.close,
+        isOpen: true,
+      }))
+    );
+  };
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -141,9 +170,39 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor(restaurant.brand_color || '#2563eb');
       setAddress(restaurant.address || '');
       setManagerPhone(restaurant.manager_phone || '');
-      setOpeningTime(restaurant.opening_time || '08:00');
-      setClosingTime(restaurant.closing_time || '23:00');
-      setOperatingDays(restaurant.operating_days || 'Lun - Dom');
+      if (restaurant.daily_operating_hours) {
+        try {
+          const parsed = typeof restaurant.daily_operating_hours === 'string'
+            ? JSON.parse(restaurant.daily_operating_hours)
+            : restaurant.daily_operating_hours;
+          if (Array.isArray(parsed)) {
+            setWeeklySchedule(parsed);
+          } else if (typeof parsed === 'object') {
+            setWeeklySchedule(
+              INITIAL_WEEKLY_SCHEDULE.map((d) => ({
+                ...d,
+                ...(parsed[d.key] || {}),
+              }))
+            );
+          }
+        } catch {
+          setWeeklySchedule(INITIAL_WEEKLY_SCHEDULE);
+        }
+      } else if (restaurant.opening_time && restaurant.closing_time) {
+        const oTime = restaurant.opening_time;
+        const cTime = restaurant.closing_time;
+        const daysText = (restaurant.operating_days || 'Lun - Dom').toLowerCase();
+        setWeeklySchedule(
+          INITIAL_WEEKLY_SCHEDULE.map((d) => ({
+            ...d,
+            open: oTime,
+            close: cTime,
+            isOpen: !daysText.includes('mar - dom') || d.key !== 'lunes',
+          }))
+        );
+      } else {
+        setWeeklySchedule(INITIAL_WEEKLY_SCHEDULE);
+      }
       setOrganizationId(restaurant.organization_id || '');
       setLinks(restaurant.links || []);
     } else {
@@ -162,9 +221,7 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       setBrandColor('#2563eb');
       setAddress('');
       setManagerPhone('');
-      setOpeningTime('08:00');
-      setClosingTime('23:00');
-      setOperatingDays('Lun - Dom');
+      setWeeklySchedule(INITIAL_WEEKLY_SCHEDULE);
       setLinks([]);
     }
     setErrorMsg('');
@@ -349,9 +406,17 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       brand_color: brandColor,
       address: address.trim() || null,
       manager_phone: managerPhone.trim() || null,
-      opening_time: openingTime || '08:00',
-      closing_time: closingTime || '23:00',
-      operating_days: operatingDays || 'Lun - Dom',
+      daily_operating_hours: JSON.stringify(weeklySchedule),
+      opening_time: weeklySchedule.find((d) => d.isOpen)?.open || '08:00',
+      closing_time: weeklySchedule.find((d) => d.isOpen)?.close || '23:00',
+      operating_days: (() => {
+        const openDays = weeklySchedule.filter((d) => d.isOpen);
+        if (openDays.length === 7) return 'Lun - Dom';
+        if (openDays.length === 6 && !weeklySchedule.find((d) => d.key === 'lunes')?.isOpen) return 'Mar - Dom';
+        if (openDays.length === 6 && !weeklySchedule.find((d) => d.key === 'domingo')?.isOpen) return 'Lun - Sáb';
+        if (openDays.length === 5 && !weeklySchedule.find((d) => d.key === 'sabado')?.isOpen && !weeklySchedule.find((d) => d.key === 'domingo')?.isOpen) return 'Lun - Vie';
+        return openDays.map((d) => d.name.slice(0, 3)).join(', ');
+      })(),
       organization_id: organizationId || null,
       links,
       is_active: true,
@@ -730,54 +795,105 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
             </div>
           </div>
 
-          {/* Horario Operativo de la Sucursal (útil para el Gerente y turnos) */}
+          {/* Horario Operativo de la Sucursal por Día (Requerimiento 2) */}
           <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Horario Operativo de la Sucursal (Base para Turnos)
-              </label>
-              <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/70 px-2 py-0.5 rounded-md">
-                Útil para Gerente de Tienda
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Hora de Apertura
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-600" />
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Horario Operativo de la Sucursal por Día (Base para Turnos)
                 </label>
-                <input
-                  type="time"
-                  value={openingTime}
-                  onChange={(e) => setOpeningTime(e.target.value)}
-                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
-                />
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Hora de Cierre
-                </label>
-                <input
-                  type="time"
-                  value={closingTime}
-                  onChange={(e) => setClosingTime(e.target.value)}
-                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Días Operativos
-                </label>
-                <input
-                  type="text"
-                  value={operatingDays}
-                  onChange={(e) => setOperatingDays(e.target.value)}
-                  placeholder="Lun - Dom, Mar - Dom, etc."
-                  className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-white font-medium"
-                />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyMondayHoursToAll}
+                  className="text-[11px] font-bold text-indigo-700 bg-indigo-100/80 hover:bg-indigo-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  title="Copiar las horas de apertura y cierre del Lunes a todos los demás días"
+                >
+                  Copiar Lunes a toda la semana
+                </button>
+                <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/70 px-2 py-0.5 rounded-md">
+                  Útil para Gerente de Tienda
+                </span>
               </div>
             </div>
+
+            {/* Lista de 7 Días */}
+            <div className="space-y-1.5 pt-1">
+              {weeklySchedule.map((day, idx) => {
+                return (
+                  <div
+                    key={day.key}
+                    className={`px-3 py-2 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+                      day.isOpen
+                        ? 'bg-white border-slate-200/90 shadow-2xs'
+                        : 'bg-slate-100/60 border-slate-200 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 w-32 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWeeklySchedule((prev) =>
+                            prev.map((d, i) => (i === idx ? { ...d, isOpen: !d.isOpen } : d))
+                          );
+                        }}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${
+                          day.isOpen ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {day.isOpen && <Check className="w-3 h-3 stroke-[3]" />}
+                      </button>
+                      <span className={`text-xs font-bold ${day.isOpen ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {day.name}
+                      </span>
+                    </div>
+
+                    {day.isOpen ? (
+                      <div className="flex items-center gap-2 flex-1 justify-end">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Abre:</span>
+                          <input
+                            type="time"
+                            value={day.open}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setWeeklySchedule((prev) =>
+                                prev.map((d, i) => (i === idx ? { ...d, open: val } : d))
+                              );
+                            }}
+                            className="px-2 py-1 text-xs rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-900"
+                          />
+                        </div>
+                        <span className="text-slate-400 font-bold">&ndash;</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Cierra:</span>
+                          <input
+                            type="time"
+                            value={day.close}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setWeeklySchedule((prev) =>
+                                prev.map((d, i) => (i === idx ? { ...d, close: val } : d))
+                              );
+                            }}
+                            className="px-2 py-1 text-xs rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-900"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-slate-400 italic">
+                        Descanso / Cerrado
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
             <p className="text-[10px] text-slate-500">
-              El Gerente de Tienda utilizará este horario para calcular las horas de entrada y salida al programar los turnos matutinos, vespertinos y nocturnos.
+              El Gerente de Tienda utilizará estos horarios por día para calcular las horas de entrada y salida al programar los turnos matutinos, vespertinos y nocturnos.
             </p>
           </div>
 
