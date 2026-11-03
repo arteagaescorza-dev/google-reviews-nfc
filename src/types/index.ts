@@ -490,6 +490,10 @@ export interface CustomTierDefinition {
   description: string;
   included_features: string[]; // IDs de funcionalidades
   included_stations: string[]; // IDs de pantallas operativas
+  client_visible_features?: string[]; // IDs de funcionalidades visibles para dueños de local
+  client_visible_stations?: string[]; // IDs de pantallas visibles para dueños de local
+  allowed_categories?: number[]; // Categorías habilitadas en panel de control: [1, 2, 3, 4, 5, 6]
+  client_visible_categories?: number[]; // Categorías que se muestran en el desglose del plan al cliente
 }
 
 export interface StaffMember {

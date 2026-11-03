@@ -4,6 +4,7 @@ import type { CustomTierDefinition, TierType } from '../types';
 import {
   MASTER_TIER_FEATURES,
   MASTER_TIER_STATIONS,
+  MASTER_TIER_CATEGORIES,
   DEFAULT_CUSTOM_TIERS,
 } from '../lib/constants';
 import {
@@ -16,6 +17,9 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  ShieldCheck,
+  Eye,
+  Type,
 } from 'lucide-react';
 
 export const AdminTiersPage: React.FC = () => {
@@ -58,6 +62,59 @@ export const AdminTiersPage: React.FC = () => {
           ? t.included_stations.filter((id) => id !== stationId)
           : [...t.included_stations, stationId];
         return { ...t, included_stations: nextStations };
+      })
+    );
+  };
+
+  const handleToggleCategory = (tierKey: TierType | 'addon', catId: number) => {
+    setTiers((prev) =>
+      prev.map((t) => {
+        if (t.tier !== tierKey) return t;
+        const current = t.allowed_categories || [3, 4, 5, 6];
+        const exists = current.includes(catId);
+        const next = exists ? current.filter((id) => id !== catId) : [...current, catId];
+        return { ...t, allowed_categories: next };
+      })
+    );
+  };
+
+  const handleToggleFeatureVisibility = (tierKey: TierType | 'addon', featId: string) => {
+    setTiers((prev) =>
+      prev.map((t) => {
+        if (t.tier !== tierKey) return t;
+        const current =
+          t.client_visible_features !== undefined ? t.client_visible_features : t.included_features;
+        const exists = current.includes(featId);
+        const next = exists ? current.filter((id) => id !== featId) : [...current, featId];
+        return { ...t, client_visible_features: next };
+      })
+    );
+  };
+
+  const handleToggleStationVisibility = (tierKey: TierType | 'addon', stationId: string) => {
+    setTiers((prev) =>
+      prev.map((t) => {
+        if (t.tier !== tierKey) return t;
+        const current =
+          t.client_visible_stations !== undefined ? t.client_visible_stations : t.included_stations;
+        const exists = current.includes(stationId);
+        const next = exists ? current.filter((id) => id !== stationId) : [...current, stationId];
+        return { ...t, client_visible_stations: next };
+      })
+    );
+  };
+
+  const handleToggleCategoryVisibility = (tierKey: TierType | 'addon', catId: number) => {
+    setTiers((prev) =>
+      prev.map((t) => {
+        if (t.tier !== tierKey) return t;
+        const current =
+          t.client_visible_categories !== undefined
+            ? t.client_visible_categories
+            : t.allowed_categories || [3, 4, 5, 6];
+        const exists = current.includes(catId);
+        const next = exists ? current.filter((id) => id !== catId) : [...current, catId];
+        return { ...t, client_visible_categories: next };
       })
     );
   };
@@ -223,103 +280,350 @@ export const AdminTiersPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Contenido Desplegable: 2 Columnas de Checkboxes */}
+                {/* Contenido Desplegable: 3 Secciones con Switches y Visibilidad */}
                 {!isCollapsed && (
-                  <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
-                    {/* Columna A: Funcionalidades y Servicios Desglosados */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-indigo-600" />
-                          <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
-                            Funcionalidades de Cara al Cliente & Negocio
-                          </h3>
-                        </div>
-                        <span className="text-[11px] font-bold text-indigo-700">
-                          {tierDef.included_features.length} de {MASTER_TIER_FEATURES.length} seleccionadas
-                        </span>
+                  <div>
+                    {/* Barra de Edición de Identidad Comercial (Requerimiento 1) */}
+                    <div className="bg-slate-50/90 p-5 border-b border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1 flex items-center gap-1">
+                          <Type className="w-3 h-3 text-indigo-600" />
+                          Nombre Comercial del Tier (Visible a Dueños / Marketing)
+                        </label>
+                        <input
+                          type="text"
+                          value={tierDef.name}
+                          onChange={(e) => handleUpdateTierField(tierDef.tier, 'name', e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Ej: Tier 1: Enlace Directo (Etapa 1 - Siembra)"
+                        />
                       </div>
-
-                      <div className="space-y-2.5">
-                        {MASTER_TIER_FEATURES.map((feat) => {
-                          const isChecked = tierDef.included_features.includes(feat.id);
-                          return (
-                            <label
-                              key={feat.id}
-                              className={`p-3 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                                isChecked
-                                  ? 'bg-blue-50/40 border-blue-200 shadow-2xs'
-                                  : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleToggleFeature(tierDef.tier, feat.id)}
-                                className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <span className={`text-xs font-bold block ${isChecked ? 'text-slate-900' : 'text-slate-600'}`}>
-                                  {feat.name}
-                                </span>
-                                <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
-                                  {feat.description}
-                                </span>
-                              </div>
-                            </label>
-                          );
-                        })}
+                      <div>
+                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                          Subtítulo & Propuesta de Valor Comercial
+                        </label>
+                        <input
+                          type="text"
+                          value={tierDef.description}
+                          onChange={(e) => handleUpdateTierField(tierDef.tier, 'description', e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Ej: Redirección instantánea a Google Reviews con semillero viral..."
+                        />
                       </div>
                     </div>
 
-                    {/* Columna B: Acceso a Pantallas Operativas (KDS, Sala, Hostess, Pick Up) */}
-                    <div className="space-y-4 pt-6 lg:pt-0 lg:pl-8">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <Monitor className="w-4 h-4 text-orange-600" />
-                          <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
-                            Acceso a Pantallas Operativas (Escalera)
-                          </h3>
+                    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 divide-y xl:divide-y-0 xl:divide-x divide-slate-100">
+                      {/* Columna 1: Funcionalidades Desglosadas con Switch y Visibilidad */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-indigo-600" />
+                            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
+                              Funcionalidades Clave
+                            </h3>
+                          </div>
+                          <span className="text-[11px] font-bold text-indigo-700">
+                            {tierDef.included_features.length} de {MASTER_TIER_FEATURES.length}
+                          </span>
                         </div>
-                        <span className="text-[11px] font-bold text-orange-700">
-                          {tierDef.included_stations.length} de {MASTER_TIER_STATIONS.length} autorizadas
-                        </span>
-                      </div>
 
-                      <div className="space-y-2.5">
-                        {MASTER_TIER_STATIONS.map((station) => {
-                          const isChecked = tierDef.included_stations.includes(station.id);
-                          return (
-                            <label
-                              key={station.id}
-                              className={`p-3 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                                isChecked
-                                  ? 'bg-orange-50/40 border-orange-200 shadow-2xs'
-                                  : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleToggleStation(tierDef.tier, station.id)}
-                                className="mt-0.5 w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`text-xs font-bold ${isChecked ? 'text-slate-900' : 'text-slate-600'}`}>
-                                    {station.name}
-                                  </span>
-                                  <span className="text-[10px] font-extrabold bg-white border border-slate-200 px-1.5 py-0.2 rounded text-slate-600">
-                                    Rol: {station.roleName}
+                        <div className="space-y-2.5">
+                          {MASTER_TIER_FEATURES.map((feat) => {
+                            const isChecked = tierDef.included_features.includes(feat.id);
+                            const isVisibleToClient =
+                              tierDef.client_visible_features !== undefined
+                                ? tierDef.client_visible_features.includes(feat.id)
+                                : isChecked;
+
+                            return (
+                              <div
+                                key={feat.id}
+                                className={`p-3 rounded-2xl border transition-all ${
+                                  isChecked
+                                    ? 'bg-blue-50/40 border-blue-200 shadow-2xs'
+                                    : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <span
+                                      className={`text-xs font-bold block ${
+                                        isChecked ? 'text-slate-900' : 'text-slate-600'
+                                      }`}
+                                    >
+                                      {feat.name}
+                                    </span>
+                                    <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
+                                      {feat.description}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleFeature(tierDef.tier, feat.id)}
+                                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                        isChecked ? 'bg-emerald-500' : 'bg-slate-300'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                          isChecked ? 'translate-x-4' : 'translate-x-0'
+                                        }`}
+                                      />
+                                    </button>
+                                    <span
+                                      className={`text-[10px] font-extrabold uppercase w-14 ${
+                                        isChecked ? 'text-emerald-700' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {isChecked ? 'Prendido' : 'Apagado'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={isVisibleToClient}
+                                      onChange={() =>
+                                        handleToggleFeatureVisibility(tierDef.tier, feat.id)
+                                      }
+                                      className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                    />
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="w-3 h-3 text-slate-400" />
+                                      Mostrar a Dueño
+                                    </span>
+                                  </label>
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                      isVisibleToClient
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                        : 'bg-slate-100 text-slate-400 border-slate-200'
+                                    }`}
+                                  >
+                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
                                   </span>
                                 </div>
-                                <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
-                                  {station.description}
-                                </span>
                               </div>
-                            </label>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Columna 2: Acceso a Pantallas Operativas con Switch y Visibilidad */}
+                      <div className="space-y-4 pt-6 xl:pt-0 xl:pl-6">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Monitor className="w-4 h-4 text-orange-600" />
+                            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
+                              Pantallas Operativas KDS
+                            </h3>
+                          </div>
+                          <span className="text-[11px] font-bold text-orange-700">
+                            {tierDef.included_stations.length} de {MASTER_TIER_STATIONS.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          {MASTER_TIER_STATIONS.map((station) => {
+                            const isChecked = tierDef.included_stations.includes(station.id);
+                            const isVisibleToClient =
+                              tierDef.client_visible_stations !== undefined
+                                ? tierDef.client_visible_stations.includes(station.id)
+                                : isChecked;
+
+                            return (
+                              <div
+                                key={station.id}
+                                className={`p-3 rounded-2xl border transition-all ${
+                                  isChecked
+                                    ? 'bg-orange-50/40 border-orange-200 shadow-2xs'
+                                    : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span
+                                        className={`text-xs font-bold ${
+                                          isChecked ? 'text-slate-900' : 'text-slate-600'
+                                        }`}
+                                      >
+                                        {station.name}
+                                      </span>
+                                      <span className="text-[10px] font-extrabold bg-white border border-slate-200 px-1.5 py-0.2 rounded text-slate-600">
+                                        Rol: {station.roleName}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
+                                      {station.description}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleStation(tierDef.tier, station.id)}
+                                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                        isChecked ? 'bg-emerald-500' : 'bg-slate-300'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                          isChecked ? 'translate-x-4' : 'translate-x-0'
+                                        }`}
+                                      />
+                                    </button>
+                                    <span
+                                      className={`text-[10px] font-extrabold uppercase w-14 ${
+                                        isChecked ? 'text-emerald-700' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {isChecked ? 'Prendido' : 'Apagado'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={isVisibleToClient}
+                                      onChange={() =>
+                                        handleToggleStationVisibility(tierDef.tier, station.id)
+                                      }
+                                      className="w-3.5 h-3.5 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
+                                    />
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="w-3 h-3 text-slate-400" />
+                                      Mostrar a Dueño
+                                    </span>
+                                  </label>
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                      isVisibleToClient
+                                        ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                        : 'bg-slate-100 text-slate-400 border-slate-200'
+                                    }`}
+                                  >
+                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Columna 3: Categorías Operativas Maestras (Requerimiento 3) */}
+                      <div className="space-y-4 pt-6 xl:pt-0 xl:pl-6">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-purple-600" />
+                            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
+                              Categorías Operativas
+                            </h3>
+                          </div>
+                          <span className="text-[11px] font-bold text-purple-700">
+                            {(tierDef.allowed_categories || [3, 4, 5, 6]).length} de{' '}
+                            {MASTER_TIER_CATEGORIES.length}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          {MASTER_TIER_CATEGORIES.map((cat) => {
+                            const isChecked = (tierDef.allowed_categories || [3, 4, 5, 6]).includes(
+                              cat.id
+                            );
+                            const isVisibleToClient =
+                              tierDef.client_visible_categories !== undefined
+                                ? tierDef.client_visible_categories.includes(cat.id)
+                                : isChecked;
+
+                            return (
+                              <div
+                                key={cat.id}
+                                className={`p-3 rounded-2xl border transition-all ${
+                                  isChecked
+                                    ? 'bg-purple-50/40 border-purple-200 shadow-2xs'
+                                    : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span
+                                        className={`text-xs font-bold ${
+                                          isChecked ? 'text-slate-900' : 'text-slate-600'
+                                        }`}
+                                      >
+                                        {cat.name}
+                                      </span>
+                                      <span className="text-[10px] font-extrabold bg-white border border-purple-200 px-1.5 py-0.2 rounded text-purple-700">
+                                        {cat.badgeLabel}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
+                                      {cat.description}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleCategory(tierDef.tier, cat.id)}
+                                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                        isChecked ? 'bg-emerald-500' : 'bg-slate-300'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                          isChecked ? 'translate-x-4' : 'translate-x-0'
+                                        }`}
+                                      />
+                                    </button>
+                                    <span
+                                      className={`text-[10px] font-extrabold uppercase w-14 ${
+                                        isChecked ? 'text-emerald-700' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {isChecked ? 'Prendido' : 'Apagado'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={isVisibleToClient}
+                                      onChange={() =>
+                                        handleToggleCategoryVisibility(tierDef.tier, cat.id)
+                                      }
+                                      className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-slate-300"
+                                    />
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="w-3 h-3 text-slate-400" />
+                                      Mostrar a Dueño
+                                    </span>
+                                  </label>
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                      isVisibleToClient
+                                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                        : 'bg-slate-100 text-slate-400 border-slate-200'
+                                    }`}
+                                  >
+                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>

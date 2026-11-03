@@ -220,6 +220,40 @@ export const MASTER_TIER_STATIONS: MasterStationItem[] = [
   },
 ];
 
+export interface MasterCategoryItem {
+  id: number;
+  name: string;
+  badgeLabel: string;
+  description: string;
+}
+
+export const MASTER_TIER_CATEGORIES: MasterCategoryItem[] = [
+  {
+    id: 3,
+    name: 'Cat 3: Pantallas Operativas KDS',
+    badgeLabel: 'KDS & Estaciones',
+    description: 'Cocina caliente, barra, repostería, turnero 4K, hostess y despacho pick up.',
+  },
+  {
+    id: 4,
+    name: 'Cat 4: Personal Operativo & Turnos (60 Días)',
+    badgeLabel: 'Personal & Roles',
+    description: 'Gestión de personal operativo con PIN, puestos y calendario de turnos a 60 días.',
+  },
+  {
+    id: 5,
+    name: 'Cat 5: Gerencia & Cortes de Turno',
+    badgeLabel: 'Gerencia & Cortes',
+    description: 'Consola de gerente de tienda, cortes de turno al dueño y autorización de cupones.',
+  },
+  {
+    id: 6,
+    name: 'Cat 6: Métricas & Analítica por Sucursal',
+    badgeLabel: 'Analítica & Reportes',
+    description: 'Tablero de satisfacción, afluencia por mesa, ticket promedio y reportes temporales.',
+  },
+];
+
 export const DEFAULT_CUSTOM_TIERS = [
   {
     tier: 1 as const,
@@ -228,7 +262,10 @@ export const DEFAULT_CUSTOM_TIERS = [
     price_mxn: 100,
     description: 'Redirección instantánea a Google Reviews con semillero viral de placas.',
     included_features: ['feat_redirect', 'feat_viral_seeds'],
-    included_stations: [],
+    included_stations: [] as string[],
+    client_visible_features: ['feat_redirect', 'feat_viral_seeds'],
+    client_visible_stations: [] as string[],
+    allowed_categories: [1, 2],
   },
   {
     tier: 2 as const,
@@ -238,6 +275,9 @@ export const DEFAULT_CUSTOM_TIERS = [
     description: 'Calificaciones de 4-5 estrellas van a Google; 1-3 a buzón privado con cupones de gerente.',
     included_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons'],
     included_stations: ['station_manager'],
+    client_visible_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons'],
+    client_visible_stations: ['station_manager'],
+    allowed_categories: [1, 2, 5, 6],
   },
   {
     tier: 3 as const,
@@ -265,6 +305,27 @@ export const DEFAULT_CUSTOM_TIERS = [
       'station_kds_postres',
       'station_pickup',
     ],
+    client_visible_features: [
+      'feat_redirect',
+      'feat_viral_seeds',
+      'feat_reputation_shield',
+      'feat_complaints_inbox',
+      'feat_manager_coupons',
+      'feat_digital_menu',
+      'feat_linktree',
+      'feat_wifi',
+    ],
+    client_visible_stations: [
+      'station_manager',
+      'station_hostess',
+      'station_waiter',
+      'station_kds_general',
+      'station_kds_cocina',
+      'station_kds_barra',
+      'station_kds_postres',
+      'station_pickup',
+    ],
+    allowed_categories: [1, 2, 3, 4, 5, 6],
   },
   {
     tier: 4 as const,
@@ -295,6 +356,30 @@ export const DEFAULT_CUSTOM_TIERS = [
       'station_turnero',
       'station_pickup',
     ],
+    client_visible_features: [
+      'feat_redirect',
+      'feat_viral_seeds',
+      'feat_reputation_shield',
+      'feat_complaints_inbox',
+      'feat_manager_coupons',
+      'feat_digital_menu',
+      'feat_linktree',
+      'feat_wifi',
+      'feat_ad_network',
+      'feat_analytics_heatmaps',
+    ],
+    client_visible_stations: [
+      'station_manager',
+      'station_hostess',
+      'station_waiter',
+      'station_kds_general',
+      'station_kds_cocina',
+      'station_kds_barra',
+      'station_kds_postres',
+      'station_turnero',
+      'station_pickup',
+    ],
+    allowed_categories: [1, 2, 3, 4, 5, 6],
   },
   {
     tier: 'addon' as const,
@@ -303,6 +388,9 @@ export const DEFAULT_CUSTOM_TIERS = [
     price_mxn: 299,
     description: 'Bloquea toda publicidad de terceros en las pantallas de las mesas de la sucursal.',
     included_features: ['feat_ad_free'],
-    included_stations: [],
+    included_stations: [] as string[],
+    client_visible_features: ['feat_ad_free'],
+    client_visible_stations: [] as string[],
+    allowed_categories: [1, 2],
   },
 ];

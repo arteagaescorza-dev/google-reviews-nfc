@@ -25,6 +25,7 @@ import { OrganizationUserModal } from '../components/admin/OrganizationUserModal
 import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
 import { OrganizationEditModal } from '../components/admin/OrganizationEditModal';
 import { TrialPeriodModal } from '../components/admin/TrialPeriodModal';
+import { ManagerEditModal } from '../components/admin/ManagerEditModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -63,6 +64,7 @@ import {
   Filter,
   RotateCcw,
   ShoppingBag,
+  BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -73,6 +75,34 @@ import {
 const KDS_STORAGE_KEY = 'nfc_kds_stations_state_v1';
 const WAITER_TERM_STORAGE_KEY = 'nfc_waiter_terminal_state_v1';
 const TIER_FEATURES_STORAGE_KEY = 'nfc_tier_features_overrides_v1';
+const MASTER_CATEGORIES_STORAGE_KEY = 'nfc_branch_master_categories_v1';
+
+const filterByDateWindow = (
+  dateStr: string | undefined,
+  windowType: 'hoy' | '7dias' | '30dias' | 'historico'
+): boolean => {
+  if (windowType === 'historico' || !dateStr) return true;
+  const now = new Date();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return true;
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  if (windowType === 'hoy') {
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+    return isToday || diffDays <= 1;
+  }
+  if (windowType === '7dias') {
+    return diffDays <= 7;
+  }
+  if (windowType === '30dias') {
+    return diffDays <= 30;
+  }
+  return true;
+};
 
 interface StatusBadgeAndSwitchProps {
   isOn: boolean;
@@ -348,6 +378,70 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [trialModalTargetBranch, setTrialModalTargetBranch] = useState<Restaurant | null>(null);
   const [trialModalDefaultTier, setTrialModalDefaultTier] = useState<TierType>(3);
   const [collapsedTierSections, setCollapsedTierSections] = useState<Record<string, Record<string, boolean>>>({});
+
+  // Edición de Gerentes (Requerimiento 4)
+  const [editingManager, setEditingManager] = useState<OrganizationManager | null>(null);
+  const [isManagerEditModalOpen, setIsManagerEditModalOpen] = useState(false);
+
+  // Interruptores Maestros de Categorías por Sucursal (Cat 3, 4, 5, 6) (Requerimiento 3)
+  const [branchMasterCategoriesState, setBranchMasterCategoriesState] = useState<
+    Record<string, Record<number, boolean>>
+  >(() => {
+    try {
+      const raw = localStorage.getItem(MASTER_CATEGORIES_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const handleToggleBranchCategoryMaster = (branchId: string, categoryNum: number) => {
+    setBranchMasterCategoriesState((prev) => {
+      const branchState = prev[branchId] || {};
+      const currentVal = branchState[categoryNum] !== false;
+      const updated = {
+        ...prev,
+        [branchId]: {
+          ...branchState,
+          [categoryNum]: !currentVal,
+        },
+      };
+      try {
+        localStorage.setItem(MASTER_CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Ignorar error de guardado
+      }
+      return updated;
+    });
+  };
+
+  const getBranchCategoryAllowed = (branch: Restaurant, catNum: number): boolean => {
+    const branchTier = branch.tier || 1;
+    const tierDef =
+      customTiers.find((t) => t.tier === branchTier) ||
+      DEFAULT_CUSTOM_TIERS.find((t) => t.tier === branchTier);
+    if (!tierDef || !tierDef.allowed_categories) return true;
+    return tierDef.allowed_categories.includes(catNum);
+  };
+
+  // Métricas Consolidadas de Organización (Requerimiento 6)
+  const [expandedOrgMetrics, setExpandedOrgMetrics] = useState<Record<string, boolean>>({});
+  const [orgMetricsTemporalFilter, setOrgMetricsTemporalFilter] = useState<
+    Record<string, 'hoy' | '7dias' | '30dias' | 'historico'>
+  >({});
+  const [orgMetricsBranchFilter, setOrgMetricsBranchFilter] = useState<Record<string, string>>({});
+
+  const toggleOrgMetrics = (orgId: string) => {
+    setExpandedOrgMetrics((prev) => ({
+      ...prev,
+      [orgId]: !prev[orgId],
+    }));
+  };
+
+  // Filtros Temporales para Categoría 6 de Sucursal (Requerimiento 5)
+  const [branchMetricsTemporalFilter, setBranchMetricsTemporalFilter] = useState<
+    Record<string, 'hoy' | '7dias' | '30dias' | 'historico'>
+  >({});
 
   const loadData = async () => {
     setLoading(true);
@@ -789,6 +883,9 @@ export const AdminRestaurantsPage: React.FC = () => {
     );
     const branchReports = managerShiftReports.filter(
       (rp) => rp.restaurant_id === res.id || (res.id === restaurants[0]?.id && rp.restaurant_id === 'res-1')
+    );
+    const branchFeedbacks = feedbacks.filter(
+      (fb) => fb.restaurant_id === res.id || (res.id === restaurants[0]?.id && fb.restaurant_id === 'res-1')
     );
     const latestReport = branchReports[0];
 
@@ -1369,10 +1466,49 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-orange-700 bg-white px-1.5 py-0.5 rounded border border-orange-200">
                       {collapsedCategoriesByBranch[res.id]?.[3] ? 'Expandir' : 'Colapsar'}
                     </span>
+                    {(() => {
+                      const isAllowed = getBranchCategoryAllowed(res, 3);
+                      const isMasterOn =
+                        isAllowed && branchMasterCategoriesState[res.id]?.[3] !== false;
+                      return (
+                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                          <StatusBadgeAndSwitch
+                            isOn={isMasterOn}
+                            onToggle={() => handleToggleBranchCategoryMaster(res.id, 3)}
+                            disabled={!isAllowed}
+                            title={
+                              !isAllowed
+                                ? `Categoría 3 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                                : `Prender o apagar Categoría 3 en esta sucursal`
+                            }
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 {!collapsedCategoriesByBranch[res.id]?.[3] && (
+                  <>
+                    {(() => {
+                      const isAllowed = getBranchCategoryAllowed(res, 3);
+                      const isMasterOn =
+                        isAllowed && branchMasterCategoriesState[res.id]?.[3] !== false;
+                      if (!isMasterOn) {
+                        return (
+                          <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
+                            <p className="text-xs font-bold text-slate-500">
+                              {!isAllowed
+                                ? `Esta categoría no está incluida en el Tier ${res.tier || 1} contratado. Solicita un Periodo de Prueba o realiza un Upgrade.`
+                                : 'Esta categoría se encuentra actualmente APAGADA en esta sucursal. Activa el interruptor para habilitar las pantallas operativas.'}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    {getBranchCategoryAllowed(res, 3) &&
+                      branchMasterCategoriesState[res.id]?.[3] !== false && (
                   <div className="divide-y divide-slate-100 text-xs">
                   {/* Pantalla 1: Consola de Gerente de Tienda & Capitán de Piso */}
                   {(() => {
@@ -1654,7 +1790,9 @@ export const AdminRestaurantsPage: React.FC = () => {
                         </div>
                       );
                     })}
-                </div>
+                  </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1684,10 +1822,49 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
                       {collapsedCategoriesByBranch[res.id]?.[4] ? 'Expandir' : 'Colapsar'}
                     </span>
+                    {(() => {
+                      const isAllowed = getBranchCategoryAllowed(res, 4);
+                      const isMasterOn =
+                        isAllowed && branchMasterCategoriesState[res.id]?.[4] !== false;
+                      return (
+                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                          <StatusBadgeAndSwitch
+                            isOn={isMasterOn}
+                            onToggle={() => handleToggleBranchCategoryMaster(res.id, 4)}
+                            disabled={!isAllowed}
+                            title={
+                              !isAllowed
+                                ? `Categoría 4 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                                : `Prender o apagar Categoría 4 en esta sucursal`
+                            }
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 {!collapsedCategoriesByBranch[res.id]?.[4] && (
+                  <>
+                    {(() => {
+                      const isAllowed = getBranchCategoryAllowed(res, 4);
+                      const isMasterOn =
+                        isAllowed && branchMasterCategoriesState[res.id]?.[4] !== false;
+                      if (!isMasterOn) {
+                        return (
+                          <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
+                            <p className="text-xs font-bold text-slate-500">
+                              {!isAllowed
+                                ? `Esta categoría no está incluida en el Tier ${res.tier || 1} contratado. Solicita un Periodo de Prueba o realiza un Upgrade.`
+                                : 'Esta categoría se encuentra actualmente APAGADA en esta sucursal. Activa el interruptor para habilitar la plantilla y turnos.'}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    {getBranchCategoryAllowed(res, 4) &&
+                      branchMasterCategoriesState[res.id]?.[4] !== false && (
                   <div className="divide-y divide-slate-100 text-xs">
                   {/* Filas de Personal Operativo con Rol, Incidencia en Pantallas KDS, Turno a 60 días y Métricas */}
                   {sortedStaff.map((member) => {
@@ -1818,7 +1995,9 @@ export const AdminRestaurantsPage: React.FC = () => {
                       </div>
                     );
                   })}
-                </div>
+                  </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1854,11 +2033,50 @@ export const AdminRestaurantsPage: React.FC = () => {
                   <span className="text-[9px] uppercase tracking-wider font-extrabold text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200">
                     {collapsedCategoriesByBranch[res.id]?.[5] ? 'Expandir' : 'Colapsar'}
                   </span>
+                  {(() => {
+                    const isAllowed = getBranchCategoryAllowed(res, 5);
+                    const isMasterOn =
+                      isAllowed && branchMasterCategoriesState[res.id]?.[5] !== false;
+                    return (
+                      <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                        <StatusBadgeAndSwitch
+                          isOn={isMasterOn}
+                          onToggle={() => handleToggleBranchCategoryMaster(res.id, 5)}
+                          disabled={!isAllowed}
+                          title={
+                            !isAllowed
+                              ? `Categoría 5 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                              : `Prender o apagar Categoría 5 en esta sucursal`
+                          }
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
               {!collapsedCategoriesByBranch[res.id]?.[5] && (
                 <>
+                  {(() => {
+                    const isAllowed = getBranchCategoryAllowed(res, 5);
+                    const isMasterOn =
+                      isAllowed && branchMasterCategoriesState[res.id]?.[5] !== false;
+                    if (!isMasterOn) {
+                      return (
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
+                          <p className="text-xs font-bold text-slate-500">
+                            {!isAllowed
+                              ? `Esta categoría no está incluida en el Tier ${res.tier || 1} contratado. Solicita un Periodo de Prueba o realiza un Upgrade.`
+                              : 'Esta categoría se encuentra actualmente APAGADA en esta sucursal. Activa el interruptor para habilitar la consola de gerente.'}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {getBranchCategoryAllowed(res, 5) &&
+                    branchMasterCategoriesState[res.id]?.[5] !== false && (
+                    <>
                   {/* Alta rápida de Gerente en la Tabla de la Organización */}
               <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200/70 flex flex-wrap items-center gap-2 text-xs">
                 <span className="text-[10px] font-extrabold uppercase text-slate-500">
@@ -1995,6 +2213,39 @@ export const AdminRestaurantsPage: React.FC = () => {
                             <option value="capitan_piso">Capitán / Gerente de Piso</option>
                             <option value="sin_acceso">Sin Acceso en esta Sucursal</option>
                           </select>
+
+                          {/* Botón Editar Gerente (Requerimiento 4) */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingManager(mgr);
+                              setIsManagerEditModalOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
+                            title={`Editar credenciales, PIN y rol de ${mgr.name}`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Botón Eliminar Gerente (Requerimiento 4) */}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (
+                                window.confirm(
+                                  `¿Deseas eliminar al gerente "${mgr.name}" y revocar todos sus accesos?`
+                                )
+                              ) {
+                                await api.deleteOrganizationManager(mgr.id);
+                                const refreshed = await api.getOrganizationManagers();
+                                setOrganizationManagers(refreshed);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 hover:border-rose-200 transition-colors"
+                            title={`Eliminar a ${mgr.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     );
@@ -2039,9 +2290,219 @@ export const AdminRestaurantsPage: React.FC = () => {
                   </div>
                 </div>
               )}
+                  </>
+                )}
                 </>
               )}
             </div>
+
+            {/* CATEGORÍA 6: MÉTRICAS & ANALÍTICA DE SUCURSAL (Requerimiento 5) */}
+            {(() => {
+              const isAllowed = getBranchCategoryAllowed(res, 6);
+              const isMasterOn =
+                isAllowed && branchMasterCategoriesState[res.id]?.[6] !== false;
+              const currentBranchTemporal = branchMetricsTemporalFilter[res.id] || 'historico';
+
+              // Filtrado temporal de métricas de esta sucursal
+              const filteredFeedbacks = branchFeedbacks.filter((f) =>
+                filterByDateWindow(f.created_at, currentBranchTemporal)
+              );
+              const filteredReports = branchReports.filter((r) =>
+                filterByDateWindow(r.shift_date, currentBranchTemporal)
+              );
+
+              const avgRating =
+                filteredFeedbacks.length > 0
+                  ? (
+                      filteredFeedbacks.reduce((sum: number, f: Feedback) => sum + (f.rating || 5), 0) /
+                      filteredFeedbacks.length
+                    ).toFixed(1)
+                  : '5.0';
+              const goodRatings = filteredFeedbacks.filter((f: Feedback) => (f.rating || 5) >= 4).length;
+              const shieldedRatings = filteredFeedbacks.filter((f: Feedback) => (f.rating || 5) < 4).length;
+              const totalSales = filteredReports.reduce(
+                (sum, r) => sum + Number(r.total_sales || 0),
+                0
+              );
+              const totalTips = filteredReports.reduce(
+                (sum, r) => sum + Number(r.tips_collected || 0),
+                0
+              );
+              const totalTablesServed = filteredReports.reduce(
+                (sum, r) => sum + Number(r.tables_served || 0),
+                0
+              );
+              const branchActiveCoupons = branchCoupons.filter((c) => c.used_this_month < c.monthly_limit);
+
+              return (
+                <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs">
+                  <div
+                    onClick={() => toggleBranchCategory(res.id, 6)}
+                    className="bg-sky-50/80 px-4 py-2 border-b border-sky-200/70 flex items-center justify-between gap-3 whitespace-nowrap overflow-x-auto no-scrollbar cursor-pointer hover:bg-sky-100/60 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {collapsedCategoriesByBranch[res.id]?.[6] ? (
+                        <ChevronRight className="w-3.5 h-3.5 text-sky-700" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-sky-700" />
+                      )}
+                      <BarChart3 className="w-3.5 h-3.5 text-sky-600" />
+                      <span className="text-[11px] font-extrabold text-sky-950 uppercase tracking-wider">
+                        Cat 6: Métricas & Analítica de Sucursal
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] font-bold text-sky-700">
+                        {filteredReports.length} cortes · {filteredFeedbacks.length} reseñas
+                      </span>
+                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">
+                        {collapsedCategoriesByBranch[res.id]?.[6] ? 'Expandir' : 'Colapsar'}
+                      </span>
+                      <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                        <StatusBadgeAndSwitch
+                          isOn={isMasterOn}
+                          onToggle={() => handleToggleBranchCategoryMaster(res.id, 6)}
+                          disabled={!isAllowed}
+                          title={
+                            !isAllowed
+                              ? `Categoría 6 bloqueada en Tier ${res.tier || 1}. Requiere upgrade de Tier o Periodo de Prueba.`
+                              : `Prender o apagar Categoría 6 en esta sucursal`
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {!collapsedCategoriesByBranch[res.id]?.[6] && (
+                    <>
+                      {!isMasterOn ? (
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 text-center">
+                          <p className="text-xs font-bold text-slate-500">
+                            {!isAllowed
+                              ? `Esta categoría no está incluida en el Tier ${res.tier || 1} contratado. Solicita un Periodo de Prueba o realiza un Upgrade.`
+                              : 'Esta categoría se encuentra actualmente APAGADA en esta sucursal. Activa el interruptor para habilitar la analítica de sucursal.'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4 space-y-4">
+                          {/* Selector de Ventana Temporal */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                            <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                              Ventana de Análisis Temporal:
+                            </span>
+                            <div className="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200">
+                              {(
+                                [
+                                  { key: 'hoy', label: 'Hoy' },
+                                  { key: '7dias', label: 'Últimos 7 Días' },
+                                  { key: '30dias', label: 'Este Mes (30 Días)' },
+                                  { key: 'historico', label: 'Histórico Completo' },
+                                ] as const
+                              ).map((filterOpt) => (
+                                <button
+                                  key={filterOpt.key}
+                                  type="button"
+                                  onClick={() =>
+                                    setBranchMetricsTemporalFilter((prev) => ({
+                                      ...prev,
+                                      [res.id]: filterOpt.key,
+                                    }))
+                                  }
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                    currentBranchTemporal === filterOpt.key
+                                      ? 'bg-white text-indigo-700 shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {filterOpt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* 4 Bento Cards de KPIs de la Sucursal */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            {/* KPI 1: Reputación & Google Reviews */}
+                            <div className="p-3.5 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase text-sky-800 tracking-wider">
+                                Reputación & Reseñas
+                              </span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-black text-slate-900">
+                                  {avgRating}
+                                </span>
+                                <span className="text-xs font-bold text-sky-700">★ Google</span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 block">
+                                {goodRatings} excelentes (4-5★) · {filteredFeedbacks.length} totales
+                              </span>
+                            </div>
+
+                            {/* KPI 2: Escudo de Quejas & Cupones */}
+                            <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
+                                Escudo Reputacional
+                              </span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-black text-slate-900">
+                                  {shieldedRatings}
+                                </span>
+                                <span className="text-xs font-bold text-amber-700">
+                                  quejas retenidas
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 block">
+                                {branchActiveCoupons.length} cupones activos
+                              </span>
+                            </div>
+
+                            {/* KPI 3: Ventas en Cortes de Turno */}
+                            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase text-emerald-800 tracking-wider">
+                                Ventas en Cortes
+                              </span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-black text-slate-900">
+                                  $
+                                  {totalSales.toLocaleString('es-MX', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  })}
+                                </span>
+                                <span className="text-xs font-bold text-emerald-700">MXN</span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 block">
+                                {totalTablesServed} mesas · ${totalTips.toFixed(0)} propinas
+                              </span>
+                            </div>
+
+                            {/* KPI 4: Aforo & Hardware NFC */}
+                            <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase text-purple-800 tracking-wider">
+                                Aforo & Placas NFC
+                              </span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-black text-slate-900">
+                                  {branchTags.length}
+                                </span>
+                                <span className="text-xs font-bold text-purple-700">
+                                  placas en mesa
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 block">
+                                {branchTables.length} mesas (
+                                {branchTables.reduce((s, t) => s + (t.capacity || 4), 0)} comensales)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </td>
       </tr>
@@ -2506,6 +2967,23 @@ export const AdminRestaurantsPage: React.FC = () => {
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button
+                              onClick={() => toggleOrgMetrics(org.id)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold shadow-2xs transition-all ${
+                                expandedOrgMetrics[org.id]
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                  : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
+                              }`}
+                              title="Ver métricas consolidadas de la organización con filtros temporales y por sucursal"
+                            >
+                              <BarChart3 className="w-3.5 h-3.5" />
+                              <span>
+                                {expandedOrgMetrics[org.id]
+                                  ? 'Ocultar Métricas'
+                                  : 'Métricas de Empresa'}
+                              </span>
+                            </button>
+
+                            <button
                               onClick={() => handleOpenTrialModalForOrg(org)}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold shadow-2xs transition-all"
                               title="Otorgar periodo de prueba de 7, 14 o 28 días a todas las sucursales de esta organización"
@@ -2562,6 +3040,354 @@ export const AdminRestaurantsPage: React.FC = () => {
                           </div>
                         </td>
                       </tr>
+
+                      {/* Fila colapsable de Métricas Consolidadas de Toda la Organización (Requerimiento 6) */}
+                      {expandedOrgMetrics[org.id] && (
+                        <tr className="bg-indigo-50/20 border-b border-indigo-100">
+                          <td colSpan={5} className="p-4 sm:p-6">
+                            {(() => {
+                              const orgBranches = node.branches.map((b) => b.restaurant);
+                              const selectedBranchId = orgMetricsBranchFilter[org.id] || 'all';
+                              const targetBranches =
+                                selectedBranchId === 'all'
+                                  ? orgBranches
+                                  : orgBranches.filter((b) => b.id === selectedBranchId);
+                              const targetBranchIds = targetBranches.map((b) => b.id);
+                              const temporal = orgMetricsTemporalFilter[org.id] || 'historico';
+
+                              const filteredFeedbacks = feedbacks.filter(
+                                (f) =>
+                                  targetBranchIds.includes(f.restaurant_id) &&
+                                  filterByDateWindow(f.created_at, temporal)
+                              );
+                              const filteredReports = managerShiftReports.filter(
+                                (r) =>
+                                  targetBranchIds.includes(r.restaurant_id) &&
+                                  filterByDateWindow(r.shift_date, temporal)
+                              );
+
+                              const avgRating =
+                                filteredFeedbacks.length > 0
+                                  ? (
+                                      filteredFeedbacks.reduce((sum, f) => sum + (f.rating || 5), 0) /
+                                      filteredFeedbacks.length
+                                    ).toFixed(1)
+                                  : '5.0';
+                              const goodRatings = filteredFeedbacks.filter(
+                                (f) => (f.rating || 5) >= 4
+                              ).length;
+                              const shieldedRatings = filteredFeedbacks.filter(
+                                (f) => (f.rating || 5) < 4
+                              ).length;
+                              const totalSales = filteredReports.reduce(
+                                (sum, r) => sum + Number(r.total_sales || 0),
+                                0
+                              );
+                              const totalTips = filteredReports.reduce(
+                                (sum, r) => sum + Number(r.tips_collected || 0),
+                                0
+                              );
+                              const totalTablesServed = filteredReports.reduce(
+                                (sum, r) => sum + Number(r.tables_served || 0),
+                                0
+                              );
+                              const targetTables = restaurantTables.filter(
+                                (t) => t.restaurant_id && targetBranchIds.includes(t.restaurant_id)
+                              );
+                              const totalCapacity = targetTables.reduce(
+                                (sum, t) => sum + (t.capacity || 4),
+                                0
+                              );
+                              const targetTags = tags.filter(
+                                (t) => t.restaurant_id && targetBranchIds.includes(t.restaurant_id)
+                              );
+                              const orgMgrs = organizationManagers.filter(
+                                (m) =>
+                                  m.organization_id === org.id || m.organization_id === 'org-1'
+                              );
+
+                              return (
+                                <div className="bg-white rounded-3xl border border-indigo-200 p-5 shadow-xs space-y-5">
+                                  {/* Cabecera del Panel Consolidado */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                                        <BarChart3 className="w-5 h-5" />
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                                            Métricas Consolidadas de Organización: {org.name}
+                                          </h3>
+                                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            Consolidado Multi-Sucursal
+                                          </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                          Visión ejecutiva consolidada de {node.branches.length}{' '}
+                                          sucursales físicas y {node.brands.length} marcas
+                                          registradas.
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Botón Colapsar Panel */}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleOrgMetrics(org.id)}
+                                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all self-end sm:self-center"
+                                    >
+                                      Colapsar Métricas
+                                    </button>
+                                  </div>
+
+                                  {/* Barra de Filtros: Filtro Temporal y Filtro de Sucursal */}
+                                  <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
+                                    {/* Filtro Temporal */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                                        Periodo:
+                                      </span>
+                                      <div className="inline-flex items-center rounded-xl bg-white p-0.5 border border-slate-200 shadow-2xs">
+                                        {(
+                                          [
+                                            { key: 'hoy', label: 'Hoy' },
+                                            { key: '7dias', label: 'Últimos 7 Días' },
+                                            { key: '30dias', label: 'Este Mes (30 Días)' },
+                                            { key: 'historico', label: 'Histórico Completo' },
+                                          ] as const
+                                        ).map((opt) => (
+                                          <button
+                                            key={opt.key}
+                                            type="button"
+                                            onClick={() =>
+                                              setOrgMetricsTemporalFilter((prev) => ({
+                                                ...prev,
+                                                [org.id]: opt.key,
+                                              }))
+                                            }
+                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                              temporal === opt.key
+                                                ? 'bg-indigo-600 text-white shadow-2xs'
+                                                : 'text-slate-600 hover:text-slate-900'
+                                            }`}
+                                          >
+                                            {opt.label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Selector de Sucursal */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                                        Filtrar Sucursal:
+                                      </span>
+                                      <select
+                                        value={selectedBranchId}
+                                        onChange={(e) =>
+                                          setOrgMetricsBranchFilter((prev) => ({
+                                            ...prev,
+                                            [org.id]: e.target.value,
+                                          }))
+                                        }
+                                        className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                      >
+                                        <option value="all">
+                                          Todas las Sucursales ({orgBranches.length})
+                                        </option>
+                                        {orgBranches.map((b) => (
+                                          <option key={b.id} value={b.id}>
+                                            {b.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {/* Grid Bento de KPIs Consolidados */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                                    {/* KPI 1: Facturación Total en Cortes */}
+                                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-1">
+                                      <span className="text-[10px] font-extrabold uppercase text-emerald-800 tracking-wider">
+                                        Facturación Consolidada
+                                      </span>
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-2xl font-black text-slate-900">
+                                          $
+                                          {totalSales.toLocaleString('es-MX', {
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0,
+                                          })}
+                                        </span>
+                                        <span className="text-xs font-bold text-emerald-700">
+                                          MXN
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 block">
+                                        {totalTablesServed} mesas en cortes · ${totalTips.toFixed(0)}{' '}
+                                        propinas
+                                      </span>
+                                    </div>
+
+                                    {/* KPI 2: Reputación Consolidada Google */}
+                                    <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-200/80 space-y-1">
+                                      <span className="text-[10px] font-extrabold uppercase text-sky-800 tracking-wider">
+                                        Reputación Corporativa
+                                      </span>
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-2xl font-black text-slate-900">
+                                          {avgRating}
+                                        </span>
+                                        <span className="text-xs font-bold text-sky-700">
+                                          ★ Google Media
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 block">
+                                        {goodRatings} opiniones 4-5★ · {filteredFeedbacks.length}{' '}
+                                        totales
+                                      </span>
+                                    </div>
+
+                                    {/* KPI 3: Escudo Reputacional & Retención */}
+                                    <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1">
+                                      <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
+                                        Escudo de Quejas
+                                      </span>
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-2xl font-black text-slate-900">
+                                          {shieldedRatings}
+                                        </span>
+                                        <span className="text-xs font-bold text-amber-700">
+                                          quejas retenidas
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 block">
+                                        Retenidas confidencialmente antes de llegar a Google
+                                      </span>
+                                    </div>
+
+                                    {/* KPI 4: Aforo, Antenas & Plantilla */}
+                                    <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 space-y-1">
+                                      <span className="text-[10px] font-extrabold uppercase text-purple-800 tracking-wider">
+                                        Capacidad & Antenas
+                                      </span>
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-2xl font-black text-slate-900">
+                                          {targetTags.length}
+                                        </span>
+                                        <span className="text-xs font-bold text-purple-700">
+                                          placas en mesa
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-500 block">
+                                        {targetTables.length} mesas ({totalCapacity} comensales) ·{' '}
+                                        {orgMgrs.length} gerentes
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Tabla Comparativa de Rendimiento por Sucursal */}
+                                  <div className="space-y-2">
+                                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                                      Rendimiento Desglosado por Sucursal ({targetBranches.length})
+                                    </span>
+                                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                                      <table className="w-full text-left text-xs divide-y divide-slate-200">
+                                        <thead className="bg-slate-50 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                                          <tr>
+                                            <th className="py-2.5 px-3">Sucursal Física</th>
+                                            <th className="py-2.5 px-3">Marca Comercial</th>
+                                            <th className="py-2.5 px-3">Tier</th>
+                                            <th className="py-2.5 px-3">Placas NFC</th>
+                                            <th className="py-2.5 px-3">Reseñas / Rating</th>
+                                            <th className="py-2.5 px-3">Ventas Turno</th>
+                                            <th className="py-2.5 px-3 text-right">Estado</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                          {targetBranches.map((br) => {
+                                            const brTags = tags.filter(
+                                              (t) => t.restaurant_id === br.id
+                                            );
+                                            const brFbs = filteredFeedbacks.filter(
+                                              (f) => f.restaurant_id === br.id
+                                            );
+                                            const brReps = filteredReports.filter(
+                                              (r) => r.restaurant_id === br.id
+                                            );
+                                            const brSales = brReps.reduce(
+                                              (s, r) => s + Number(r.total_sales || 0),
+                                              0
+                                            );
+                                            const brRating =
+                                              brFbs.length > 0
+                                                ? (
+                                                    brFbs.reduce(
+                                                      (s, f) => s + (f.rating || 5),
+                                                      0
+                                                    ) / brFbs.length
+                                                  ).toFixed(1)
+                                                : '5.0';
+                                            const brBrand = organizationBrands.find(
+                                              (b) => b.id === br.brand_id
+                                            );
+
+                                            return (
+                                              <tr key={br.id} className="hover:bg-slate-50/60">
+                                                <td className="py-2.5 px-3 font-bold text-slate-900">
+                                                  {br.name}
+                                                </td>
+                                                <td className="py-2.5 px-3 text-slate-600">
+                                                  {brBrand ? brBrand.name : 'Marca Matriz'}
+                                                </td>
+                                                <td className="py-2.5 px-3">
+                                                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                                                    Tier {br.tier || 1}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2.5 px-3 font-medium text-slate-700">
+                                                  {brTags.length} placas
+                                                </td>
+                                                <td className="py-2.5 px-3">
+                                                  <span className="font-bold text-slate-900">
+                                                    {brRating} ★
+                                                  </span>
+                                                  <span className="text-[10px] text-slate-500 ml-1">
+                                                    ({brFbs.length})
+                                                  </span>
+                                                </td>
+                                                <td className="py-2.5 px-3 font-extrabold text-emerald-700">
+                                                  $
+                                                  {brSales.toLocaleString('es-MX', {
+                                                    minimumFractionDigits: 0,
+                                                  })}{' '}
+                                                  MXN
+                                                </td>
+                                                <td className="py-2.5 px-3 text-right">
+                                                  <span
+                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                                      br.is_active !== false
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                                                    }`}
+                                                  >
+                                                    {br.is_active !== false ? 'Activa' : 'Pausada'}
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                      )}
 
                       {/* Sub-fila de alerta para Organizaciones sin marcas ni sucursales */}
                       {!isOrgCollapsed && node.brands.length === 0 && node.branches.length === 0 && (
@@ -3198,6 +4024,22 @@ export const AdminRestaurantsPage: React.FC = () => {
         targetOrg={trialModalTargetOrg}
         targetBranch={trialModalTargetBranch}
         defaultTier={trialModalDefaultTier}
+      />
+
+      {/* Modal de Edición de Gerentes (Requerimiento 4) */}
+      <ManagerEditModal
+        isOpen={isManagerEditModalOpen}
+        onClose={() => {
+          setIsManagerEditModalOpen(false);
+          setEditingManager(null);
+        }}
+        manager={editingManager}
+        onSuccess={async () => {
+          const refreshed = await api.getOrganizationManagers();
+          setOrganizationManagers(refreshed);
+          setIsManagerEditModalOpen(false);
+          setEditingManager(null);
+        }}
       />
     </div>
   );

@@ -190,3 +190,4 @@ export const tiersApi = {
     return { success: false, error: 'Se requiere organizationId o restaurantId.' };
   },
 };
+
