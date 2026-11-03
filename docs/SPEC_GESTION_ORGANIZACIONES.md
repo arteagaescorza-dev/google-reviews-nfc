@@ -161,3 +161,15 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
 * **Limpieza Reactiva al Conmutar de Tier en Sucursal**: Al cambiar de Tier a una sucursal desde el selector del directorio, se purgan de inmediato las sobreescrituras locales en memoria y en `localStorage` (`kds_state_by_branch` y `waiter_term_state_by_branch`), garantizando que la sucursal herede limpiamente la matriz de pantallas del nuevo Tier sin residuos.
 * **Reactividad y Acceso al Menú Digital desde Tier 2**: La funcionalidad de Menú Digital Interactivo con Carrito a Cocina (`feat_digital_menu`) permea como activa desde Tier 2 según la regla comercial del sistema, mostrando el botón de acceso directo `[Gestionar Carta & Menú]` en la cabecera del panel de sucursal, en la Categoría 3 y en la fila del directorio.
 * **Paridad de Datos con Supabase**: Se integró la tabla `public.tier_definitions` con RLS y columnas en `restaurants` (`has_digital_menu`, `trial_tier`, `trial_start_date`, `trial_end_date`, `trial_days`) garantizando persistencia bidireccional y paridad total entre la nube y la interfaz.
+
+### 5. Catálogo Maestro de Tiers Multivertical & CRUD Integral (POL-008 & POL-010)
+
+* **Estructura Multivertical**: La tabla `public.tier_definitions` fue actualizada con `id UUID PRIMARY KEY`, `vertical_slug TEXT NOT NULL DEFAULT 'all'`, `vertical_id UUID REFERENCES public.business_verticals(id)` y `is_archived BOOLEAN NOT NULL DEFAULT false`. Esto permite modelar planes específicos para Restaurantes, Consultorios Médicos/Dentales, Barberías, Gimnasios o planes Universales.
+* **Restauración y Mapeo de Tier 5**: Se restauró Tier 5 ("Escudo Marca Blanca / Ad-Free • 0% Anuncios") con tarifa de $299 MXN/mes, funcionalidad `feat_ad_free` y badge distintivo dark (`bg-slate-900 text-white`).
+* **Operaciones CRUD Completas**:
+  - **Crear**: Interfaz modal interactiva `TierFormModal` con selección de nivel numérico, giro objetivo, precio MXN, funcionalidades y pantallas operativas.
+  - **Editar**: Modificación tanto inline en la vista maestro como modal para ajustes estructurales.
+  - **Archivar / Desarchivar**: Oculta planes obsoletos de nuevas contrataciones sin romper el histórico de sucursales ya suscritas.
+  - **Eliminar**: Purga definitiva de tiers no utilizados con confirmación preventiva.
+* **Filtrado Dinámico en Sucursales**: Los selectores de nivel contratado en el expediente de cada sucursal (`AdminRestaurantsPage.tsx`) ahora filtran y presentan exclusivamente los tiers aplicables al giro comercial de la sucursal (`business_type`) y los universales (`vertical_slug === 'all'`).
+

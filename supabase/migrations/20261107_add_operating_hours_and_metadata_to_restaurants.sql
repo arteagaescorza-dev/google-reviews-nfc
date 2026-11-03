@@ -12,3 +12,4 @@ ADD COLUMN IF NOT EXISTS ad_credit_balance NUMERIC DEFAULT 0;
 
 -- Recargar caché de esquema en PostgREST
 NOTIFY pgrst, 'reload schema';
+

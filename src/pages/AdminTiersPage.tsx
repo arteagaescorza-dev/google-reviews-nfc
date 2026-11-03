@@ -1,56 +1,79 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import type { CustomTierDefinition, TierType } from '../types';
+import type { CustomTierDefinition, TierType, BusinessVertical } from '../types';
 import {
   MASTER_TIER_FEATURES,
   MASTER_TIER_STATIONS,
   MASTER_TIER_CATEGORIES,
   DEFAULT_CUSTOM_TIERS,
 } from '../lib/constants';
+import { TierFormModal } from '../components/admin/TierFormModal';
 import {
   Layers,
   Check,
   Save,
   RotateCcw,
   DollarSign,
-  Monitor,
   ChevronDown,
   ChevronRight,
   Info,
-  ShieldCheck,
   Eye,
   Type,
+  Plus,
+  Edit2,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  Briefcase,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export const AdminTiersPage: React.FC = () => {
   const [tiers, setTiers] = useState<CustomTierDefinition[]>([]);
+  const [verticals, setVerticals] = useState<BusinessVertical[]>([]);
+  const [selectedVertical, setSelectedVertical] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [collapsedTiers, setCollapsedTiers] = useState<Record<string, boolean>>({});
 
-  const loadTiers = async () => {
+  // Modal de creacion / edicion
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<CustomTierDefinition | null>(null);
+
+  const loadData = async () => {
     setLoading(true);
-    const data = await api.getTierDefinitions();
-    setTiers(data);
-    setLoading(false);
+    try {
+      const [tiersData, verticalsData] = await Promise.all([
+        api.getTierDefinitions({ includeArchived: true }),
+        api.getBusinessVerticals(),
+      ]);
+      setTiers(tiersData);
+      setVerticals(verticalsData);
+    } catch (err) {
+      console.error('Error cargando catalogo de tiers:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadTiers();
+    loadData();
   }, []);
 
-  const handleToggleFeature = (tierKey: TierType | 'addon', featureId: string) => {
+  const handleToggleFeature = (tierKey: string | number, featureId: string) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const exists = t.included_features.includes(featureId);
         const nextFeatures = exists
           ? t.included_features.filter((id) => id !== featureId)
           : [...t.included_features, featureId];
 
-        // Regla: si se apaga, el checkbox se anula y se remueve de client_visible.
-        // Si se activa, por defecto se activa como marcado.
         const currentVis =
           t.client_visible_features !== undefined ? t.client_visible_features : t.included_features;
         const nextVis = exists
@@ -62,10 +85,11 @@ export const AdminTiersPage: React.FC = () => {
     );
   };
 
-  const handleToggleStation = (tierKey: TierType | 'addon', stationId: string) => {
+  const handleToggleStation = (tierKey: string | number, stationId: string) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const exists = t.included_stations.includes(stationId);
         const nextStations = exists
           ? t.included_stations.filter((id) => id !== stationId)
@@ -82,10 +106,11 @@ export const AdminTiersPage: React.FC = () => {
     );
   };
 
-  const handleToggleCategory = (tierKey: TierType | 'addon', catId: number) => {
+  const handleToggleCategory = (tierKey: string | number, catId: number) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const current = t.allowed_categories || [3, 4, 5, 6];
         const exists = current.includes(catId);
         const next = exists ? current.filter((id) => id !== catId) : [...current, catId];
@@ -103,10 +128,11 @@ export const AdminTiersPage: React.FC = () => {
     );
   };
 
-  const handleToggleFeatureVisibility = (tierKey: TierType | 'addon', featId: string) => {
+  const handleToggleFeatureVisibility = (tierKey: string | number, featId: string) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const current =
           t.client_visible_features !== undefined ? t.client_visible_features : t.included_features;
         const exists = current.includes(featId);
@@ -116,10 +142,11 @@ export const AdminTiersPage: React.FC = () => {
     );
   };
 
-  const handleToggleStationVisibility = (tierKey: TierType | 'addon', stationId: string) => {
+  const handleToggleStationVisibility = (tierKey: string | number, stationId: string) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const current =
           t.client_visible_stations !== undefined ? t.client_visible_stations : t.included_stations;
         const exists = current.includes(stationId);
@@ -129,10 +156,11 @@ export const AdminTiersPage: React.FC = () => {
     );
   };
 
-  const handleToggleCategoryVisibility = (tierKey: TierType | 'addon', catId: number) => {
+  const handleToggleCategoryVisibility = (tierKey: string | number, catId: number) => {
     setTiers((prev) =>
       prev.map((t) => {
-        if (t.tier !== tierKey) return t;
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        if (!idMatch) return t;
         const current =
           t.client_visible_categories !== undefined
             ? t.client_visible_categories
@@ -145,12 +173,15 @@ export const AdminTiersPage: React.FC = () => {
   };
 
   const handleUpdateTierField = (
-    tierKey: TierType | 'addon',
+    tierKey: string | number,
     field: 'name' | 'description' | 'price_mxn',
     value: any
   ) => {
     setTiers((prev) =>
-      prev.map((t) => (t.tier === tierKey ? { ...t, [field]: value } : t))
+      prev.map((t) => {
+        const idMatch = t.id ? t.id === tierKey : String(t.tier) === String(tierKey);
+        return idMatch ? { ...t, [field]: value } : t;
+      })
     );
   };
 
@@ -170,6 +201,73 @@ export const AdminTiersPage: React.FC = () => {
     }
   };
 
+  const handleArchiveToggle = async (tierDef: CustomTierDefinition) => {
+    const tierIdentifier = tierDef.id || String(tierDef.tier);
+    const nextArchivedState = !tierDef.is_archived;
+    const actionLabel = nextArchivedState ? 'archivar' : 'desarchivar';
+
+    if (window.confirm(`¿Desea ${actionLabel} el plan "${tierDef.name}"?`)) {
+      setTiers((prev) =>
+        prev.map((t) => {
+          const match = t.id ? t.id === tierIdentifier : String(t.tier) === tierIdentifier;
+          return match ? { ...t, is_archived: nextArchivedState } : t;
+        })
+      );
+      if (tierDef.id) {
+        await api.archiveTierDefinition(tierDef.id, nextArchivedState);
+      }
+    }
+  };
+
+  const handleDeleteTier = async (tierDef: CustomTierDefinition) => {
+    if (
+      window.confirm(
+        `¿Eliminar permanentemente el "${tierDef.name}"? Esta acción no se puede revertir.`
+      )
+    ) {
+      const tierIdentifier = tierDef.id || String(tierDef.tier);
+      setTiers((prev) =>
+        prev.filter((t) => (t.id ? t.id !== tierIdentifier : String(t.tier) !== tierIdentifier))
+      );
+      if (tierDef.id) {
+        await api.deleteTierDefinition(tierDef.id);
+      }
+    }
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingTier(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (tierDef: CustomTierDefinition) => {
+    setEditingTier(tierDef);
+    setIsModalOpen(true);
+  };
+
+  const handleTierModalSuccess = async (savedTier: CustomTierDefinition) => {
+    if (editingTier) {
+      // Actualizar existente
+      setTiers((prev) =>
+        prev.map((t) => {
+          const match = t.id && savedTier.id ? t.id === savedTier.id : String(t.tier) === String(savedTier.tier);
+          return match ? { ...t, ...savedTier } : t;
+        })
+      );
+      if (savedTier.id) {
+        await api.updateTierDefinition(savedTier.id, savedTier);
+      }
+    } else {
+      // Crear nuevo
+      const res = await api.createTierDefinition(savedTier);
+      if (res.success && res.data) {
+        setTiers((prev) => [...prev, res.data!]);
+      } else {
+        setTiers((prev) => [...prev, savedTier]);
+      }
+    }
+  };
+
   const toggleTierCollapse = (tierKey: string) => {
     setCollapsedTiers((prev) => ({
       ...prev,
@@ -178,12 +276,75 @@ export const AdminTiersPage: React.FC = () => {
   };
 
   const getTierColor = (tier: TierType | 'addon') => {
-    if (tier === 1) return { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', border: 'border-emerald-200', light: 'bg-emerald-50/40' };
-    if (tier === 2) return { badge: 'bg-blue-50 text-blue-800 border-blue-200', border: 'border-blue-200', light: 'bg-blue-50/40' };
-    if (tier === 3) return { badge: 'bg-purple-50 text-purple-800 border-purple-200', border: 'border-purple-200', light: 'bg-purple-50/40' };
-    if (tier === 4) return { badge: 'bg-amber-50 text-amber-800 border-amber-200', border: 'border-amber-200', light: 'bg-amber-50/40' };
-    return { badge: 'bg-slate-900 text-white border-slate-900', border: 'border-slate-300', light: 'bg-slate-50' };
+    if (tier === 1)
+      return {
+        badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        border: 'border-emerald-200',
+        light: 'bg-emerald-50/40',
+      };
+    if (tier === 2)
+      return {
+        badge: 'bg-blue-50 text-blue-800 border-blue-200',
+        border: 'border-blue-200',
+        light: 'bg-blue-50/40',
+      };
+    if (tier === 3)
+      return {
+        badge: 'bg-purple-50 text-purple-800 border-purple-200',
+        border: 'border-purple-200',
+        light: 'bg-purple-50/40',
+      };
+    if (tier === 4)
+      return {
+        badge: 'bg-amber-50 text-amber-800 border-amber-200',
+        border: 'border-amber-200',
+        light: 'bg-amber-50/40',
+      };
+    if (tier === 5 || tier === 'addon')
+      return {
+        badge: 'bg-slate-900 text-white border-slate-900',
+        border: 'border-slate-300',
+        light: 'bg-slate-100/70',
+      };
+    return {
+      badge: 'bg-slate-100 text-slate-800 border-slate-300',
+      border: 'border-slate-200',
+      light: 'bg-slate-50',
+    };
   };
+
+  const getVerticalLabel = (slug?: string) => {
+    if (!slug || slug === 'all') return 'Universal (Todos)';
+    const found = verticals.find((v) => v.slug === slug);
+    return found ? found.name : slug;
+  };
+
+  // Filtrado de Tiers
+  const activeTiersCount = tiers.filter((t) => !t.is_archived).length;
+  const archivedTiersCount = tiers.filter((t) => t.is_archived).length;
+
+  const filteredTiers = tiers.filter((t) => {
+    // 1. Filtro por estado
+    const matchesStatus = statusFilter === 'active' ? !t.is_archived : !!t.is_archived;
+    if (!matchesStatus) return false;
+
+    // 2. Filtro por giro comercial
+    if (selectedVertical !== 'all') {
+      const isMatch = t.vertical_slug === selectedVertical || t.vertical_slug === 'all';
+      if (!isMatch) return false;
+    }
+
+    // 3. Filtro por busqueda
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = t.name.toLowerCase().includes(q);
+      const matchDesc = t.description?.toLowerCase().includes(q);
+      const matchBadge = t.badge_label?.toLowerCase().includes(q);
+      if (!matchName && !matchDesc && !matchBadge) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-16 w-full min-w-0">
@@ -194,26 +355,35 @@ export const AdminTiersPage: React.FC = () => {
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
               Configuración Maestra de Tiers & Escalera Comercial
             </span>
-            <span className="text-xs text-slate-400 font-mono">POL-010</span>
+            <span className="text-xs text-slate-400 font-mono">POL-008 / POL-010</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Catálogo & Armador de Tiers
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl">
-            Modela qué funcionalidades desglosadas y qué pantallas operativas (KDS, Mostrador Pick Up, Sala y Hostess) se desbloquean en cada escalón.
+            Modela y administra escalones comerciales segmentados por giro comercial (Restaurantes, Consultorios, Barberías, etc.), sus funcionalidades desglosadas y pantallas KDS.
           </p>
         </div>
 
         {/* Acciones Globales */}
-        <div className="flex items-center gap-2.5 self-start sm:self-center">
+        <div className="flex items-center gap-2.5 self-start sm:self-center flex-wrap">
           <button
             type="button"
             onClick={handleResetToDefaults}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-all"
             title="Restablecer Tiers a los valores por defecto"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>Restablecer</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear Nuevo Tier</span>
           </button>
 
           <button
@@ -223,7 +393,7 @@ export const AdminTiersPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            <span>{saving ? 'Guardando...' : 'Guardar Configuración'}</span>
+            <span>{saving ? 'Guardando...' : 'Guardar Cambios'}</span>
           </button>
         </div>
       </div>
@@ -242,8 +412,86 @@ export const AdminTiersPage: React.FC = () => {
         <div className="space-y-1">
           <span className="font-extrabold block">Sincronización Automática con la Categoría 1 y 3 del Panel de Sucursal</span>
           <p className="text-slate-600 leading-relaxed">
-            Cada checkbox que marques o desmarques actualiza automáticamente los servicios y pantallas permitidas en todas las sucursales suscritas o con periodos de prueba activos de dicho Tier.
+            Cada cambio y checkbox actualizado aquí se sincroniza automáticamente con el expediente de cada sucursal según su giro comercial. Los tiers archivados no se ofrecerán para nuevas contrataciones.
           </p>
+        </div>
+      </div>
+
+      {/* Barra de Filtros: Giros Comerciales, Estado y Búsqueda */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Tabs de Giros Comerciales */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+              <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+              Giro:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedVertical('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                selectedVertical === 'all'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+              }`}
+            >
+              Todos los Giros
+            </button>
+            {verticals.map((v) => (
+              <button
+                key={v.slug}
+                type="button"
+                onClick={() => setSelectedVertical(v.slug)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  selectedVertical === v.slug
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                }`}
+              >
+                {v.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Filtro de Estado: Activos / Archivados */}
+          <div className="flex items-center gap-2 self-start lg:self-center">
+            <div className="bg-slate-100 p-1 rounded-2xl flex items-center gap-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('active')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  statusFilter === 'active'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Activos ({activeTiersCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('archived')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  statusFilter === 'archived'
+                    ? 'bg-white text-amber-900 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Archivados ({archivedTiersCount})
+              </button>
+            </div>
+
+            {/* Buscador Rápido */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Buscar Tier..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-36 sm:w-48"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -252,47 +500,82 @@ export const AdminTiersPage: React.FC = () => {
         <div className="p-16 text-center text-slate-400 text-xs bg-white rounded-3xl border border-slate-200">
           Cargando catálogo maestro de Tiers...
         </div>
+      ) : filteredTiers.length === 0 ? (
+        <div className="p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
+          <p className="text-sm font-extrabold text-slate-700">
+            No se encontraron Tiers con los filtros seleccionados.
+          </p>
+          <p className="text-xs text-slate-400">
+            Puedes cambiar de giro, ver archivados o crear un nuevo tier para este sector.
+          </p>
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Crear Tier Ahora</span>
+          </button>
+        </div>
       ) : (
         <div className="space-y-6">
-          {tiers.map((tierDef) => {
-            const isCollapsed = !!collapsedTiers[String(tierDef.tier)];
+          {filteredTiers.map((tierDef) => {
+            const tierIdentifier = tierDef.id || String(tierDef.tier);
+            const isCollapsed = !!collapsedTiers[tierIdentifier];
             const color = getTierColor(tierDef.tier);
 
             return (
               <div
-                key={String(tierDef.tier)}
-                className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden"
+                key={tierIdentifier}
+                className={`bg-white rounded-3xl border shadow-xs overflow-hidden transition-all ${
+                  tierDef.is_archived
+                    ? 'border-amber-200/80 opacity-80'
+                    : 'border-slate-200/90'
+                }`}
               >
                 {/* Cabecera del Tier */}
                 <div
-                  onClick={() => toggleTierCollapse(String(tierDef.tier))}
+                  onClick={() => toggleTierCollapse(tierIdentifier)}
                   className={`p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none ${color.light} hover:brightness-95 transition-all`}
                 >
                   <div className="flex items-center gap-3">
                     {isCollapsed ? (
-                      <ChevronRight className="w-4 h-4 text-slate-600" />
+                      <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-600" />
+                      <ChevronDown className="w-4 h-4 text-slate-600 flex-shrink-0" />
                     )}
                     <span className={`px-2.5 py-1 rounded-xl text-xs font-extrabold border ${color.badge}`}>
                       {tierDef.badge_label}
                     </span>
                     <div>
-                      <h2 className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
-                        {tierDef.name}
-                      </h2>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
+                          {tierDef.name}
+                        </h2>
+                        {/* Badge de Giro Comercial */}
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-100/70 text-indigo-800 border border-indigo-200">
+                          {getVerticalLabel(tierDef.vertical_slug)}
+                        </span>
+                        {/* Badge de Archivado si aplica */}
+                        {tierDef.is_archived && (
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                            Archivado
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5">{tierDef.description}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 self-end md:self-center" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 self-end md:self-center" onClick={(e) => e.stopPropagation()}>
+                    {/* Precio MXN */}
                     <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
                       <DollarSign className="w-3.5 h-3.5 text-slate-400" />
                       <input
                         type="number"
                         value={tierDef.price_mxn}
                         onChange={(e) =>
-                          handleUpdateTierField(tierDef.tier, 'price_mxn', Math.max(0, Number(e.target.value)))
+                          handleUpdateTierField(tierIdentifier, 'price_mxn', Math.max(0, Number(e.target.value)))
                         }
                         className="w-16 font-extrabold text-slate-900 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded text-right"
                       />
@@ -302,13 +585,51 @@ export const AdminTiersPage: React.FC = () => {
                     <span className="text-[11px] font-bold text-slate-500 bg-white/80 px-2.5 py-1 rounded-xl border border-slate-200">
                       {tierDef.included_features.length} funciones · {tierDef.included_stations.length} pantallas
                     </span>
+
+                    {/* Botón Editar Modal */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(tierDef)}
+                      className="p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-indigo-600 transition-colors shadow-2xs"
+                      title="Editar propiedades de este Tier"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Botón Archivar / Desarchivar */}
+                    <button
+                      type="button"
+                      onClick={() => handleArchiveToggle(tierDef)}
+                      className={`p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 transition-colors shadow-2xs ${
+                        tierDef.is_archived
+                          ? 'text-amber-600 hover:text-amber-700'
+                          : 'text-slate-500 hover:text-amber-600'
+                      }`}
+                      title={tierDef.is_archived ? 'Desarchivar Tier' : 'Archivar Tier'}
+                    >
+                      {tierDef.is_archived ? (
+                        <ArchiveRestore className="w-3.5 h-3.5" />
+                      ) : (
+                        <Archive className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    {/* Botón Eliminar */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTier(tierDef)}
+                      className="p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors shadow-2xs"
+                      title="Eliminar Tier permanentemente"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
                 {/* Contenido Desplegable: 3 Secciones con Switches y Visibilidad */}
                 {!isCollapsed && (
                   <div>
-                    {/* Barra de Edición de Identidad Comercial (Requerimiento 1) */}
+                    {/* Barra de Edición de Identidad Comercial */}
                     <div className="bg-slate-50/90 p-5 border-b border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1 flex items-center gap-1">
@@ -318,7 +639,7 @@ export const AdminTiersPage: React.FC = () => {
                         <input
                           type="text"
                           value={tierDef.name}
-                          onChange={(e) => handleUpdateTierField(tierDef.tier, 'name', e.target.value)}
+                          onChange={(e) => handleUpdateTierField(tierIdentifier, 'name', e.target.value)}
                           className="w-full px-3 py-1.5 text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           placeholder="Ej: Tier 1: Enlace Directo (Etapa 1 - Siembra)"
                         />
@@ -330,7 +651,7 @@ export const AdminTiersPage: React.FC = () => {
                         <input
                           type="text"
                           value={tierDef.description}
-                          onChange={(e) => handleUpdateTierField(tierDef.tier, 'description', e.target.value)}
+                          onChange={(e) => handleUpdateTierField(tierIdentifier, 'description', e.target.value)}
                           className="w-full px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           placeholder="Ej: Redirección instantánea a Google Reviews con semillero viral..."
                         />
@@ -365,14 +686,14 @@ export const AdminTiersPage: React.FC = () => {
                                 key={feat.id}
                                 className={`p-3 rounded-2xl border transition-all ${
                                   isChecked
-                                    ? 'bg-blue-50/40 border-blue-200 shadow-2xs'
+                                    ? 'bg-indigo-50/40 border-indigo-200 shadow-2xs'
                                     : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0 flex-1">
                                     <span
-                                      className={`text-xs font-bold block ${
+                                      className={`text-xs font-bold block leading-snug ${
                                         isChecked ? 'text-slate-900' : 'text-slate-600'
                                       }`}
                                     >
@@ -386,7 +707,7 @@ export const AdminTiersPage: React.FC = () => {
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleFeature(tierDef.tier, feat.id)}
+                                      onClick={() => handleToggleFeature(tierIdentifier, feat.id)}
                                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                                         isChecked ? 'bg-emerald-500' : 'bg-slate-300'
                                       }`}
@@ -420,7 +741,7 @@ export const AdminTiersPage: React.FC = () => {
                                       disabled={!isChecked}
                                       checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        isChecked && handleToggleFeatureVisibility(tierDef.tier, feat.id)
+                                        isChecked && handleToggleFeatureVisibility(tierIdentifier, feat.id)
                                       }
                                       className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
@@ -447,16 +768,16 @@ export const AdminTiersPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Columna 2: Acceso a Pantallas Operativas con Switch y Visibilidad */}
+                      {/* Columna 2: Pantallas Operativas KDS con Switch y Visibilidad */}
                       <div className="space-y-4 pt-6 xl:pt-0 xl:pl-6">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                           <div className="flex items-center gap-2">
-                            <Monitor className="w-4 h-4 text-orange-600" />
+                            <SlidersHorizontal className="w-4 h-4 text-amber-600" />
                             <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
                               Pantallas Operativas KDS
                             </h3>
                           </div>
-                          <span className="text-[11px] font-bold text-orange-700">
+                          <span className="text-[11px] font-bold text-amber-700">
                             {tierDef.included_stations.length} de {MASTER_TIER_STATIONS.length}
                           </span>
                         </div>
@@ -474,7 +795,7 @@ export const AdminTiersPage: React.FC = () => {
                                 key={station.id}
                                 className={`p-3 rounded-2xl border transition-all ${
                                   isChecked
-                                    ? 'bg-orange-50/40 border-orange-200 shadow-2xs'
+                                    ? 'bg-amber-50/40 border-amber-200 shadow-2xs'
                                     : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60'
                                 }`}
                               >
@@ -488,8 +809,8 @@ export const AdminTiersPage: React.FC = () => {
                                       >
                                         {station.name}
                                       </span>
-                                      <span className="text-[10px] font-extrabold bg-white border border-slate-200 px-1.5 py-0.2 rounded text-slate-600">
-                                        Rol: {station.roleName}
+                                      <span className="text-[10px] font-extrabold bg-white border border-amber-200 px-1.5 py-0.2 rounded text-amber-700">
+                                        {station.roleName}
                                       </span>
                                     </div>
                                     <span className="text-[11px] text-slate-500 block mt-0.5 leading-snug">
@@ -500,7 +821,7 @@ export const AdminTiersPage: React.FC = () => {
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleStation(tierDef.tier, station.id)}
+                                      onClick={() => handleToggleStation(tierIdentifier, station.id)}
                                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                                         isChecked ? 'bg-emerald-500' : 'bg-slate-300'
                                       }`}
@@ -534,9 +855,9 @@ export const AdminTiersPage: React.FC = () => {
                                       disabled={!isChecked}
                                       checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        isChecked && handleToggleStationVisibility(tierDef.tier, station.id)
+                                        isChecked && handleToggleStationVisibility(tierIdentifier, station.id)
                                       }
-                                      className="w-3.5 h-3.5 rounded text-orange-600 focus:ring-orange-500 border-slate-300 disabled:cursor-not-allowed"
+                                      className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
                                     <span className="flex items-center gap-1">
                                       <Eye className="w-3 h-3 text-slate-400" />
@@ -548,7 +869,7 @@ export const AdminTiersPage: React.FC = () => {
                                       !isChecked
                                         ? 'bg-slate-50 text-slate-300 border-slate-200'
                                         : isVisibleToClient
-                                        ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
                                         : 'bg-slate-100 text-slate-400 border-slate-200'
                                     }`}
                                   >
@@ -561,26 +882,23 @@ export const AdminTiersPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Columna 3: Categorías Operativas Maestras (Requerimiento 3) */}
+                      {/* Columna 3: Categorías Operativas con Switch y Visibilidad */}
                       <div className="space-y-4 pt-6 xl:pt-0 xl:pl-6">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                           <div className="flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-purple-600" />
+                            <Layers className="w-4 h-4 text-purple-600" />
                             <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">
                               Categorías Operativas
                             </h3>
                           </div>
                           <span className="text-[11px] font-bold text-purple-700">
-                            {(tierDef.allowed_categories || [3, 4, 5, 6]).length} de{' '}
-                            {MASTER_TIER_CATEGORIES.length}
+                            {(tierDef.allowed_categories || [3, 4, 5, 6]).length} de 4
                           </span>
                         </div>
 
                         <div className="space-y-2.5">
                           {MASTER_TIER_CATEGORIES.map((cat) => {
-                            const isChecked = (tierDef.allowed_categories || [3, 4, 5, 6]).includes(
-                              cat.id
-                            );
+                            const isChecked = (tierDef.allowed_categories || [3, 4, 5, 6]).includes(cat.id);
                             const isVisibleToClient =
                               tierDef.client_visible_categories !== undefined
                                 ? tierDef.client_visible_categories.includes(cat.id)
@@ -617,7 +935,7 @@ export const AdminTiersPage: React.FC = () => {
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleCategory(tierDef.tier, cat.id)}
+                                      onClick={() => handleToggleCategory(tierIdentifier, cat.id)}
                                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                                         isChecked ? 'bg-emerald-500' : 'bg-slate-300'
                                       }`}
@@ -651,7 +969,7 @@ export const AdminTiersPage: React.FC = () => {
                                       disabled={!isChecked}
                                       checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        isChecked && handleToggleCategoryVisibility(tierDef.tier, cat.id)
+                                        isChecked && handleToggleCategoryVisibility(tierIdentifier, cat.id)
                                       }
                                       className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
@@ -685,6 +1003,15 @@ export const AdminTiersPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Modal para Crear y Editar Tiers */}
+      <TierFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleTierModalSuccess}
+        tierToEdit={editingTier}
+        verticals={verticals}
+      />
     </div>
   );
 };

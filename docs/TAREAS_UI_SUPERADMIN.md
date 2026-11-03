@@ -59,6 +59,7 @@ Este documento registra y da seguimiento a todas las tareas de interfaz preaprob
 | **UI-EX-03** | **Red de Anuncios** | Auditoria visual de banners, anunciantes locales activos y distribucion de cupones. | `/admin/ads` | `Pendiente Bento v2` |
 | **UI-EX-04** | **Cobertura Territorial** | Mapa interactivo de zonas de cobertura metropolitana y densidad de colocacion de placas. | `/admin/cobertura` | `Alineada` |
 | **UI-EX-05** | **Mesa de Ayuda B2B** | Bandeja de tickets de soporte con accion rapida para reemplazo de viniles dañados. | `/admin/soporte` | `Pendiente Bento v2` |
+| **UI-EX-06** | **Catálogo & Armador de Tiers Multivertical (CRUD y Archivado)** | Catálogo Bento Light con filtrado dinámico por giros comerciales (`business_verticals`), creación y edición modal con `TierFormModal`, archivado preventivo, eliminación permanente, switches de visibilidad y restauración de Tier 5 ("Escudo Marca Blanca / Ad-Free • 0% Anuncios"). Sincronización automática con selectores de sucursales según su giro. | `/admin/tiers` | `Implementada y Verificada` |
 
 ---
 

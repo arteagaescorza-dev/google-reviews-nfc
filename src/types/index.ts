@@ -133,7 +133,7 @@ export const VERTICAL_CONFIG: Record<string, BusinessVerticalConfig> = {
   },
 };
 
-export type TierType = 1 | 2 | 3 | 4;
+export type TierType = 1 | 2 | 3 | 4 | 5 | number;
 
 export type LinkType = 'menu' | 'instagram' | 'facebook' | 'tiktok' | 'whatsapp' | 'wifi' | 'website' | 'other';
 
@@ -504,9 +504,13 @@ export interface TierFeatureItem {
 }
 
 export interface CustomTierDefinition {
+  id?: string;
   tier: TierType | 'addon';
   name: string;
   badge_label: string;
+  vertical_slug?: string;
+  vertical_id?: string | null;
+  is_archived?: boolean;
   price_mxn: number;
   description: string;
   included_features: string[]; // IDs de funcionalidades

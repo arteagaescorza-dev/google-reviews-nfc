@@ -438,12 +438,26 @@ export const AdminRestaurantsPage: React.FC = () => {
     });
   };
 
+  const getAvailableTiersForBranch = (branch: Restaurant) => {
+    const branchVertical = branch.business_type || 'restaurant';
+    const list = customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS;
+    const matching = list.filter(
+      (t) => !t.is_archived && (!t.vertical_slug || t.vertical_slug === 'all' || t.vertical_slug === branchVertical)
+    );
+    return matching.length > 0 ? matching : list.filter((t) => !t.is_archived);
+  };
+
   const getBranchCategoryAllowed = (branch: Restaurant, catNum: number): boolean => {
     const trialInfo = isBranchTrialActive(branch);
     const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (branch.tier || 1);
+    const branchVertical = branch.business_type || 'restaurant';
+    const list = customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS;
     const tierDef =
-      customTiers.find((t) => t.tier === effectiveTier) ||
-      DEFAULT_CUSTOM_TIERS.find((t) => t.tier === effectiveTier);
+      list.find(
+        (t) =>
+          t.tier === effectiveTier &&
+          (!t.vertical_slug || t.vertical_slug === 'all' || t.vertical_slug === branchVertical)
+      ) || list.find((t) => t.tier === effectiveTier);
     if (!tierDef || !tierDef.allowed_categories) return true;
     return tierDef.allowed_categories.includes(catNum);
   };
@@ -458,12 +472,6 @@ export const AdminRestaurantsPage: React.FC = () => {
   // Modal de Administración de Menú y Platillos (Requerimientos 3, 4)
   const [selectedMenuRestaurant, setSelectedMenuRestaurant] = useState<Restaurant | null>(null);
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
-
-  const getTierName = (tier: TierType | number) => {
-    const custom = customTiers.find((t) => t.tier === tier);
-    if (custom && custom.name) return custom.name;
-    return TIERS[tier as TierType]?.name || `Tier ${tier}`;
-  };
 
   const toggleOrgMetrics = (orgId: string) => {
     setExpandedOrgMetrics((prev) => ({
@@ -1213,22 +1221,22 @@ export const AdminRestaurantsPage: React.FC = () => {
                   })()}
 
                   {/* Listado de Tiers Configurables con Acordeones Desplegables (Política 4) */}
-                  {(customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS).map((tierDef) => {
-                    const tierKey = String(tierDef.tier);
+                  {getAvailableTiersForBranch(res).map((tierDef) => {
+                    const tierKey = tierDef.id || String(tierDef.tier);
                     const isTierCollapsed = !expandedTierSections[res.id]?.[tierKey];
                     const contractedTier = res.tier || 2;
                     const trialInfo = isBranchTrialActive(res);
 
-                    const isBaseContract = typeof tierDef.tier === 'number' && contractedTier >= tierDef.tier;
+                    const isAddonActive = (tierDef.tier === 'addon' || tierDef.tier === 5) && Boolean(res.is_ad_free);
+                    const isBaseContract = (typeof tierDef.tier === 'number' && tierDef.tier !== 5) && contractedTier >= tierDef.tier;
                     const isTrialActiveThisTier = trialInfo.isActive && trialInfo.trialTier && (
-                      typeof tierDef.tier === 'number' && trialInfo.trialTier >= tierDef.tier
+                      typeof tierDef.tier === 'number' && tierDef.tier !== 5 && trialInfo.trialTier >= tierDef.tier
                     );
-                    const isAddonActive = tierDef.tier === 'addon' && Boolean(res.is_ad_free);
 
                     // Filtrar las funcionalidades de la sucursal que corresponden a este tier
                     const assignedFeatures = tierFeatures.filter((f) => {
-                      if (tierDef.tier === 'addon') {
-                        return f.tierLevel === 'addon' && (tierDef.included_features ? tierDef.included_features.includes(f.key) : true);
+                      if (tierDef.tier === 'addon' || tierDef.tier === 5) {
+                        return (f.tierLevel === 'addon' || f.tierLevel === 5) && (tierDef.included_features ? tierDef.included_features.includes(f.key) : true);
                       }
                       return tierDef.included_features ? tierDef.included_features.includes(f.key) : f.tierLevel === tierDef.tier;
                     });
@@ -1614,7 +1622,14 @@ export const AdminRestaurantsPage: React.FC = () => {
               const isCat3Expanded = !!expandedCategoriesByBranch[res.id]?.[3];
               const trialInfo = isBranchTrialActive(res);
               const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (res.tier || 1);
-              const tierDef = customTiers.find((t) => t.tier === effectiveTier) || DEFAULT_CUSTOM_TIERS.find((t) => t.tier === effectiveTier);
+              const branchVertical = res.business_type || 'restaurant';
+              const list = customTiers.length > 0 ? customTiers : DEFAULT_CUSTOM_TIERS;
+              const tierDef =
+                list.find(
+                  (t) =>
+                    t.tier === effectiveTier &&
+                    (!t.vertical_slug || t.vertical_slug === 'all' || t.vertical_slug === branchVertical)
+                ) || list.find((t) => t.tier === effectiveTier);
 
               const isCat3Allowed = tierDef?.allowed_categories ? tierDef.allowed_categories.includes(3) : true;
               const isCat3MasterOn = isCat3Allowed && branchMasterCategoriesState[res.id]?.[3] !== false;
@@ -4141,30 +4156,15 @@ export const AdminRestaurantsPage: React.FC = () => {
                                                 title="Cambiar el nivel de paquete contratado por esta sucursal"
                                                 className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${tierInfo.badgeColor}`}
                                               >
-                                                <option
-                                                  value={1}
-                                                  className="bg-white text-slate-900 font-bold"
-                                                >
-                                                  {getTierName(1)}
-                                                </option>
-                                                <option
-                                                  value={2}
-                                                  className="bg-white text-slate-900 font-bold"
-                                                >
-                                                  {getTierName(2)}
-                                                </option>
-                                                <option
-                                                  value={3}
-                                                  className="bg-white text-slate-900 font-bold"
-                                                >
-                                                  {getTierName(3)}
-                                                </option>
-                                                <option
-                                                  value={4}
-                                                  className="bg-white text-slate-900 font-bold"
-                                                >
-                                                  {getTierName(4)}
-                                                </option>
+                                                {getAvailableTiersForBranch(res).map((td) => (
+                                                  <option
+                                                    key={td.id || String(td.tier)}
+                                                    value={td.tier}
+                                                    className="bg-white text-slate-900 font-bold"
+                                                  >
+                                                    {td.name}
+                                                  </option>
+                                                ))}
                                               </select>
 
                                               <span className="text-[10px] text-slate-400 font-semibold">
@@ -4417,18 +4417,15 @@ export const AdminRestaurantsPage: React.FC = () => {
                                     }
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer ${tierInfo.badgeColor}`}
                                   >
-                                    <option value={1} className="bg-white text-slate-900 font-bold">
-                                      {getTierName(1)}
-                                    </option>
-                                    <option value={2} className="bg-white text-slate-900 font-bold">
-                                      {getTierName(2)}
-                                    </option>
-                                    <option value={3} className="bg-white text-slate-900 font-bold">
-                                      {getTierName(3)}
-                                    </option>
-                                    <option value={4} className="bg-white text-slate-900 font-bold">
-                                      {getTierName(4)}
-                                    </option>
+                                    {getAvailableTiersForBranch(res).map((td) => (
+                                      <option
+                                        key={td.id || String(td.tier)}
+                                        value={td.tier}
+                                        className="bg-white text-slate-900 font-bold"
+                                      >
+                                        {td.name}
+                                      </option>
+                                    ))}
                                   </select>
 
                                   {(() => {

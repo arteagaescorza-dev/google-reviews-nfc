@@ -1,6 +1,13 @@
 import type { SupportCategory, SupportStatus } from '../types';
 
-export const TIERS = {
+export interface TierConfigItem {
+  id: number;
+  name: string;
+  description: string;
+  badgeColor: string;
+}
+
+export const TIERS: Record<number, TierConfigItem> = {
   1: {
     id: 1,
     name: 'Tier 1: Enlace Directo (Etapa 1 - Siembra)',
@@ -25,7 +32,13 @@ export const TIERS = {
     description: 'Bolsa de impresiones, cupones locales y métricas avanzadas por mesa.',
     badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
   },
-} as const;
+  5: {
+    id: 5,
+    name: 'Tier 5: Escudo Marca Blanca (Ad-Free • 0% Anuncios)',
+    description: 'Bloquea toda publicidad de terceros en las pantallas de las mesas de la sucursal.',
+    badgeColor: 'bg-slate-900 text-white border-slate-900',
+  },
+};
 
 export const DEFAULT_BRAND_COLOR = '#2563eb';
 
@@ -280,34 +293,45 @@ export const MASTER_TIER_CATEGORIES: MasterCategoryItem[] = [
 
 export const DEFAULT_CUSTOM_TIERS = [
   {
+    id: 'tier-default-1',
     tier: 1 as const,
     name: 'Tier 1: Enlace Directo (Etapa 1 - Siembra)',
     badge_label: 'Tier 1',
     price_mxn: 100,
+    vertical_slug: 'restaurant',
+    is_archived: false,
     description: 'Redirección instantánea a Google Reviews con semillero viral de placas.',
     included_features: ['feat_redirect', 'feat_viral_seeds'],
     included_stations: [] as string[],
     client_visible_features: ['feat_redirect', 'feat_viral_seeds'],
     client_visible_stations: [] as string[],
     allowed_categories: [1, 2],
+    client_visible_categories: [1, 2],
   },
   {
+    id: 'tier-default-2',
     tier: 2 as const,
     name: 'Tier 2: Filtro de Reputación (Cliente Fundador)',
     badge_label: 'Tier 2',
     price_mxn: 399,
+    vertical_slug: 'restaurant',
+    is_archived: false,
     description: 'Calificaciones de 4-5 estrellas van a Google; 1-3 a buzón privado con cupones de gerente y menú digital.',
     included_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons', 'feat_digital_menu'],
     included_stations: ['station_manager'],
     client_visible_features: ['feat_redirect', 'feat_viral_seeds', 'feat_reputation_shield', 'feat_complaints_inbox', 'feat_manager_coupons', 'feat_digital_menu'],
     client_visible_stations: ['station_manager'],
     allowed_categories: [1, 2, 3, 5, 6],
+    client_visible_categories: [1, 2, 3, 5, 6],
   },
   {
+    id: 'tier-default-3',
     tier: 3 as const,
     name: 'Tier 3: Menú Digital, Linktree & KDS Operativo',
     badge_label: 'Tier 3',
     price_mxn: 899,
+    vertical_slug: 'restaurant',
+    is_archived: false,
     description: 'Menú digital con carrito a cocina, Linktree, Wi-Fi 1-toque, estaciones KDS y terminales de sala.',
     included_features: [
       'feat_redirect',
@@ -350,12 +374,16 @@ export const DEFAULT_CUSTOM_TIERS = [
       'station_pickup',
     ],
     allowed_categories: [1, 2, 3, 4, 5, 6],
+    client_visible_categories: [1, 2, 3, 4, 5, 6],
   },
   {
+    id: 'tier-default-4',
     tier: 4 as const,
     name: 'Tier 4: Red Publicitaria, Turnero 4K & Analítica',
     badge_label: 'Tier 4',
     price_mxn: 1499,
+    vertical_slug: 'restaurant',
+    is_archived: false,
     description: 'Bolsa publicitaria local ($500 MXN), mapa de calor por mesa, turnero público 4K y suite completa.',
     included_features: [
       'feat_redirect',
@@ -404,17 +432,22 @@ export const DEFAULT_CUSTOM_TIERS = [
       'station_pickup',
     ],
     allowed_categories: [1, 2, 3, 4, 5, 6],
+    client_visible_categories: [1, 2, 3, 4, 5, 6],
   },
   {
-    tier: 'addon' as const,
-    name: 'Add-On: Escudo Marca Blanca (Ad-Free • 0% Anuncios)',
-    badge_label: 'Add-On',
+    id: 'tier-default-5',
+    tier: 5 as const,
+    name: 'Tier 5: Escudo Marca Blanca (Ad-Free • 0% Anuncios)',
+    badge_label: 'Tier 5',
     price_mxn: 299,
+    vertical_slug: 'all',
+    is_archived: false,
     description: 'Bloquea toda publicidad de terceros en las pantallas de las mesas de la sucursal.',
     included_features: ['feat_ad_free'],
     included_stations: [] as string[],
     client_visible_features: ['feat_ad_free'],
     client_visible_stations: [] as string[],
     allowed_categories: [1, 2],
+    client_visible_categories: [1, 2],
   },
 ];
