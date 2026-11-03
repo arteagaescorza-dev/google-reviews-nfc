@@ -18,6 +18,20 @@ export type BusinessType =
   | 'general'
   | (string & {});
 
+export interface VerticalFeatureItem {
+  id: string;
+  name: string;
+  description?: string;
+  category?: 'reputacion' | 'operacion' | 'marketing' | 'personalizado';
+}
+
+export interface VerticalStationItem {
+  id: string;
+  name: string;
+  roleName?: string;
+  description?: string;
+}
+
 export interface BusinessVertical {
   id: string;
   slug: string;
@@ -27,7 +41,15 @@ export interface BusinessVertical {
   show_kds: boolean;
   show_floor_staff: boolean;
   show_hostess: boolean;
+  available_features?: VerticalFeatureItem[];
+  available_stations?: VerticalStationItem[];
+  catalog_title?: string;
+  catalog_subtitle?: string;
+  action_primary?: string;
+  action_secondary?: string;
+  feedback_question?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface OrganizationBrand {

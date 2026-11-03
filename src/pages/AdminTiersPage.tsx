@@ -8,6 +8,7 @@ import {
   DEFAULT_CUSTOM_TIERS,
 } from '../lib/constants';
 import { TierFormModal } from '../components/admin/TierFormModal';
+import { BusinessVerticalsModal } from '../components/admin/BusinessVerticalsModal';
 import {
   Layers,
   Check,
@@ -43,6 +44,7 @@ export const AdminTiersPage: React.FC = () => {
   // Modal de creacion / edicion
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<CustomTierDefinition | null>(null);
+  const [isVerticalsModalOpen, setIsVerticalsModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -62,6 +64,13 @@ export const AdminTiersPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleVertsUpdated = () => {
+      loadData();
+    };
+    window.addEventListener('nfc_business_verticals_updated', handleVertsUpdated);
+    return () => {
+      window.removeEventListener('nfc_business_verticals_updated', handleVertsUpdated);
+    };
   }, []);
 
   const handleToggleFeature = (tierKey: string | number, featureId: string) => {
@@ -379,6 +388,16 @@ export const AdminTiersPage: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => setIsVerticalsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-sm transition-all"
+            title="Administrar catálogo de giros comerciales, unidades y funcionalidades"
+          >
+            <Briefcase className="w-4 h-4 text-indigo-400" />
+            <span>Catálogo de Giros</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleOpenCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
           >
@@ -451,6 +470,15 @@ export const AdminTiersPage: React.FC = () => {
                 {v.name}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setIsVerticalsModalOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold whitespace-nowrap transition-all border border-slate-200 ml-1"
+              title="Tipificar giros comerciales, unidades físicas y funcionalidades"
+            >
+              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+              <span>+ Administrar Giros</span>
+            </button>
           </div>
 
           {/* Filtro de Estado: Activos / Archivados */}
@@ -658,8 +686,25 @@ export const AdminTiersPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 divide-y xl:divide-y-0 xl:divide-x divide-slate-100">
-                      {/* Columna 1: Funcionalidades Desglosadas con Switch y Visibilidad */}
+                    {(() => {
+                        const tierVertical =
+                          verticals.find((v) => v.slug === tierDef.vertical_slug) ||
+                          (selectedVertical !== 'all' ? verticals.find((v) => v.slug === selectedVertical) : null) ||
+                          verticals.find((v) => v.slug === 'restaurant');
+
+                        const tierFeatures =
+                          tierVertical?.available_features && tierVertical.available_features.length > 0
+                            ? tierVertical.available_features
+                            : MASTER_TIER_FEATURES;
+
+                        const tierStations =
+                          tierVertical?.available_stations && tierVertical.available_stations.length > 0
+                            ? tierVertical.available_stations
+                            : MASTER_TIER_STATIONS;
+
+                        return (
+                          <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 divide-y xl:divide-y-0 xl:divide-x divide-slate-100">
+                            {/* Columna 1: Funcionalidades Desglosadas con Switch y Visibilidad */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                           <div className="flex items-center gap-2">
@@ -669,12 +714,12 @@ export const AdminTiersPage: React.FC = () => {
                             </h3>
                           </div>
                           <span className="text-[11px] font-bold text-indigo-700">
-                            {tierDef.included_features.length} de {MASTER_TIER_FEATURES.length}
+                            {tierDef.included_features.length} de {tierFeatures.length}
                           </span>
                         </div>
 
                         <div className="space-y-2.5">
-                          {MASTER_TIER_FEATURES.map((feat) => {
+                          {tierFeatures.map((feat) => {
                             const isChecked = tierDef.included_features.includes(feat.id);
                             const isVisibleToClient =
                               tierDef.client_visible_features !== undefined
@@ -778,12 +823,12 @@ export const AdminTiersPage: React.FC = () => {
                             </h3>
                           </div>
                           <span className="text-[11px] font-bold text-amber-700">
-                            {tierDef.included_stations.length} de {MASTER_TIER_STATIONS.length}
+                            {tierDef.included_stations.length} de {tierStations.length}
                           </span>
                         </div>
 
                         <div className="space-y-2.5">
-                          {MASTER_TIER_STATIONS.map((station) => {
+                          {tierStations.map((station) => {
                             const isChecked = tierDef.included_stations.includes(station.id);
                             const isVisibleToClient =
                               tierDef.client_visible_stations !== undefined
@@ -996,6 +1041,8 @@ export const AdminTiersPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                  );
+                })()}
                   </div>
                 )}
               </div>
@@ -1011,6 +1058,15 @@ export const AdminTiersPage: React.FC = () => {
         onSuccess={handleTierModalSuccess}
         tierToEdit={editingTier}
         verticals={verticals}
+        initialVerticalSlug={selectedVertical}
+        onOpenVerticalsModal={() => setIsVerticalsModalOpen(true)}
+      />
+
+      {/* Modal CRUD para Giros Comerciales */}
+      <BusinessVerticalsModal
+        isOpen={isVerticalsModalOpen}
+        onClose={() => setIsVerticalsModalOpen(false)}
+        onVerticalsChanged={loadData}
       />
     </div>
   );

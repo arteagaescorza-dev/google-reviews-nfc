@@ -24,6 +24,8 @@ interface TierFormModalProps {
   onSuccess: (tier: CustomTierDefinition) => void;
   tierToEdit?: CustomTierDefinition | null;
   verticals: BusinessVertical[];
+  initialVerticalSlug?: string;
+  onOpenVerticalsModal?: () => void;
 }
 
 export const TierFormModal: React.FC<TierFormModalProps> = ({
@@ -32,6 +34,8 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
   onSuccess,
   tierToEdit,
   verticals,
+  initialVerticalSlug,
+  onOpenVerticalsModal,
 }) => {
   const isEditing = !!tierToEdit;
 
@@ -50,6 +54,21 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const activeVertical =
+    verticalSlug === 'all'
+      ? null
+      : verticals.find((v) => v.slug === verticalSlug);
+
+  const availableFeatures =
+    activeVertical?.available_features && activeVertical.available_features.length > 0
+      ? activeVertical.available_features
+      : MASTER_TIER_FEATURES;
+
+  const availableStations =
+    activeVertical?.available_stations && activeVertical.available_stations.length > 0
+      ? activeVertical.available_stations
+      : MASTER_TIER_STATIONS;
+
   useEffect(() => {
     if (tierToEdit) {
       setTierNumber(typeof tierToEdit.tier === 'number' ? tierToEdit.tier : 1);
@@ -67,13 +86,13 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
       setName('');
       setDescription('');
       setPriceMxn(0);
-      setVerticalSlug('restaurant');
+      setVerticalSlug(initialVerticalSlug && initialVerticalSlug !== 'all' ? initialVerticalSlug : 'restaurant');
       setIncludedFeatures(['feat_redirect', 'feat_viral_seeds']);
       setIncludedStations([]);
       setAllowedCategories([1, 2]);
     }
     setErrorMsg('');
-  }, [tierToEdit, isOpen]);
+  }, [tierToEdit, isOpen, initialVerticalSlug]);
 
   if (!isOpen) return null;
 
@@ -237,10 +256,21 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
 
           {/* Bloque 2: Giro Comercial */}
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
-            <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5 flex items-center gap-1.5">
-              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-              Giro Comercial Objetivo *
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                Giro Comercial Objetivo *
+              </label>
+              {onOpenVerticalsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenVerticalsModal}
+                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                >
+                  Administrar Giros
+                </button>
+              )}
+            </div>
             <select
               value={verticalSlug}
               onChange={(e) => setVerticalSlug(e.target.value)}
@@ -297,11 +327,11 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
                 Funcionalidades Habilitadas ({includedFeatures.length})
               </label>
               <span className="text-[10px] text-indigo-700 font-bold">
-                {includedFeatures.length} de {MASTER_TIER_FEATURES.length}
+                {includedFeatures.length} de {availableFeatures.length}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {MASTER_TIER_FEATURES.map((feat) => {
+              {availableFeatures.map((feat) => {
                 const checked = includedFeatures.includes(feat.id);
                 return (
                   <label
@@ -334,11 +364,11 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
                 Pantallas Operativas KDS ({includedStations.length})
               </label>
               <span className="text-[10px] text-amber-700 font-bold">
-                {includedStations.length} de {MASTER_TIER_STATIONS.length}
+                {includedStations.length} de {availableStations.length}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {MASTER_TIER_STATIONS.map((station) => {
+              {availableStations.map((station) => {
                 const checked = includedStations.includes(station.id);
                 return (
                   <label
@@ -428,3 +458,4 @@ export const TierFormModal: React.FC<TierFormModalProps> = ({
     </div>
   );
 };
+
