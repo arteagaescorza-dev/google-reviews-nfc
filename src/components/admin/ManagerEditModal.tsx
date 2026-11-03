@@ -200,3 +200,4 @@ export const ManagerEditModal: React.FC<ManagerEditModalProps> = ({
     </div>
   );
 };
+

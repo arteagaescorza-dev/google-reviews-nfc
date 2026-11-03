@@ -202,27 +202,29 @@ export const ResolverPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Botón de Carta & Pedido a Cocina */}
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={() => setIsCartModalOpen(true)}
-                  className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-extrabold text-xs shadow-md hover:from-orange-700 hover:to-amber-700 transition-all flex items-center justify-between px-4"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-xl bg-white/20">
-                      <UtensilsCrossed className="w-4 h-4 text-white" />
+              {/* Botón de Carta & Pedido a Cocina (Sincronizado con Switch de Tier 3) */}
+              {restaurant?.has_digital_menu !== false && (
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsCartModalOpen(true)}
+                    className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-extrabold text-xs shadow-md hover:from-orange-700 hover:to-amber-700 transition-all flex items-center justify-between px-4"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-xl bg-white/20">
+                        <UtensilsCrossed className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-black text-sm">Menú & Pedir en Mesa</span>
+                        <span className="block text-[10px] text-orange-100">Envía tus platillos directo a cocina</span>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <span className="block font-black text-sm">Menú & Pedir en Mesa</span>
-                      <span className="block text-[10px] text-orange-100">Envía tus platillos directo a cocina</span>
-                    </div>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-white text-orange-700 font-black text-[11px] shadow-xs">
-                    Ver Carta &rarr;
-                  </span>
-                </button>
-              </div>
+                    <span className="px-2.5 py-1 rounded-full bg-white text-orange-700 font-black text-[11px] shadow-xs">
+                      Ver Carta &rarr;
+                    </span>
+                  </button>
+                </div>
+              )}
             </>
           );
         }

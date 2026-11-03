@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type {
   MenuItem,
+  MenuCategory,
   TableOrder,
   TableOrderStatus,
   TableCall,
@@ -237,6 +238,127 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
       setLocalItem(STORAGE_KEYS.MENU_ITEMS, [created, ...current]);
       return { success: true, data: created };
     }
+  },
+
+  async deleteMenuItem(itemId: string): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
+        if (error) console.warn('Error eliminando menu_item en Supabase:', error.message);
+      } catch (err: any) {
+        console.warn('Fallo al eliminar menu_item en Supabase:', err.message);
+      }
+    }
+    const current = await ordersApi.getMenuItems();
+    const updated = current.filter((m) => m.id !== itemId);
+    setLocalItem(STORAGE_KEYS.MENU_ITEMS, updated);
+    return { success: true };
+  },
+
+  async toggleMenuItemAvailability(itemId: string, isAvailable: boolean): Promise<{ success: boolean }> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('menu_items').update({ is_available: isAvailable }).eq('id', itemId);
+      } catch (err) {
+        // Fallback local
+      }
+    }
+    const current = await ordersApi.getMenuItems();
+    const updated = current.map((m) => (m.id === itemId ? { ...m, is_available: isAvailable } : m));
+    setLocalItem(STORAGE_KEYS.MENU_ITEMS, updated);
+    return { success: true };
+  },
+
+  async getMenuCategories(restaurantId?: string): Promise<MenuCategory[]> {
+    const defaultCategories: MenuCategory[] = [
+      { id: 'cat-1', name: 'Entradas', slug: 'entradas', sort_order: 1 },
+      { id: 'cat-2', name: 'Principales', slug: 'principales', sort_order: 2 },
+      { id: 'cat-3', name: 'Bebidas', slug: 'bebidas', sort_order: 3 },
+      { id: 'cat-4', name: 'Postres', slug: 'postres', sort_order: 4 },
+    ];
+
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('menu_categories').select('*').order('sort_order', { ascending: true });
+        if (restaurantId && restaurantId !== 'res-1') {
+          query = query.or(`restaurant_id.eq.${restaurantId},restaurant_id.is.null`);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as MenuCategory[];
+        }
+      } catch (err) {
+        // Fallback local
+      }
+    }
+
+    const current = getLocalItem<MenuCategory[]>(STORAGE_KEYS.MENU_CATEGORIES, defaultCategories);
+    return current;
+  },
+
+  async saveMenuCategory(category: Partial<MenuCategory>): Promise<{ success: boolean; data?: MenuCategory }> {
+    if (isSupabaseConfigured) {
+      try {
+        if (category.id && !category.id.startsWith('cat-')) {
+          const { data, error } = await supabase
+            .from('menu_categories')
+            .update(category)
+            .eq('id', category.id)
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as MenuCategory };
+        } else {
+          const payload = { ...category };
+          if (payload.id && payload.id.startsWith('cat-')) delete payload.id;
+          const { data, error } = await supabase
+            .from('menu_categories')
+            .insert([payload])
+            .select()
+            .single();
+          if (!error && data) return { success: true, data: data as MenuCategory };
+        }
+      } catch (err) {
+        // Fallback local
+      }
+    }
+
+    const current = await ordersApi.getMenuCategories();
+    if (category.id) {
+      const updated = current.map((c) =>
+        c.id === category.id ? ({ ...c, ...category } as MenuCategory) : c
+      );
+      setLocalItem(STORAGE_KEYS.MENU_CATEGORIES, updated);
+      return { success: true, data: updated.find((c) => c.id === category.id) };
+    } else {
+      const slug = (category.slug || category.name || 'categoria')
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '');
+      const created: MenuCategory = {
+        id: 'cat-' + Date.now(),
+        name: category.name || 'Nueva Categoría',
+        slug: slug || 'cat-' + Date.now(),
+        sort_order: category.sort_order || current.length + 1,
+        restaurant_id: category.restaurant_id,
+      };
+      const updated = [...current, created];
+      setLocalItem(STORAGE_KEYS.MENU_CATEGORIES, updated);
+      return { success: true, data: created };
+    }
+  },
+
+  async deleteMenuCategory(categoryId: string): Promise<{ success: boolean }> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('menu_categories').delete().eq('id', categoryId);
+      } catch (err) {
+        // Fallback local
+      }
+    }
+    const current = await ordersApi.getMenuCategories();
+    const updated = current.filter((c) => c.id !== categoryId);
+    setLocalItem(STORAGE_KEYS.MENU_CATEGORIES, updated);
+    return { success: true };
   },
 
 async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {

@@ -26,6 +26,7 @@ import { NewOrganizationModal } from '../components/admin/NewOrganizationModal';
 import { OrganizationEditModal } from '../components/admin/OrganizationEditModal';
 import { TrialPeriodModal } from '../components/admin/TrialPeriodModal';
 import { ManagerEditModal } from '../components/admin/ManagerEditModal';
+import { MenuManagementModal } from '../components/admin/MenuManagementModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -65,6 +66,7 @@ import {
   RotateCcw,
   ShoppingBag,
   BarChart3,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -431,6 +433,16 @@ export const AdminRestaurantsPage: React.FC = () => {
   >({});
   const [orgMetricsBranchFilter, setOrgMetricsBranchFilter] = useState<Record<string, string>>({});
 
+  // Modal de Administración de Menú y Platillos (Requerimientos 3, 4)
+  const [selectedMenuRestaurant, setSelectedMenuRestaurant] = useState<Restaurant | null>(null);
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+
+  const getTierName = (tier: TierType | number) => {
+    const custom = customTiers.find((t) => t.tier === tier);
+    if (custom && custom.name) return custom.name;
+    return TIERS[tier as TierType]?.name || `Tier ${tier}`;
+  };
+
   const toggleOrgMetrics = (orgId: string) => {
     setExpandedOrgMetrics((prev) => ({
       ...prev,
@@ -492,6 +504,13 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const handleTiersUpdate = () => {
+      api.getTierDefinitions().then((updated) => setCustomTiers(updated));
+    };
+    window.addEventListener('nfc_tier_definitions_updated', handleTiersUpdate);
+    return () => {
+      window.removeEventListener('nfc_tier_definitions_updated', handleTiersUpdate);
+    };
   }, []);
 
   const kpis = useMemo(() => {
@@ -747,6 +766,13 @@ export const AdminRestaurantsPage: React.FC = () => {
       );
       await api.saveRestaurant({ id: res.id, is_ad_free: nextVal });
       return;
+    }
+
+    if (feature.key === 'tier_3_digital_menu') {
+      setRestaurants((prev) =>
+        prev.map((item) => (item.id === res.id ? { ...item, has_digital_menu: nextVal } : item))
+      );
+      await api.saveRestaurant({ id: res.id, has_digital_menu: nextVal });
     }
 
     setTierFeatureOverridesByBranch((prev) => {
@@ -1097,8 +1123,10 @@ export const AdminRestaurantsPage: React.FC = () => {
 
                     // Filtrar las funcionalidades de la sucursal que corresponden a este tier
                     const assignedFeatures = tierFeatures.filter((f) => {
-                      if (tierDef.tier === 'addon') return f.tierLevel === 'addon';
-                      return tierDef.included_features.includes(f.key) || f.tierLevel === tierDef.tier;
+                      if (tierDef.tier === 'addon') {
+                        return f.tierLevel === 'addon' && (tierDef.included_features ? tierDef.included_features.includes(f.key) : true);
+                      }
+                      return tierDef.included_features ? tierDef.included_features.includes(f.key) : f.tierLevel === tierDef.tier;
                     });
 
                     const activeCount = assignedFeatures.filter((f) => f.isActive).length;
@@ -1202,51 +1230,84 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 key={feature.key}
                                 className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-blue-50/20"
                               >
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold text-slate-900">{feature.name}</span>
-                                  </div>
-                                  <span className="text-[11px] text-slate-500 block mt-0.5">
-                                    {feature.description}
-                                  </span>
-
-                                  {/* Desglose en vivo de Cupones de Quejas dentro de Tier 2 */}
-                                  {feature.key === 'tier_2_reputation_shield' && branchCoupons.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                      <span className="text-[10px] font-extrabold uppercase text-rose-700">
-                                        Cupones del Gerente por Quejas:
-                                      </span>
-                                      {branchCoupons.map((cp) => (
-                                        <span
-                                          key={cp.id}
-                                          className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold"
-                                          title={`Creado por ${cp.manager_name}: ${cp.discount_description}`}
-                                        >
-                                          {cp.coupon_code} ({cp.discount_percentage}% · Uso mensual: {cp.used_this_month}/{cp.monthly_limit})
+                                {(() => {
+                                  const isVisibleToClient =
+                                    !tierDef.client_visible_features ||
+                                    tierDef.client_visible_features.includes(feature.key);
+                                  return (
+                                    <>
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-bold text-slate-900">{feature.name}</span>
+                                          {isVisibleToClient ? (
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title="Visible para el dueño del local">
+                                              Visible en Nivel
+                                            </span>
+                                          ) : (
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200" title="Oculto para el dueño del local">
+                                              Oculto a Dueño
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                                          {feature.description}
                                         </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
 
-                                <div className="flex items-center gap-3 self-end sm:self-center flex-shrink-0">
-                                  {feature.key === 'tier_2_reputation_shield' && (
-                                    <Link
-                                      to={`/admin/feedback?restaurant=${res.id}`}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors"
-                                      title="Abrir buzón de quejas retenidas de esta sucursal"
-                                    >
-                                      <MessageSquareWarning className="w-3 h-3 text-rose-600" />
-                                      <span>Ver Quejas ({feedbacksCount})</span>
-                                    </Link>
-                                  )}
+                                        {/* Desglose en vivo de Cupones de Quejas dentro de Tier 2 */}
+                                        {feature.key === 'tier_2_reputation_shield' && branchCoupons.length > 0 && (
+                                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                            <span className="text-[10px] font-extrabold uppercase text-rose-700">
+                                              Cupones del Gerente por Quejas:
+                                            </span>
+                                            {branchCoupons.map((cp) => (
+                                              <span
+                                                key={cp.id}
+                                                className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold"
+                                                title={`Creado por ${cp.manager_name}: ${cp.discount_description}`}
+                                              >
+                                                {cp.coupon_code} ({cp.discount_percentage}% · Uso mensual: {cp.used_this_month}/{cp.monthly_limit})
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
 
-                                  <StatusBadgeAndSwitch
-                                    isOn={feature.isActive}
-                                    onToggle={() => handleToggleTierFeature(res, feature)}
-                                    title={`Prender o apagar ${feature.name}`}
-                                  />
-                                </div>
+                                      <div className="flex items-center gap-2.5 self-end sm:self-center flex-shrink-0">
+                                        {feature.key === 'tier_2_reputation_shield' && (
+                                          <Link
+                                            to={`/admin/feedback?restaurant=${res.id}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-colors"
+                                            title="Abrir buzón de quejas retenidas de esta sucursal"
+                                          >
+                                            <MessageSquareWarning className="w-3 h-3 text-rose-600" />
+                                            <span>Ver Quejas ({feedbacksCount})</span>
+                                          </Link>
+                                        )}
+
+                                        {feature.key === 'tier_3_digital_menu' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setSelectedMenuRestaurant(res);
+                                              setIsMenuModalOpen(true);
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-[11px] font-bold transition-colors shadow-2xs"
+                                            title="Administrar categorías, platillos y disponibilidad (86) de la carta"
+                                          >
+                                            <UtensilsCrossed className="w-3.5 h-3.5 text-orange-600" />
+                                            <span>Administrar Carta & Platillos</span>
+                                          </button>
+                                        )}
+
+                                        <StatusBadgeAndSwitch
+                                          isOn={feature.isActive}
+                                          onToggle={() => handleToggleTierFeature(res, feature)}
+                                          title={`Prender o apagar ${feature.name}`}
+                                        />
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             ))}
 
@@ -1466,6 +1527,19 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <span className="text-[9px] uppercase tracking-wider font-extrabold text-orange-700 bg-white px-1.5 py-0.5 rounded border border-orange-200">
                       {collapsedCategoriesByBranch[res.id]?.[3] ? 'Expandir' : 'Colapsar'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMenuRestaurant(res);
+                        setIsMenuModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white hover:bg-orange-100 text-orange-800 border border-orange-200 text-[10px] font-bold shadow-2xs transition-colors"
+                      title="Administrar categorías y platillos del menú digital de esta sucursal"
+                    >
+                      <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                      <span>Gestionar Carta & Menú</span>
+                    </button>
                     {(() => {
                       const isAllowed = getBranchCategoryAllowed(res, 3);
                       const isMasterOn =
@@ -3570,25 +3644,25 @@ export const AdminRestaurantsPage: React.FC = () => {
                                                   value={1}
                                                   className="bg-white text-slate-900 font-bold"
                                                 >
-                                                  {TIERS[1].name}
+                                                  {getTierName(1)}
                                                 </option>
                                                 <option
                                                   value={2}
                                                   className="bg-white text-slate-900 font-bold"
                                                 >
-                                                  {TIERS[2].name}
+                                                  {getTierName(2)}
                                                 </option>
                                                 <option
                                                   value={3}
                                                   className="bg-white text-slate-900 font-bold"
                                                 >
-                                                  {TIERS[3].name}
+                                                  {getTierName(3)}
                                                 </option>
                                                 <option
                                                   value={4}
                                                   className="bg-white text-slate-900 font-bold"
                                                 >
-                                                  {TIERS[4].name}
+                                                  {getTierName(4)}
                                                 </option>
                                               </select>
 
@@ -3827,17 +3901,17 @@ export const AdminRestaurantsPage: React.FC = () => {
                                     }
                                     className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer ${tierInfo.badgeColor}`}
                                   >
-                                    <option value={1} className="bg-white text-slate-900">
-                                      {TIERS[1].name}
+                                    <option value={1} className="bg-white text-slate-900 font-bold">
+                                      {getTierName(1)}
                                     </option>
-                                    <option value={2} className="bg-white text-slate-900">
-                                      {TIERS[2].name}
+                                    <option value={2} className="bg-white text-slate-900 font-bold">
+                                      {getTierName(2)}
                                     </option>
-                                    <option value={3} className="bg-white text-slate-900">
-                                      {TIERS[3].name}
+                                    <option value={3} className="bg-white text-slate-900 font-bold">
+                                      {getTierName(3)}
                                     </option>
-                                    <option value={4} className="bg-white text-slate-900">
-                                      {TIERS[4].name}
+                                    <option value={4} className="bg-white text-slate-900 font-bold">
+                                      {getTierName(4)}
                                     </option>
                                   </select>
 
@@ -4040,6 +4114,16 @@ export const AdminRestaurantsPage: React.FC = () => {
           setIsManagerEditModalOpen(false);
           setEditingManager(null);
         }}
+      />
+
+      {/* Modal de Administración de Menú y Platillos (Requerimientos 3, 4) */}
+      <MenuManagementModal
+        isOpen={isMenuModalOpen}
+        onClose={() => {
+          setIsMenuModalOpen(false);
+          setSelectedMenuRestaurant(null);
+        }}
+        restaurant={selectedMenuRestaurant}
       />
     </div>
   );

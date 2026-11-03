@@ -29,6 +29,7 @@ export const CartModal: React.FC<CartModalProps> = ({
   onOrderPlaced,
 }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
   const [cart, setCart] = useState<{ [itemId: string]: { item: MenuItem; quantity: number; notes: string } }>({});
@@ -40,8 +41,15 @@ export const CartModal: React.FC<CartModalProps> = ({
     if (isOpen) {
       async function loadMenu() {
         setLoading(true);
-        const items = await api.getMenuItems(restaurant.id);
+        const [items, cats] = await Promise.all([
+          api.getMenuItems(restaurant.id),
+          api.getMenuCategories(restaurant.id),
+        ]);
         setMenuItems(items);
+        setDynamicCategories([
+          { id: 'todos', label: 'Todo el Menú' },
+          ...cats.map((c) => ({ id: c.slug, label: c.name })),
+        ]);
         setLoading(false);
       }
       loadMenu();
@@ -51,17 +59,20 @@ export const CartModal: React.FC<CartModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = [
-    { id: 'todos', label: 'Todo el Menú' },
-    { id: 'entradas', label: 'Entradas' },
-    { id: 'principales', label: 'Principales' },
-    { id: 'bebidas', label: 'Bebidas' },
-    { id: 'postres', label: 'Postres' },
-  ];
+  const categories =
+    dynamicCategories.length > 0
+      ? dynamicCategories
+      : [
+          { id: 'todos', label: 'Todo el Menú' },
+          { id: 'entradas', label: 'Entradas' },
+          { id: 'principales', label: 'Principales' },
+          { id: 'bebidas', label: 'Bebidas' },
+          { id: 'postres', label: 'Postres' },
+        ];
 
   const filteredItems = selectedCategory === 'todos'
     ? menuItems
-    : menuItems.filter((i) => i.category === selectedCategory);
+    : menuItems.filter((i) => i.category.toLowerCase() === selectedCategory.toLowerCase());
 
   const addToCart = (item: MenuItem) => {
     setCart((prev) => {
@@ -220,25 +231,44 @@ export const CartModal: React.FC<CartModalProps> = ({
               ) : (
                 filteredItems.map((item) => {
                   const qty = cart[item.id]?.quantity || 0;
+                  const isAvailable = item.is_available !== false;
                   return (
                     <div
                       key={item.id}
-                      className="p-3 rounded-2xl border border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200 transition-all flex gap-3"
+                      className={`p-3 rounded-2xl border transition-all flex gap-3 ${
+                        isAvailable
+                          ? 'border-slate-100 bg-slate-50/60 hover:bg-white hover:border-slate-200'
+                          : 'border-slate-200/60 bg-slate-100/70 opacity-75'
+                      }`}
                     >
                       {item.image_url && (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="w-20 h-20 rounded-xl object-cover flex-shrink-0 shadow-xs"
-                        />
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 shadow-xs">
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className={`w-full h-full object-cover ${!isAvailable ? 'grayscale' : ''}`}
+                          />
+                          {!isAvailable && (
+                            <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center p-1 text-center">
+                              <span className="text-[9px] font-black uppercase text-white tracking-wider">Agotado</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                       <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start justify-between gap-1">
-                            <h4 className="font-extrabold text-xs text-slate-900 leading-snug line-clamp-1">
-                              {item.name}
-                            </h4>
-                            <span className="font-black text-xs text-slate-900 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <h4 className={`font-extrabold text-xs leading-snug line-clamp-1 ${isAvailable ? 'text-slate-900' : 'text-slate-500 line-through'}`}>
+                                {item.name}
+                              </h4>
+                              {!isAvailable && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 flex-shrink-0">
+                                  86 Agotado
+                                </span>
+                              )}
+                            </div>
+                            <span className={`font-black text-xs flex-shrink-0 ${isAvailable ? 'text-slate-900' : 'text-slate-400'}`}>
                               ${item.price} <span className="text-[9px] text-slate-400 font-normal">MXN</span>
                             </span>
                           </div>
@@ -253,34 +283,40 @@ export const CartModal: React.FC<CartModalProps> = ({
                             ~{item.preparation_time_mins || 10} min
                           </span>
 
-                          <div className="flex items-center gap-1.5">
-                            {qty > 0 && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => removeFromCart(item.id)}
-                                  className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className="font-bold text-xs text-slate-900 w-4 text-center">
-                                  {qty}
-                                </span>
-                              </>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => addToCart(item)}
-                              className="px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-xs"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>{qty > 0 ? 'Agregar' : 'Pedir'}</span>
-                            </button>
-                          </div>
+                          {isAvailable ? (
+                            <div className="flex items-center gap-1.5">
+                              {qty > 0 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFromCart(item.id)}
+                                    className="w-6 h-6 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center transition-colors"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="font-bold text-xs text-slate-900 w-4 text-center">
+                                    {qty}
+                                  </span>
+                                </>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => addToCart(item)}
+                                className="px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-[11px] flex items-center gap-1 transition-all shadow-xs"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>{qty > 0 ? 'Agregar' : 'Pedir'}</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                              No disponible temporalmente
+                            </span>
+                          )}
                         </div>
 
                         {/* Campo de notas rápidas si ya está en el carrito */}
-                        {qty > 0 && (
+                        {qty > 0 && isAvailable && (
                           <div className="mt-2 pt-2 border-t border-slate-200/60">
                             <input
                               type="text"

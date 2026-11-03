@@ -46,6 +46,9 @@ export const tiersApi = {
     }
 
     setLocalItem(TIERS_STORAGE_KEY, tiers);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('nfc_tier_definitions_updated', { detail: tiers }));
+    }
     return { success: true };
   },
 

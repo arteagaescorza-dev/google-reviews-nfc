@@ -24,9 +24,11 @@ import {
   Sliders,
   ArrowLeftRight,
   ShoppingBag,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { filterBranchesBySameOrganization, isSameOrganizationAccessAllowed } from '../../lib/api/orders';
+import { MenuManagementModal } from '../../components/admin/MenuManagementModal';
 import type {
   Restaurant,
   StaffMember,
@@ -57,6 +59,7 @@ export const PortalManagerPage: React.FC = () => {
 
   // Pestaña activa
   const [activeTab, setActiveTab] = useState<'staff' | 'shifts' | 'cash_metrics' | 'complaints_coupons'>('staff');
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
   // Datos operativos de la sucursal y de su misma organización (POL-009)
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -629,6 +632,16 @@ export const PortalManagerPage: React.FC = () => {
             >
               <ShoppingBag className="w-3.5 h-3.5 text-orange-400" /> Pantalla Pick Up
             </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsMenuModalOpen(true)}
+              className="px-3 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Administrar categorías, platillos y disponibilidad temporal (86) de la carta"
+            >
+              <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
+              <span>Carta & Menú Digital</span>
+            </button>
 
             <button
               onClick={loadBranchData}
@@ -1646,6 +1659,13 @@ export const PortalManagerPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Gestión de Menú, Categorías y 86 Agotados para Gerentes y Capitanes */}
+      <MenuManagementModal
+        isOpen={isMenuModalOpen}
+        onClose={() => setIsMenuModalOpen(false)}
+        restaurant={currentBranch || null}
+      />
     </div>
   );
 };

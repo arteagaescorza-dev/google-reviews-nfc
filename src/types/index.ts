@@ -185,6 +185,7 @@ export interface Restaurant {
   blocked_ad_ids?: string[];
   last_veto_date?: string | null;
   ad_credit_balance?: number;
+  has_digital_menu?: boolean;
   created_at: string;
   updated_at: string;
   // Relaciones opcionales
@@ -417,16 +418,25 @@ export interface FinancialMetrics {
 // Módulos de Operación de Sala y Cocina
 // ==========================================
 
+export interface MenuCategory {
+  id: string;
+  restaurant_id?: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+}
+
 export interface MenuItem {
   id: string;
   restaurant_id: string;
-  category: 'entradas' | 'principales' | 'bebidas' | 'postres';
+  category: string;
   name: string;
   description: string;
   price: number;
   image_url?: string;
   is_available: boolean;
   preparation_time_mins?: number;
+  station?: KitchenStation;
 }
 
 export type KitchenStation = 'cocina' | 'barra' | 'postres' | 'barista' | 'turnero' | 'pickup' | 'all';
@@ -437,7 +447,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   notes?: string;
-  category?: 'entradas' | 'principales' | 'bebidas' | 'postres';
+  category?: string;
   station_status?: 'pending' | 'preparing' | 'ready';
 }
 

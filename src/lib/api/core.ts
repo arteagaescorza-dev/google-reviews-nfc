@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   SUPPORT_TICKETS: 'nfc_demo_support_tickets',
   COUPONS: 'nfc_demo_coupons',
   MENU_ITEMS: 'nfc_demo_menu_items',
+  MENU_CATEGORIES: 'nfc_demo_menu_categories',
   TABLE_ORDERS: 'nfc_demo_table_orders',
   TABLE_CALLS: 'nfc_demo_table_calls',
   STAFF_MEMBERS: 'nfc_demo_staff_members',

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import type { TableOrder, TableOrderStatus, KitchenStation, OrderItem } from '../../types';
+import type { TableOrder, TableOrderStatus, KitchenStation, OrderItem, Restaurant } from '../../types';
+import { MenuManagementModal } from '../../components/admin/MenuManagementModal';
 import {
   Clock,
   CheckCircle2,
@@ -15,11 +16,14 @@ import {
   Cookie,
   Layers,
   Coffee,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 export const PortalKitchenPage: React.FC = () => {
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<TableOrder | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
   const loadOrders = async () => {
     const data = await api.getTableOrders();
@@ -28,6 +32,13 @@ export const PortalKitchenPage: React.FC = () => {
 
   useEffect(() => {
     loadOrders();
+    const branchParam = new URLSearchParams(window.location.hash.split('?')[1] || '').get('branch');
+    api.getRestaurants().then((list) => {
+      if (list.length > 0) {
+        const found = list.find((r) => r.id === branchParam) || list[0];
+        setRestaurant(found);
+      }
+    });
     // Actualizar cada 20 segundos
     const interval = setInterval(() => {
       api.getTableOrders().then((data) => setOrders(data));
@@ -54,7 +65,7 @@ export const PortalKitchenPage: React.FC = () => {
     return s && ['cocina', 'barra', 'postres', 'barista', 'all'].includes(s) ? s : 'all';
   });
 
-  const inferItemCategory = (item: OrderItem): 'entradas' | 'principales' | 'bebidas' | 'postres' => {
+  const inferItemCategory = (item: OrderItem): 'entradas' | 'principales' | 'bebidas' | 'postres' | string => {
     if (item.category) return item.category;
     const lower = item.name.toLowerCase();
     if (
@@ -166,6 +177,15 @@ export const PortalKitchenPage: React.FC = () => {
               <span>{delayedOrders.length} con retraso (&gt;15m)</span>
             </div>
           )}
+
+          <button
+            onClick={() => setIsMenuModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Agotar temporalmente platillos (86) o gestionar la carta del menú"
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5 text-orange-400" />
+            <span>Carta & 86 Agotados</span>
+          </button>
 
           <button
             onClick={loadOrders}
@@ -562,6 +582,13 @@ export const PortalKitchenPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Gestión de Menú y Platillos (86 Agotados) */}
+      <MenuManagementModal
+        isOpen={isMenuModalOpen}
+        onClose={() => setIsMenuModalOpen(false)}
+        restaurant={restaurant}
+      />
     </div>
   );
 };

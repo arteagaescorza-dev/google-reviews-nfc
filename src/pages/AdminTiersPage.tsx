@@ -48,7 +48,16 @@ export const AdminTiersPage: React.FC = () => {
         const nextFeatures = exists
           ? t.included_features.filter((id) => id !== featureId)
           : [...t.included_features, featureId];
-        return { ...t, included_features: nextFeatures };
+
+        // Regla: si se apaga, el checkbox se anula y se remueve de client_visible.
+        // Si se activa, por defecto se activa como marcado.
+        const currentVis =
+          t.client_visible_features !== undefined ? t.client_visible_features : t.included_features;
+        const nextVis = exists
+          ? currentVis.filter((id) => id !== featureId)
+          : [...currentVis.filter((id) => id !== featureId), featureId];
+
+        return { ...t, included_features: nextFeatures, client_visible_features: nextVis };
       })
     );
   };
@@ -61,7 +70,14 @@ export const AdminTiersPage: React.FC = () => {
         const nextStations = exists
           ? t.included_stations.filter((id) => id !== stationId)
           : [...t.included_stations, stationId];
-        return { ...t, included_stations: nextStations };
+
+        const currentVis =
+          t.client_visible_stations !== undefined ? t.client_visible_stations : t.included_stations;
+        const nextVis = exists
+          ? currentVis.filter((id) => id !== stationId)
+          : [...currentVis.filter((id) => id !== stationId), stationId];
+
+        return { ...t, included_stations: nextStations, client_visible_stations: nextVis };
       })
     );
   };
@@ -73,7 +89,16 @@ export const AdminTiersPage: React.FC = () => {
         const current = t.allowed_categories || [3, 4, 5, 6];
         const exists = current.includes(catId);
         const next = exists ? current.filter((id) => id !== catId) : [...current, catId];
-        return { ...t, allowed_categories: next };
+
+        const currentVis =
+          t.client_visible_categories !== undefined
+            ? t.client_visible_categories
+            : t.allowed_categories || [3, 4, 5, 6];
+        const nextVis = exists
+          ? currentVis.filter((id) => id !== catId)
+          : [...currentVis.filter((id) => id !== catId), catId];
+
+        return { ...t, allowed_categories: next, client_visible_categories: nextVis };
       })
     );
   };
@@ -383,14 +408,21 @@ export const AdminTiersPage: React.FC = () => {
                                 </div>
 
                                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                  <label
+                                    className={`inline-flex items-center gap-1.5 select-none text-[10px] font-bold ${
+                                      isChecked
+                                        ? 'cursor-pointer text-slate-600 hover:text-slate-800'
+                                        : 'cursor-not-allowed text-slate-300 opacity-50'
+                                    }`}
+                                  >
                                     <input
                                       type="checkbox"
-                                      checked={isVisibleToClient}
+                                      disabled={!isChecked}
+                                      checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        handleToggleFeatureVisibility(tierDef.tier, feat.id)
+                                        isChecked && handleToggleFeatureVisibility(tierDef.tier, feat.id)
                                       }
-                                      className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                      className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
                                     <span className="flex items-center gap-1">
                                       <Eye className="w-3 h-3 text-slate-400" />
@@ -399,12 +431,14 @@ export const AdminTiersPage: React.FC = () => {
                                   </label>
                                   <span
                                     className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                      isVisibleToClient
+                                      !isChecked
+                                        ? 'bg-slate-50 text-slate-300 border-slate-200'
+                                        : isVisibleToClient
                                         ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                                         : 'bg-slate-100 text-slate-400 border-slate-200'
                                     }`}
                                   >
-                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
+                                    {!isChecked ? 'Anulado (Apagado)' : isVisibleToClient ? 'Visible' : 'Oculto'}
                                   </span>
                                 </div>
                               </div>
@@ -488,14 +522,21 @@ export const AdminTiersPage: React.FC = () => {
                                 </div>
 
                                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                  <label
+                                    className={`inline-flex items-center gap-1.5 select-none text-[10px] font-bold ${
+                                      isChecked
+                                        ? 'cursor-pointer text-slate-600 hover:text-slate-800'
+                                        : 'cursor-not-allowed text-slate-300 opacity-50'
+                                    }`}
+                                  >
                                     <input
                                       type="checkbox"
-                                      checked={isVisibleToClient}
+                                      disabled={!isChecked}
+                                      checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        handleToggleStationVisibility(tierDef.tier, station.id)
+                                        isChecked && handleToggleStationVisibility(tierDef.tier, station.id)
                                       }
-                                      className="w-3.5 h-3.5 rounded text-orange-600 focus:ring-orange-500 border-slate-300"
+                                      className="w-3.5 h-3.5 rounded text-orange-600 focus:ring-orange-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
                                     <span className="flex items-center gap-1">
                                       <Eye className="w-3 h-3 text-slate-400" />
@@ -504,12 +545,14 @@ export const AdminTiersPage: React.FC = () => {
                                   </label>
                                   <span
                                     className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                      isVisibleToClient
+                                      !isChecked
+                                        ? 'bg-slate-50 text-slate-300 border-slate-200'
+                                        : isVisibleToClient
                                         ? 'bg-orange-50 text-orange-700 border-orange-200'
                                         : 'bg-slate-100 text-slate-400 border-slate-200'
                                     }`}
                                   >
-                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
+                                    {!isChecked ? 'Anulado (Apagado)' : isVisibleToClient ? 'Visible' : 'Oculto'}
                                   </span>
                                 </div>
                               </div>
@@ -596,14 +639,21 @@ export const AdminTiersPage: React.FC = () => {
                                 </div>
 
                                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                                  <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-600 hover:text-slate-800 select-none">
+                                  <label
+                                    className={`inline-flex items-center gap-1.5 select-none text-[10px] font-bold ${
+                                      isChecked
+                                        ? 'cursor-pointer text-slate-600 hover:text-slate-800'
+                                        : 'cursor-not-allowed text-slate-300 opacity-50'
+                                    }`}
+                                  >
                                     <input
                                       type="checkbox"
-                                      checked={isVisibleToClient}
+                                      disabled={!isChecked}
+                                      checked={isChecked && isVisibleToClient}
                                       onChange={() =>
-                                        handleToggleCategoryVisibility(tierDef.tier, cat.id)
+                                        isChecked && handleToggleCategoryVisibility(tierDef.tier, cat.id)
                                       }
-                                      className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-slate-300"
+                                      className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-slate-300 disabled:cursor-not-allowed"
                                     />
                                     <span className="flex items-center gap-1">
                                       <Eye className="w-3 h-3 text-slate-400" />
@@ -612,12 +662,14 @@ export const AdminTiersPage: React.FC = () => {
                                   </label>
                                   <span
                                     className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                      isVisibleToClient
+                                      !isChecked
+                                        ? 'bg-slate-50 text-slate-300 border-slate-200'
+                                        : isVisibleToClient
                                         ? 'bg-purple-50 text-purple-700 border-purple-200'
                                         : 'bg-slate-100 text-slate-400 border-slate-200'
                                     }`}
                                   >
-                                    {isVisibleToClient ? 'Visible' : 'Oculto'}
+                                    {!isChecked ? 'Anulado (Apagado)' : isVisibleToClient ? 'Visible' : 'Oculto'}
                                   </span>
                                 </div>
                               </div>
