@@ -150,6 +150,8 @@ async saveRestaurant(restaurant: Partial<Restaurant>): Promise<{ success: boolea
       try {
         if (restaurant.id) {
           const clean = sanitizeSupabasePayload(restaurant, false);
+          delete clean.organization;
+          delete clean.brand;
           const { data, error } = await supabase
             .from('restaurants')
             .update({ ...clean, updated_at: new Date().toISOString() })
@@ -160,6 +162,8 @@ async saveRestaurant(restaurant: Partial<Restaurant>): Promise<{ success: boolea
           return { success: true, data };
         } else {
           const clean = sanitizeSupabasePayload(restaurant, true);
+          delete clean.organization;
+          delete clean.brand;
           const { data, error } = await supabase
             .from('restaurants')
             .insert([clean])
