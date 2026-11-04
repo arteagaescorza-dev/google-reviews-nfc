@@ -235,6 +235,8 @@ export interface Tag {
   table_identifier?: string | null;
   custom_ad_id?: string | null;
   scan_count: number;
+  nfc_scans_count?: number;
+  qr_scans_count?: number;
   last_scanned_at?: string | null;
   is_active: boolean;
   batch_id?: string | null;

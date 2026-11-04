@@ -989,6 +989,24 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
   // ==========================================
   // MÓDULO DT-12: COMANDAS COLABORATIVAS & SPLIT BILL
   // ==========================================
+  async getTableSessions(restaurantId?: string): Promise<TableSession[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase.from('table_sessions').select('*').order('opened_at', { ascending: false });
+        if (restaurantId && !restaurantId.startsWith('res-')) {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data) return data as TableSession[];
+      } catch (err: any) {
+        console.warn('Error obteniendo table_sessions de Supabase:', err.message);
+      }
+    }
+    const sessions = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, []);
+    return restaurantId ? sessions.filter((s) => s.restaurant_id === restaurantId) : sessions;
+  },
+
   async getTableSession(restaurantId: string, tableNumber: number): Promise<TableSession | null> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
     if (!isDemo && isSupabaseConfigured) {
