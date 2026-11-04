@@ -120,8 +120,9 @@
 * **Mecanismo Tecnico:**
   1. Debe contar con un interruptor maestro de prendido y apagado condicionado por la tabla maestra de Tiers (`allowed_categories`).
   2. Debe incluir un selector de ventana temporal homologado (`Hoy`, `Ultimos 7 Dias`, `Este Mes (30 Dias)` e `Historico Completo`).
-  3. Despliega tarjetas Bento de KPIs para: Reputacion Google & Reseñas, Escudo de Quejas Privadas, Total de Ventas en Cortes de Turno y Aforo/Mesas atendidas.
-  4. Sincroniza sus totales con el panel desplegable de **Metricas de Empresa** de la Organizacion Matriz.
+  3. Despliega tarjetas Bento de KPIs para: Reputacion Google & Reseñas, Escudo de Quejas Privadas, Total de Ventas en Cortes de Turno y Aforo/Mesas atendidas, complementada con la Suite Completa de 28 Metricas operativas distribuidas en 6 sub-modulos interactivos (Reputacion & NFC, Ventas & Pagos, Eficiencia KDS, Personal & Turnos, Red Publicitaria Local y Turnero 4K / Pick Up).
+  4. Los modulos de Red Publicitaria (Módulo E) y Turnero 4K (Módulo F) se desbloquean exclusivamente al contar con Tier 4 activo o periodo de prueba correspondiente.
+  5. Sincroniza sus totales con el panel desplegable de **Metricas de Empresa** de la Organizacion Matriz.
 * **Documentos Incidentes:**
   * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
   * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)

@@ -10,3 +10,4 @@ ALTER TABLE public.restaurant_staff
   CHECK (role IN ('waiter', 'kitchen', 'barista', 'hostess', 'manager', 'cashier', 'employee', 'empleado'));
 
 NOTIFY pgrst, 'reload schema';
+
