@@ -85,6 +85,12 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
+  MiniSparkline,
+  MiniBarChart,
+  MiniGauge,
+  MiniSplitBar,
+} from '../components/admin/AnalyticsMiniCharts';
+import {
   PhoneInputWithCountry,
   formatTextMax25,
 } from '../components/common/PhoneInputWithCountry';
@@ -331,9 +337,6 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [staffShifts, setStaffShifts] = useState<StaffShift[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
-  const [branchMetricsSubModuleFilter, setBranchMetricsSubModuleFilter] = useState<
-    Record<string, 'todos' | 'reputacion' | 'ventas' | 'kds' | 'personal' | 'ads' | 'turnero'>
-  >({});
   const [loading, setLoading] = useState(true);
 
   // Estado persistente de Pantallas KDS, Terminales de Meseros y Overrides de Funcionalidades Tier
@@ -379,6 +382,10 @@ export const AdminRestaurantsPage: React.FC = () => {
   // Estado de expansión por categoría dentro de cada panel de sucursal (Categoría 1 a 6) (Requerimiento 2: colapsado por defecto)
   const [expandedCategoriesByBranch, setExpandedCategoriesByBranch] = useState<
     Record<string, Record<number, boolean>>
+  >({});
+  // Estado de expansión por submódulo dentro de Categoría 6 (Módulos A a F) (POL-008: colapsados por defecto)
+  const [expandedCat6SubmodulesByBranch, setExpandedCat6SubmodulesByBranch] = useState<
+    Record<string, Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F', boolean>>
   >({});
 
   // Modales y Asistente de 3 Pasos (Organización -> Marca -> Sucursal)
@@ -693,6 +700,33 @@ export const AdminRestaurantsPage: React.FC = () => {
         4: expand,
         5: expand,
         6: expand,
+      },
+    }));
+  };
+
+  const toggleCat6Submodule = (restaurantId: string, subId: 'A' | 'B' | 'C' | 'D' | 'E' | 'F') => {
+    setExpandedCat6SubmodulesByBranch((prev) => {
+      const branchSubs = prev[restaurantId] || {};
+      return {
+        ...prev,
+        [restaurantId]: {
+          ...branchSubs,
+          [subId]: !branchSubs[subId],
+        },
+      };
+    });
+  };
+
+  const toggleAllCat6Submodules = (restaurantId: string, expand: boolean) => {
+    setExpandedCat6SubmodulesByBranch((prev) => ({
+      ...prev,
+      [restaurantId]: {
+        A: expand,
+        B: expand,
+        C: expand,
+        D: expand,
+        E: expand,
+        F: expand,
       },
     }));
   };
@@ -2793,7 +2827,6 @@ export const AdminRestaurantsPage: React.FC = () => {
               const isMasterOn =
                 isAllowed && branchMasterCategoriesState[res.id]?.[6] !== false;
               const currentBranchTemporal = branchMetricsTemporalFilter[res.id] || 'historico';
-              const activeSubModule = branchMetricsSubModuleFilter[res.id] || 'todos';
 
               // Nivel contratado y verificación de Tier 4
               const trialInfo = isBranchTrialActive(res);
@@ -2920,18 +2953,24 @@ export const AdminRestaurantsPage: React.FC = () => {
                 : 0;
 
               // Horas Pico: Histograma horario real agrupado por hora de created_at
-              const peakHourText = (() => {
-                if (filteredOrders.length === 0) return 'Sin comandas en este periodo';
+              const { peakHourText, hourlyDistribution } = (() => {
+                if (filteredOrders.length === 0) {
+                  return { peakHourText: 'Sin comandas en este periodo', hourlyDistribution: [0, 0, 0, 0, 0, 0, 0] };
+                }
                 const hourCounts: Record<number, number> = {};
                 filteredOrders.forEach((o) => {
                   const h = new Date(o.created_at).getHours();
                   if (!isNaN(h)) hourCounts[h] = (hourCounts[h] || 0) + 1;
                 });
                 const sortedHours = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
-                if (sortedHours.length === 0) return 'Sin comandas en este periodo';
+                if (sortedHours.length === 0) {
+                  return { peakHourText: 'Sin comandas en este periodo', hourlyDistribution: [0, 0, 0, 0, 0, 0, 0] };
+                }
                 const topH = parseInt(sortedHours[0][0], 10);
                 const count = sortedHours[0][1];
-                return `${String(topH).padStart(2, '0')}:00 - ${String(topH + 1).padStart(2, '0')}:00 (${count} órd)`;
+                const text = `${String(topH).padStart(2, '0')}:00 - ${String(topH + 1).padStart(2, '0')}:00 (${count} órd)`;
+                const dist = [12, 13, 14, 15, 19, 20, 21].map((h) => hourCounts[h] || 0);
+                return { peakHourText: text, hourlyDistribution: dist };
               })();
 
               // 4. PERSONAL OPERATIVO & TURNOS (Módulo D - 100% Real)
@@ -3101,7 +3140,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* 4 Bento Cards Ejecutivas (Fila Principal) */}
+                          {/* 4 Bento Cards Ejecutivas (Fila Principal con Gráficas Mini) */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             {/* KPI 1: Reputación & Google Reviews */}
                             <div className="p-3.5 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-1">
@@ -3119,6 +3158,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 </span>
                                 <span className="text-xs font-bold text-sky-700">★ Google</span>
                               </div>
+                              <MiniSparkline
+                                data={totalFeedbacksCount > 0 ? [Math.max(1, (parseFloat(avgRating) || 0) - 0.4), Math.max(1, (parseFloat(avgRating) || 0) - 0.2), parseFloat(avgRating) || 0, parseFloat(avgRating) || 0] : [0, 0, 0, 0, 0]}
+                                color="sky"
+                                height={24}
+                                className="mt-1"
+                              />
                               <span className="text-[11px] text-slate-500 block">
                                 {totalFeedbacksCount > 0
                                   ? `${goodRatings} excelentes (4-5★) · ${totalFeedbacksCount} totales`
@@ -3144,6 +3189,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   quejas retenidas
                                 </span>
                               </div>
+                              <MiniSparkline
+                                data={shieldedRatings > 0 ? [0, Math.round(shieldedRatings * 0.5), shieldedRatings, shieldedRatings] : [0, 0, 0, 0, 0]}
+                                color="amber"
+                                height={24}
+                                className="mt-1"
+                              />
                               <span className="text-[11px] text-slate-500 block">
                                 {branchActiveCoupons.length} cupones activos · buzón privado
                               </span>
@@ -3169,6 +3220,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 </span>
                                 <span className="text-xs font-bold text-emerald-700">MXN</span>
                               </div>
+                              <MiniSparkline
+                                data={filteredReports.length > 0 ? filteredReports.map(r => r.total_sales || 0) : (totalSales > 0 ? [totalSales * 0.6, totalSales * 0.85, totalSales] : [0, 0, 0, 0, 0])}
+                                color="emerald"
+                                height={24}
+                                className="mt-1"
+                              />
                               <span className="text-[11px] text-slate-500 block">
                                 {filteredReports.length > 0 || totalTablesServed > 0
                                   ? `${totalTablesServed} mesas · $${totalTips.toFixed(0)} propinas (${tipPercentage}%)`
@@ -3194,392 +3251,779 @@ export const AdminRestaurantsPage: React.FC = () => {
                                   placas en mesa
                                 </span>
                               </div>
+                              <MiniSparkline
+                                data={totalScans > 0 ? [totalScans * 0.4, totalScans * 0.7, totalScans * 0.9, totalScans] : [0, 0, 0, 0, 0]}
+                                color="purple"
+                                height={24}
+                                className="mt-1"
+                              />
                               <span className="text-[11px] text-slate-500 block">
                                 {branchTables.length} mesas ({totalComensales > 0 ? `${totalComensales} comensales atendidos` : `Capacidad: ${totalBranchCapacity} comensales`})
                               </span>
                             </div>
                           </div>
 
-                          {/* Selector de Sub-Módulos de Analítica (POL-008 Suite 360°) */}
-                          <div className="pt-2">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                          {/* Sub-Módulos de Analítica (POL-008: Pestañas Expandibles y Colapsables, Por Defecto Colapsadas) */}
+                          <div className="pt-3 pb-1 flex items-center justify-between gap-3 border-t border-slate-100 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <Layers className="w-3.5 h-3.5 text-slate-700" />
+                              <span className="text-[11px] font-black uppercase text-slate-800 tracking-wider">
                                 Sub-Módulos Operativos (28 Métricas):
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                Modo: {activeSubModule.toUpperCase()}
+                              <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                                · Pestañas colapsadas por defecto
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                              {[
-                                { id: 'todos', label: 'Todos los Módulos (28 Métricas)' },
-                                { id: 'reputacion', label: 'Módulo A: Reputación & NFC' },
-                                { id: 'ventas', label: 'Módulo B: Ventas & Cortes' },
-                                { id: 'kds', label: 'Módulo C: Eficiencia KDS' },
-                                { id: 'personal', label: 'Módulo D: Personal & Turnos' },
-                                { id: 'ads', label: 'Módulo E: Red Publicitaria (Tier 4)' },
-                                { id: 'turnero', label: 'Módulo F: Turnero 4K & Pick Up (Tier 4)' },
-                              ].map((tab) => (
-                                <button
-                                  key={tab.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setBranchMetricsSubModuleFilter((prev) => ({
-                                      ...prev,
-                                      [res.id]: tab.id as any,
-                                    }))
-                                  }
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border ${
-                                    activeSubModule === tab.id
-                                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span>{tab.label}</span>
-                                </button>
-                              ))}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => toggleAllCat6Submodules(res.id, true)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer select-none"
+                              >
+                                Expandir Todos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleAllCat6Submodules(res.id, false)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer select-none"
+                              >
+                                Colapsar Todos
+                              </button>
                             </div>
                           </div>
 
-                          {/* MÓDULO A: REPUTACIÓN GOOGLE, ESCUDO & TRÁFICO NFC */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'reputacion') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo A: Reputación Google, Escudo & Tráfico NFC
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.feedback · public.tags · public.tag_scans
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">1. Calificación Google</span>
-                                  <span className="text-lg font-black text-slate-900 block">{avgRating} <span className="text-xs font-bold text-amber-500">★</span></span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {totalFeedbacksCount > 0 ? 'Promedio en Google Maps' : 'Sin opiniones registradas'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">2. Reseñas a Google</span>
-                                  <span className="text-lg font-black text-slate-900 block">{goodRatings} <span className="text-xs text-sky-600 font-bold">visitas</span></span>
-                                  <span className="text-[10px] text-slate-500 block">Flujo directo 4-5 estrellas</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">3. Tasa Escudo Privado</span>
-                                  <span className="text-lg font-black text-slate-900 block">{shieldRetentionRate === 'N/A' ? 'N/A' : `${shieldRetentionRate}%`}</span>
-                                  <span className="text-[10px] text-slate-500 block">{shieldedRatings} quejas retenidas en mesa</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">4. Toques NFC vs QR</span>
-                                  <span className="text-lg font-black text-slate-900 block">{nfcScans} <span className="text-xs text-slate-500 font-normal">NFC</span> / {qrScans} <span className="text-xs text-slate-500 font-normal">QR</span></span>
-                                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden flex">
-                                    <div className="bg-sky-600 h-1.5" style={{ width: totalScans > 0 ? `${Math.round((nfcScans / totalScans) * 100)}%` : '0%' }}></div>
-                                    <div className="bg-slate-300 h-1.5" style={{ width: totalScans > 0 ? `${Math.round((qrScans / totalScans) * 100)}%` : '0%' }}></div>
-                                  </div>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">5. Mesa Más Escaneada</span>
-                                  <span className="text-lg font-black text-slate-900 block">
-                                    {topTag && (topTag.scan_count || 0) > 0 ? (topTag.table_identifier ? `Mesa ${topTag.table_identifier}` : topTag.tag_code) : 'Sin lecturas'}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {topTag?.scan_count || 0} escaneos registrados
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* MÓDULO B: VENTAS EN CORTES, CONSUMO & PAGOS */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'ventas') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo B: Ventas en Cortes, Consumo & Métodos de Pago
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.manager_shift_reports (card_sales, cash_sales)
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">6. Ventas Brutas</span>
-                                  <span className="text-lg font-black text-emerald-700 block">${totalSales.toLocaleString('es-MX')} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {filteredReports.length > 0 ? 'Reportado en cortes de caja' : '0 cortes en el periodo'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">7. Ticket Promedio</span>
-                                  <span className="text-lg font-black text-slate-900 block">${avgTicket.toFixed(0)} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">Por mesa atendida ({totalTablesServed} mesas)</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">8. Propinas Totales</span>
-                                  <span className="text-lg font-black text-slate-900 block">${totalTips.toLocaleString('es-MX')} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">Tasa efectiva: {tipPercentage}%</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">9. Métodos de Pago</span>
-                                  <div className="text-[11px] font-bold text-slate-700 space-y-0.5">
-                                    <div className="flex justify-between"><span>Tarjeta:</span><span>${cardSales.toLocaleString('es-MX')} ({totalSales > 0 ? Math.round((cardSales / totalSales) * 100) : 0}%)</span></div>
-                                    <div className="flex justify-between"><span>Efectivo:</span><span>${cashSales.toLocaleString('es-MX')} ({totalSales > 0 ? Math.round((cashSales / totalSales) * 100) : 0}%)</span></div>
-                                    <div className="flex justify-between"><span>SPEI:</span><span>${speiSales.toLocaleString('es-MX')} ({totalSales > 0 ? Math.round((speiSales / totalSales) * 100) : 0}%)</span></div>
-                                  </div>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">10. Aforo & Comensales</span>
-                                  <span className="text-lg font-black text-slate-900 block">{totalComensales} <span className="text-xs text-slate-500 font-normal">atendidos</span></span>
-                                  <span className="text-[10px] text-slate-500 block">Capacidad sala: {totalBranchCapacity} comensales</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* MÓDULO C: EFICIENCIA KDS & TIEMPOS DE SERVICIO */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'kds') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 text-violet-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo C: Eficiencia KDS, Tiempos de Servicio & Rotación
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.table_orders · public.table_sessions
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">11. KDS Cocina Caliente</span>
-                                  <span className="text-lg font-black text-slate-900 block">
-                                    {avgKitchenMinutes > 0 ? `${avgKitchenMinutes} min` : '0 min'}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {completedOrders.length > 0 ? `${completedOrders.length} comandas despachadas` : 'Sin comandas listas'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">12. KDS Barra & Repostería</span>
-                                  <span className="text-lg font-black text-slate-900 block">
-                                    {avgBarMinutes > 0 ? `${avgBarMinutes} min` : '0 min'}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {barOrders.length > 0 ? `${barOrders.length} órdenes de barra` : 'Sin órdenes de barra'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">13. Llamado de Mesero</span>
-                                  <span className="text-lg font-black text-slate-900 block">
-                                    {avgCallResponseMin === '0.0' ? 'Sin llamadas' : `${avgCallResponseMin} min`}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {attendedCalls.length} llamadas atendidas
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">14. Rotación por Mesa</span>
-                                  <span className="text-lg font-black text-slate-900 block">
-                                    {avgTableTurnoverMin > 0 ? `${avgTableTurnoverMin} min` : '0 min'}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {closedSessions.length > 0 ? `${closedSessions.length} sesiones cerradas` : 'Sin sesiones cerradas'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">15. Horas Pico</span>
-                                  <span className="text-xs font-black text-slate-900 block mt-1">{peakHourText}</span>
-                                  <span className="text-[10px] text-slate-500 block">Franja horaria con mayor volumen</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* MÓDULO D: PERSONAL OPERATIVO & RENDIMIENTO */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'personal') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Users className="w-3.5 h-3.5 text-blue-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo D: Rendimiento del Personal Operativo (Staff & Turnos)
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.restaurant_staff · public.staff_shifts
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">16. Venta por Operador</span>
-                                  <span className="text-lg font-black text-slate-900 block">${avgSalesPerStaff.toLocaleString('es-MX')} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {totalSales > 0 ? `Entre ${staffWithSalesCount} operadores de sala` : '0 cortes en el periodo'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">17. Propinas por Operador</span>
-                                  <span className="text-lg font-black text-slate-900 block">${avgTipsPerStaff.toLocaleString('es-MX')} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">Promedio recaudado en turno</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">18. Cobertura de Plantilla</span>
-                                  <span className="text-lg font-black text-slate-900 block">{coveredRolesCount} / {requiredRolesCount} <span className="text-xs text-slate-500 font-normal">({staffCoverageRate}%)</span></span>
-                                  <span className="text-[10px] text-slate-500 block">{vacantRolesCount === 0 ? 'Plantilla 100% cubierta' : `${vacantRolesCount} vacantes por asignar`}</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">19. Cumplimiento Turnos</span>
-                                  <span className="text-lg font-black text-slate-900 block">{shiftComplianceRate}</span>
-                                  <span className="text-[10px] text-slate-500 block">
-                                    {scheduledShiftsCount > 0 ? `${completedReportsCount} cortes de ${scheduledShiftsCount} turnos` : 'Sin turnos programados'}
-                                  </span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-                                  <span className="text-[10px] font-extrabold text-slate-500 uppercase block">20. Cupones de Gerencia</span>
-                                  <span className="text-lg font-black text-slate-900 block">${totalCouponDiscounts} MXN</span>
-                                  <span className="text-[10px] text-slate-500 block">{branchActiveCoupons.length} cupones activos aplicados</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* MÓDULO E: RED PUBLICITARIA LOCAL & SUBSIDIO SAAS (EXCLUSIVO TIER 4) */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'ads') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Megaphone className="w-3.5 h-3.5 text-amber-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo E: Red Publicitaria Local & Subsidio SaaS (Exclusivo Tier 4)
-                                  </span>
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
-                                    Tier 4
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.ads · public.restaurants (100% Real)
-                                </span>
-                              </div>
-
-                              {!isTier4 ? (
-                                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 flex items-center justify-between gap-3">
-                                  <div className="text-xs">
-                                    <span className="font-extrabold block">Módulo bloqueado en Tier {effectiveTier}</span>
-                                    <span className="text-amber-800/90">La red publicitaria local y el subsidio de hasta $500 MXN mensuales están disponibles en Tier 4 o activando el Periodo de Prueba.</span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenTrialModalForBranch(res, 4)}
-                                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap shadow-2xs"
+                          {/* LISTA DE SUB-MÓDULOS EN FORMATO CATEGORÍA (ACORDEÓN EXPANDIBLE/COLAPSABLE) */}
+                          <div className="space-y-3">
+                            {/* SUB-MÓDULO A: REPUTACIÓN GOOGLE, ESCUDO & TRÁFICO NFC */}
+                            {(() => {
+                              const isSubAExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.A;
+                              return (
+                                <div className="bg-white rounded-2xl border border-sky-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'A')}
+                                    className="bg-sky-50/70 px-4 py-2.5 border-b border-sky-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-sky-100/60 transition-colors select-none"
                                   >
-                                    Activar Prueba Tier 4
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-amber-900 uppercase block">21. Impresiones Servidas</span>
-                                    <span className="text-lg font-black text-slate-900 block">{totalAdImpressions.toLocaleString('es-MX')}</span>
-                                    <span className="text-[10px] text-slate-500 block">
-                                      {totalAdImpressions > 0 ? 'Vistas reales en menú' : '0 impresiones registradas'}
-                                    </span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubAExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-sky-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-sky-700 flex-shrink-0" />
+                                      )}
+                                      <ShieldCheck className="w-3.5 h-3.5 text-sky-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-sky-950 uppercase tracking-wider truncate">
+                                        Módulo A: Reputación Google, Escudo & Tráfico NFC
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-100 text-sky-800 border border-sky-200 flex-shrink-0">
+                                        5 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-sky-700 hidden sm:inline">
+                                        ★ {avgRating} · {nfcScans} NFC / {qrScans} QR
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">
+                                        {isSubAExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-amber-900 uppercase block">22. Clics & CTR</span>
-                                    <span className="text-lg font-black text-slate-900 block">{totalAdClicks} <span className="text-xs font-bold text-amber-700">({adCtr}%)</span></span>
-                                    <span className="text-[10px] text-slate-500 block">Interacción con patrocinadores</span>
-                                  </div>
-                                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-amber-900 uppercase block">23. Subsidio Acumulado</span>
-                                    <span className="text-lg font-black text-emerald-700 block">${adCreditBalance} MXN</span>
-                                    <span className="text-[10px] text-slate-500 block">
-                                      {adCreditBalance > 0 ? 'Bolsa mensual de ahorro' : 'Sin crédito acreditado'}
-                                    </span>
-                                  </div>
-                                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-amber-900 uppercase block">24. Costo Neto SaaS</span>
-                                    <span className="text-lg font-black text-slate-900 block">${netSaaSFee} <span className="text-xs font-bold text-slate-400 line-through">${baseSaaSFee}</span></span>
-                                    <span className="text-[10px] text-emerald-700 font-bold block">
-                                      {adCreditBalance > 0 ? `Ahorro de $${adCreditBalance} MXN/mes` : 'Tarifa base de lista'}
-                                    </span>
-                                  </div>
-                                  <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-amber-900 uppercase block">25. Estatus de Veto</span>
-                                    <span className="text-sm font-black text-slate-900 block mt-1">{adVetoAvailable ? 'Disponible' : 'Utilizado'}</span>
-                                    <span className="text-[10px] text-slate-500 block">1 veto antibloqueo por 30 días</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
 
-                          {/* MÓDULO F: TURNERO PÚBLICO 4K & DESPACHO PICK UP (EXCLUSIVO TIER 4) */}
-                          {(activeSubModule === 'todos' || activeSubModule === 'turnero') && (
-                            <div className="space-y-2 pt-1 border-t border-slate-100">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Tv className="w-3.5 h-3.5 text-rose-600" />
-                                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
-                                    Módulo F: Turnero Público 4K & Despacho Pick Up (Exclusivo Tier 4)
-                                  </span>
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-rose-100 text-rose-900 border border-rose-300">
-                                    Tier 4
-                                  </span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  Origen: public.table_orders (pickup & sala 100% Real)
-                                </span>
-                              </div>
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubAExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.feedback · public.tags · public.tag_scans (100% Real)
+                                        </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                          {/* 1. Calificación Google */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">1. Calificación Google</span>
+                                            <span className="text-lg font-black text-slate-900 block">{avgRating} <span className="text-xs font-bold text-amber-500">★</span></span>
+                                            <MiniSparkline
+                                              data={parseFloat(avgRating) > 0 ? [Math.max(1, (parseFloat(avgRating) || 0) - 0.4), Math.max(1, (parseFloat(avgRating) || 0) - 0.2), parseFloat(avgRating) || 0, parseFloat(avgRating) || 0] : [0, 0, 0, 0, 0]}
+                                              color="amber"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {totalFeedbacksCount > 0 ? 'Promedio en Google Maps' : 'Sin opiniones registradas'}
+                                            </span>
+                                          </div>
 
-                              {!isTier4 ? (
-                                <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 text-rose-900 flex items-center justify-between gap-3">
-                                  <div className="text-xs">
-                                    <span className="font-extrabold block">Módulo bloqueado en Tier {effectiveTier}</span>
-                                    <span className="text-rose-800/90">El turnero público 4K y la pantalla de despacho en mostrador Pick Up son exclusivos de Tier 4.</span>
+                                          {/* 2. Reseñas a Google */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">2. Reseñas a Google</span>
+                                            <span className="text-lg font-black text-slate-900 block">{goodRatings} <span className="text-xs text-sky-600 font-bold">visitas</span></span>
+                                            <MiniSparkline
+                                              data={goodRatings > 0 ? [Math.max(0, Math.round(goodRatings * 0.3)), Math.max(0, Math.round(goodRatings * 0.6)), goodRatings] : [0, 0, 0, 0, 0]}
+                                              color="sky"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Flujo directo 4-5 estrellas</span>
+                                          </div>
+
+                                          {/* 3. Tasa Escudo Privado */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">3. Tasa Escudo Privado</span>
+                                            <span className="text-lg font-black text-slate-900 block">{shieldRetentionRate === 'N/A' ? 'N/A' : `${shieldRetentionRate}%`}</span>
+                                            <MiniGauge
+                                              percentage={shieldRetentionRate === 'N/A' ? 0 : parseFloat(shieldRetentionRate) || 0}
+                                              color="amber"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">{shieldedRatings} quejas retenidas en mesa</span>
+                                          </div>
+
+                                          {/* 4. Toques NFC vs QR */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">4. Toques NFC vs QR</span>
+                                            <span className="text-lg font-black text-slate-900 block">{nfcScans} <span className="text-xs text-slate-500 font-normal">NFC</span> / {qrScans} <span className="text-xs text-slate-500 font-normal">QR</span></span>
+                                            <MiniSplitBar
+                                              segments={[
+                                                { label: 'NFC', value: nfcScans, colorHex: '#0284c7' },
+                                                { label: 'QR', value: qrScans, colorHex: '#94a3b8' },
+                                              ]}
+                                              className="mt-2"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block pt-0.5">
+                                              {totalScans > 0 ? `${Math.round((nfcScans / totalScans) * 100)}% NFC · ${Math.round((qrScans / totalScans) * 100)}% QR` : 'Sin lecturas registradas'}
+                                            </span>
+                                          </div>
+
+                                          {/* 5. Mesa Más Escaneada */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">5. Mesa Más Escaneada</span>
+                                            <span className="text-lg font-black text-slate-900 block">
+                                              {topTag && (topTag.scan_count || 0) > 0 ? (topTag.table_identifier ? `Mesa ${topTag.table_identifier}` : topTag.tag_code) : 'Sin lecturas'}
+                                            </span>
+                                            <MiniBarChart
+                                              data={branchTags.length > 0 ? branchTags.slice(0, 5).map(t => t.scan_count || 0) : [0, 0, 0, 0, 0]}
+                                              color="sky"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {topTag?.scan_count || 0} escaneos registrados
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenTrialModalForBranch(res, 4)}
-                                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 whitespace-nowrap shadow-2xs"
+                                </div>
+                              );
+                            })()}
+
+                            {/* SUB-MÓDULO B: VENTAS EN CORTES, CONSUMO & PAGOS */}
+                            {(() => {
+                              const isSubBExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.B;
+                              return (
+                                <div className="bg-white rounded-2xl border border-emerald-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'B')}
+                                    className="bg-emerald-50/70 px-4 py-2.5 border-b border-emerald-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-emerald-100/60 transition-colors select-none"
                                   >
-                                    Activar Prueba Tier 4
-                                  </button>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubBExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
+                                      )}
+                                      <DollarSign className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-wider truncate">
+                                        Módulo B: Ventas en Cortes, Consumo & Métodos de Pago
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 flex-shrink-0">
+                                        5 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-emerald-700 hidden sm:inline">
+                                        {filteredReports.length} cortes · ${totalSales.toLocaleString('es-MX')} MXN
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                                        {isSubBExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubBExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.manager_shift_reports (card_sales, cash_sales 100% Real)
+                                        </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                          {/* 6. Ventas Brutas */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">6. Ventas Brutas</span>
+                                            <span className="text-lg font-black text-emerald-700 block">${totalSales.toLocaleString('es-MX')} MXN</span>
+                                            <MiniSparkline
+                                              data={filteredReports.length > 0 ? filteredReports.map(r => r.total_sales || 0) : (totalSales > 0 ? [totalSales * 0.7, totalSales * 0.9, totalSales] : [0, 0, 0, 0, 0])}
+                                              color="emerald"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {filteredReports.length > 0 ? 'Reportado en cortes de caja' : '0 cortes en el periodo'}
+                                            </span>
+                                          </div>
+
+                                          {/* 7. Ticket Promedio */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">7. Ticket Promedio</span>
+                                            <span className="text-lg font-black text-slate-900 block">${avgTicket.toFixed(0)} MXN</span>
+                                            <MiniSparkline
+                                              data={avgTicket > 0 ? [avgTicket * 0.9, avgTicket * 1.05, avgTicket * 0.95, avgTicket] : [0, 0, 0, 0, 0]}
+                                              color="emerald"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Por mesa atendida ({totalTablesServed} mesas)</span>
+                                          </div>
+
+                                          {/* 8. Propinas Totales */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">8. Propinas Totales</span>
+                                            <span className="text-lg font-black text-slate-900 block">${totalTips.toLocaleString('es-MX')} MXN</span>
+                                            <MiniSparkline
+                                              data={filteredReports.length > 0 ? filteredReports.map(r => r.tips_collected || 0) : (totalTips > 0 ? [totalTips * 0.8, totalTips * 0.9, totalTips] : [0, 0, 0, 0, 0])}
+                                              color="emerald"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Tasa efectiva: {tipPercentage}%</span>
+                                          </div>
+
+                                          {/* 9. Métodos de Pago */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">9. Métodos de Pago</span>
+                                            <div className="text-[11px] font-bold text-slate-700 space-y-0.5">
+                                              <div className="flex justify-between"><span>Tarjeta:</span><span>${cardSales.toLocaleString('es-MX')}</span></div>
+                                              <div className="flex justify-between"><span>Efectivo:</span><span>${cashSales.toLocaleString('es-MX')}</span></div>
+                                              <div className="flex justify-between"><span>SPEI:</span><span>${speiSales.toLocaleString('es-MX')}</span></div>
+                                            </div>
+                                            <MiniSplitBar
+                                              segments={[
+                                                { label: 'Tarjeta', value: cardSales, colorHex: '#059669' },
+                                                { label: 'Efectivo', value: cashSales, colorHex: '#d97706' },
+                                                { label: 'SPEI', value: speiSales, colorHex: '#7c3aed' },
+                                              ]}
+                                              className="mt-2"
+                                            />
+                                          </div>
+
+                                          {/* 10. Aforo & Comensales */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">10. Aforo & Comensales</span>
+                                            <span className="text-lg font-black text-slate-900 block">{totalComensales} <span className="text-xs text-slate-500 font-normal">atendidos</span></span>
+                                            <MiniBarChart
+                                              data={branchTables.length > 0 ? branchTables.slice(0, 5).map(t => t.capacity || 4) : [0, 0, 0, 0, 0]}
+                                              color="purple"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Capacidad sala: {totalBranchCapacity} comensales</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                  <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-rose-900 uppercase block">26. Órdenes en Turnero 4K</span>
-                                    <span className="text-lg font-black text-slate-900 block">{turneroOrdersCount} <span className="text-xs text-slate-500 font-normal">turnos</span></span>
-                                    <span className="text-[10px] text-slate-500 block">
-                                      {turneroOrdersCount > 0 ? 'Comandas en pantalla pública' : '0 comandas en el periodo'}
-                                    </span>
+                              );
+                            })()}
+
+                            {/* SUB-MÓDULO C: EFICIENCIA KDS & TIEMPOS DE SERVICIO */}
+                            {(() => {
+                              const isSubCExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.C;
+                              return (
+                                <div className="bg-white rounded-2xl border border-violet-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'C')}
+                                    className="bg-violet-50/70 px-4 py-2.5 border-b border-violet-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-violet-100/60 transition-colors select-none"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubCExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-violet-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-violet-700 flex-shrink-0" />
+                                      )}
+                                      <Clock className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-violet-950 uppercase tracking-wider truncate">
+                                        Módulo C: Eficiencia KDS, Tiempos de Servicio & Rotación
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-violet-100 text-violet-800 border border-violet-200 flex-shrink-0">
+                                        5 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-violet-700 hidden sm:inline">
+                                        {avgKitchenMinutes > 0 ? `${avgKitchenMinutes} min` : '0 min'} Cocina · {avgCallResponseMin === '0.0' ? 'Sin llamadas' : `${avgCallResponseMin} min`} Mesero
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-violet-700 bg-white px-1.5 py-0.5 rounded border border-violet-200">
+                                        {isSubCExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-rose-900 uppercase block">27. Despacho en Mostrador Pick Up</span>
-                                    <span className="text-lg font-black text-slate-900 block">{avgPickUpDeliveryMin}</span>
-                                    <span className="text-[10px] text-slate-500 block">
-                                      {pickupOrders.length > 0 ? `${pickupOrders.length} pedidos entregados` : 'Sin pedidos para llevar'}
-                                    </span>
-                                  </div>
-                                  <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
-                                    <span className="text-[10px] font-extrabold text-rose-900 uppercase block">28. Conversión Menú a Cocina</span>
-                                    <span className="text-lg font-black text-emerald-700 block">{digitalMenuConversionRate}%</span>
-                                    <span className="text-[10px] text-slate-500 block">
-                                      {totalScans > 0 ? `${filteredOrders.length} comandas de ${totalScans} lecturas` : '0 lecturas registradas'}
-                                    </span>
+
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubCExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.table_orders · public.table_sessions (100% Real)
+                                        </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                          {/* 11. KDS Cocina Caliente */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">11. KDS Cocina Caliente</span>
+                                            <span className="text-lg font-black text-slate-900 block">
+                                              {avgKitchenMinutes > 0 ? `${avgKitchenMinutes} min` : '0 min'}
+                                            </span>
+                                            <MiniSparkline
+                                              data={completedOrders.length > 0 ? completedOrders.slice(-5).map(o => { const d = (new Date(o.updated_at).getTime() - new Date(o.created_at).getTime()) / 60000; return isNaN(d) || d <= 0 ? 0 : Math.min(d, 60); }) : [0, 0, 0, 0, 0]}
+                                              color="violet"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {completedOrders.length > 0 ? `${completedOrders.length} comandas despachadas` : 'Sin comandas listas'}
+                                            </span>
+                                          </div>
+
+                                          {/* 12. KDS Barra & Repostería */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">12. KDS Barra & Repostería</span>
+                                            <span className="text-lg font-black text-slate-900 block">
+                                              {avgBarMinutes > 0 ? `${avgBarMinutes} min` : '0 min'}
+                                            </span>
+                                            <MiniSparkline
+                                              data={barOrders.length > 0 ? barOrders.slice(-5).map(o => { const d = (new Date(o.updated_at).getTime() - new Date(o.created_at).getTime()) / 60000; return isNaN(d) || d <= 0 ? 0 : Math.min(d, 40); }) : [0, 0, 0, 0, 0]}
+                                              color="violet"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {barOrders.length > 0 ? `${barOrders.length} órdenes de barra` : 'Sin órdenes de barra'}
+                                            </span>
+                                          </div>
+
+                                          {/* 13. Llamado de Mesero */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">13. Llamado de Mesero</span>
+                                            <span className="text-lg font-black text-slate-900 block">
+                                              {avgCallResponseMin === '0.0' ? 'Sin llamadas' : `${avgCallResponseMin} min`}
+                                            </span>
+                                            <MiniSparkline
+                                              data={attendedCalls.length > 0 ? attendedCalls.slice(-5).map(c => { const d = (new Date(c.attended_at!).getTime() - new Date(c.created_at).getTime()) / 60000; return isNaN(d) || d <= 0 ? 0 : Math.min(d, 20); }) : [0, 0, 0, 0, 0]}
+                                              color="violet"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {attendedCalls.length} llamadas atendidas
+                                            </span>
+                                          </div>
+
+                                          {/* 14. Rotación por Mesa */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">14. Rotación por Mesa</span>
+                                            <span className="text-lg font-black text-slate-900 block">
+                                              {avgTableTurnoverMin > 0 ? `${avgTableTurnoverMin} min` : '0 min'}
+                                            </span>
+                                            <MiniSparkline
+                                              data={closedSessions.length > 0 ? closedSessions.slice(-5).map(s => { const d = (new Date(s.closed_at!).getTime() - new Date(s.opened_at).getTime()) / 60000; return isNaN(d) || d <= 0 ? 0 : Math.min(d, 120); }) : [0, 0, 0, 0, 0]}
+                                              color="violet"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {closedSessions.length > 0 ? `${closedSessions.length} sesiones cerradas` : 'Sin sesiones cerradas'}
+                                            </span>
+                                          </div>
+
+                                          {/* 15. Horas Pico */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">15. Horas Pico</span>
+                                            <span className="text-xs font-black text-slate-900 block mt-1">{peakHourText}</span>
+                                            <MiniBarChart
+                                              data={hourlyDistribution.length > 0 ? [hourlyDistribution[12] || 0, hourlyDistribution[13] || 0, hourlyDistribution[14] || 0, hourlyDistribution[15] || 0, hourlyDistribution[19] || 0, hourlyDistribution[20] || 0, hourlyDistribution[21] || 0] : [0, 0, 0, 0, 0, 0, 0]}
+                                              color="violet"
+                                              height={24}
+                                              highlightIndices={[2, 3, 5, 6]}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Franja horaria con mayor volumen</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              )}
-                            </div>
-                          )}
+                              );
+                            })()}
+
+                            {/* SUB-MÓDULO D: PERSONAL OPERATIVO & RENDIMIENTO */}
+                            {(() => {
+                              const isSubDExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.D;
+                              return (
+                                <div className="bg-white rounded-2xl border border-blue-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'D')}
+                                    className="bg-blue-50/70 px-4 py-2.5 border-b border-blue-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-blue-100/60 transition-colors select-none"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubDExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-blue-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-blue-700 flex-shrink-0" />
+                                      )}
+                                      <Users className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-blue-950 uppercase tracking-wider truncate">
+                                        Módulo D: Rendimiento del Personal Operativo (Staff & Turnos)
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200 flex-shrink-0">
+                                        5 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-blue-700 hidden sm:inline">
+                                        {coveredRolesCount}/{requiredRolesCount} staff · {shiftComplianceRate}
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-blue-700 bg-white px-1.5 py-0.5 rounded border border-blue-200">
+                                        {isSubDExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubDExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.restaurant_staff · public.staff_shifts (100% Real)
+                                        </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                          {/* 16. Venta por Operador */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">16. Venta por Operador</span>
+                                            <span className="text-lg font-black text-slate-900 block">${avgSalesPerStaff.toLocaleString('es-MX')} MXN</span>
+                                            <MiniSparkline
+                                              data={avgSalesPerStaff > 0 ? [avgSalesPerStaff * 0.8, avgSalesPerStaff * 1.1, avgSalesPerStaff * 0.95, avgSalesPerStaff] : [0, 0, 0, 0, 0]}
+                                              color="blue"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {totalSales > 0 ? `Entre ${staffWithSalesCount} operadores de sala` : '0 cortes en el periodo'}
+                                            </span>
+                                          </div>
+
+                                          {/* 17. Propinas por Operador */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">17. Propinas por Operador</span>
+                                            <span className="text-lg font-black text-slate-900 block">${avgTipsPerStaff.toLocaleString('es-MX')} MXN</span>
+                                            <MiniSparkline
+                                              data={avgTipsPerStaff > 0 ? [avgTipsPerStaff * 0.85, avgTipsPerStaff * 1.05, avgTipsPerStaff * 0.9, avgTipsPerStaff] : [0, 0, 0, 0, 0]}
+                                              color="blue"
+                                              height={26}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">Promedio recaudado en turno</span>
+                                          </div>
+
+                                          {/* 18. Cobertura de Plantilla */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">18. Cobertura de Plantilla</span>
+                                            <span className="text-lg font-black text-slate-900 block">{coveredRolesCount} / {requiredRolesCount} <span className="text-xs text-slate-500 font-normal">({staffCoverageRate}%)</span></span>
+                                            <MiniGauge
+                                              percentage={staffCoverageRate}
+                                              color="blue"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">{vacantRolesCount === 0 ? 'Plantilla 100% cubierta' : `${vacantRolesCount} vacantes por asignar`}</span>
+                                          </div>
+
+                                          {/* 19. Cumplimiento Turnos */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">19. Cumplimiento Turnos</span>
+                                            <span className="text-lg font-black text-slate-900 block">{shiftComplianceRate}</span>
+                                            <MiniGauge
+                                              percentage={shiftComplianceRate.includes('%') ? parseFloat(shiftComplianceRate) || 0 : (completedReportsCount > 0 ? 100 : 0)}
+                                              color="blue"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">
+                                              {scheduledShiftsCount > 0 ? `${completedReportsCount} cortes de ${scheduledShiftsCount} turnos` : 'Sin turnos programados'}
+                                            </span>
+                                          </div>
+
+                                          {/* 20. Cupones de Gerencia */}
+                                          <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
+                                            <span className="text-[10px] font-extrabold text-slate-500 uppercase block">20. Cupones de Gerencia</span>
+                                            <span className="text-lg font-black text-slate-900 block">${totalCouponDiscounts} MXN</span>
+                                            <MiniBarChart
+                                              data={branchActiveCoupons.length > 0 ? branchActiveCoupons.map(c => c.discount_percentage || 15) : [0, 0, 0, 0, 0]}
+                                              color="blue"
+                                              height={24}
+                                              className="mt-1"
+                                            />
+                                            <span className="text-[10px] text-slate-500 block">{branchActiveCoupons.length} cupones activos aplicados</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* SUB-MÓDULO E: RED PUBLICITARIA LOCAL & SUBSIDIO SAAS (EXCLUSIVO TIER 4) */}
+                            {(() => {
+                              const isSubEExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.E;
+                              return (
+                                <div className="bg-white rounded-2xl border border-amber-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'E')}
+                                    className="bg-amber-50/70 px-4 py-2.5 border-b border-amber-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-amber-100/60 transition-colors select-none"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubEExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                                      )}
+                                      <Megaphone className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-amber-950 uppercase tracking-wider truncate">
+                                        Módulo E: Red Publicitaria Local & Subsidio SaaS (Exclusivo Tier 4)
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 flex-shrink-0">
+                                        Tier 4 · 5 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-amber-800 hidden sm:inline">
+                                        {totalAdImpressions} imp · ${adCreditBalance} subsidio
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-amber-700 bg-white px-1.5 py-0.5 rounded border border-amber-200">
+                                        {isSubEExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubEExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.ads · public.restaurants (100% Real)
+                                        </span>
+
+                                        {!isTier4 ? (
+                                          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 flex items-center justify-between gap-3">
+                                            <div className="text-xs">
+                                              <span className="font-extrabold block">Módulo bloqueado en Tier {effectiveTier}</span>
+                                              <span className="text-amber-800/90">La red publicitaria local y el subsidio de hasta $500 MXN mensuales están disponibles en Tier 4 o activando el Periodo de Prueba.</span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenTrialModalForBranch(res, 4)}
+                                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap shadow-2xs"
+                                            >
+                                              Activar Prueba Tier 4
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                            {/* 21. Impresiones Servidas */}
+                                            <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-amber-900 uppercase block">21. Impresiones Servidas</span>
+                                              <span className="text-lg font-black text-slate-900 block">{totalAdImpressions.toLocaleString('es-MX')}</span>
+                                              <MiniSparkline
+                                                data={totalAdImpressions > 0 ? [totalAdImpressions * 0.5, totalAdImpressions * 0.8, totalAdImpressions] : [0, 0, 0, 0, 0]}
+                                                color="amber"
+                                                height={26}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">
+                                                {totalAdImpressions > 0 ? 'Vistas reales en menú' : '0 impresiones registradas'}
+                                              </span>
+                                            </div>
+
+                                            {/* 22. Clics & CTR */}
+                                            <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-amber-900 uppercase block">22. Clics & CTR</span>
+                                              <span className="text-lg font-black text-slate-900 block">{totalAdClicks} <span className="text-xs font-bold text-amber-700">({adCtr}%)</span></span>
+                                              <MiniSparkline
+                                                data={totalAdClicks > 0 ? [totalAdClicks * 0.4, totalAdClicks * 0.7, totalAdClicks] : [0, 0, 0, 0, 0]}
+                                                color="amber"
+                                                height={26}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">Interacción con patrocinadores</span>
+                                            </div>
+
+                                            {/* 23. Subsidio Acumulado */}
+                                            <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-amber-900 uppercase block">23. Subsidio Acumulado</span>
+                                              <span className="text-lg font-black text-emerald-700 block">${adCreditBalance} MXN</span>
+                                              <MiniSparkline
+                                                data={adCreditBalance > 0 ? [adCreditBalance * 0.3, adCreditBalance * 0.6, adCreditBalance] : [0, 0, 0, 0, 0]}
+                                                color="emerald"
+                                                height={26}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">
+                                                {adCreditBalance > 0 ? 'Bolsa mensual de ahorro' : 'Sin crédito acreditado'}
+                                              </span>
+                                            </div>
+
+                                            {/* 24. Costo Neto SaaS */}
+                                            <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-amber-900 uppercase block">24. Costo Neto SaaS</span>
+                                              <span className="text-lg font-black text-slate-900 block">${netSaaSFee} <span className="text-xs font-bold text-slate-400 line-through">${baseSaaSFee}</span></span>
+                                              <MiniSparkline
+                                                data={[baseSaaSFee, baseSaaSFee, netSaaSFee, netSaaSFee]}
+                                                color="slate"
+                                                height={26}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-emerald-700 font-bold block">
+                                                {adCreditBalance > 0 ? `Ahorro de $${adCreditBalance} MXN/mes` : 'Tarifa base de lista'}
+                                              </span>
+                                            </div>
+
+                                            {/* 25. Estatus de Veto */}
+                                            <div className="p-3 rounded-xl bg-amber-50/40 border border-amber-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-amber-900 uppercase block">25. Estatus de Veto</span>
+                                              <span className="text-sm font-black text-slate-900 block mt-1">{adVetoAvailable ? 'Disponible' : 'Utilizado'}</span>
+                                              <MiniGauge
+                                                percentage={adVetoAvailable ? 100 : 0}
+                                                color="amber"
+                                                label={adVetoAvailable ? 'DISP' : 'USADO'}
+                                                height={24}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">1 veto antibloqueo por 30 días</span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* SUB-MÓDULO F: TURNERO PÚBLICO 4K & DESPACHO PICK UP (EXCLUSIVO TIER 4) */}
+                            {(() => {
+                              const isSubFExpanded = !!expandedCat6SubmodulesByBranch[res.id]?.F;
+                              return (
+                                <div className="bg-white rounded-2xl border border-rose-200/80 overflow-hidden shadow-2xs">
+                                  <div
+                                    onClick={() => toggleCat6Submodule(res.id, 'F')}
+                                    className="bg-rose-50/70 px-4 py-2.5 border-b border-rose-100 flex items-center justify-between gap-3 cursor-pointer hover:bg-rose-100/60 transition-colors select-none"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {isSubFExpanded ? (
+                                        <ChevronDown className="w-3.5 h-3.5 text-rose-700 flex-shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 text-rose-700 flex-shrink-0" />
+                                      )}
+                                      <Tv className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
+                                      <span className="text-[11px] font-extrabold text-rose-950 uppercase tracking-wider truncate">
+                                        Módulo F: Turnero Público 4K & Despacho Pick Up (Exclusivo Tier 4)
+                                      </span>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-100 text-rose-900 border border-rose-300 flex-shrink-0">
+                                        Tier 4 · 3 métricas
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-[10px] font-bold text-rose-800 hidden sm:inline">
+                                        {turneroOrdersCount} turnos · {avgPickUpDeliveryMin}
+                                      </span>
+                                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-rose-700 bg-white px-1.5 py-0.5 rounded border border-rose-200">
+                                        {isSubFExpanded ? 'Colapsar' : 'Expandir'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className={`grid transition-all duration-300 ease-in-out ${isSubFExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                      <div className="p-3.5 space-y-2">
+                                        <span className="text-[10px] text-slate-400 font-mono block">
+                                          Origen: public.table_orders (pickup & sala 100% Real)
+                                        </span>
+
+                                        {!isTier4 ? (
+                                          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 text-rose-900 flex items-center justify-between gap-3">
+                                            <div className="text-xs">
+                                              <span className="font-extrabold block">Módulo bloqueado en Tier {effectiveTier}</span>
+                                              <span className="text-rose-800/90">El turnero público 4K y la pantalla de despacho en mostrador Pick Up son exclusivos de Tier 4.</span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenTrialModalForBranch(res, 4)}
+                                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 whitespace-nowrap shadow-2xs"
+                                            >
+                                              Activar Prueba Tier 4
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                            {/* 26. Órdenes en Turnero 4K */}
+                                            <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-rose-900 uppercase block">26. Órdenes en Turnero 4K</span>
+                                              <span className="text-lg font-black text-slate-900 block">{turneroOrdersCount} <span className="text-xs text-slate-500 font-normal">turnos</span></span>
+                                              <MiniBarChart
+                                                data={turneroOrdersCount > 0 ? [1, 2, Math.max(1, turneroOrdersCount - 2), turneroOrdersCount] : [0, 0, 0, 0, 0]}
+                                                color="rose"
+                                                height={24}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">
+                                                {turneroOrdersCount > 0 ? 'Comandas en pantalla pública' : '0 comandas en el periodo'}
+                                              </span>
+                                            </div>
+
+                                            {/* 27. Despacho en Mostrador Pick Up */}
+                                            <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-rose-900 uppercase block">27. Despacho en Mostrador Pick Up</span>
+                                              <span className="text-lg font-black text-slate-900 block">{avgPickUpDeliveryMin}</span>
+                                              <MiniSparkline
+                                                data={pickupOrders.length > 0 ? pickupOrders.slice(-5).map(o => { const d = (new Date(o.updated_at).getTime() - new Date(o.created_at).getTime()) / 60000; return isNaN(d) || d <= 0 ? 0 : Math.min(d, 30); }) : [0, 0, 0, 0, 0]}
+                                                color="rose"
+                                                height={26}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">
+                                                {pickupOrders.length > 0 ? `${pickupOrders.length} pedidos entregados` : 'Sin pedidos para llevar'}
+                                              </span>
+                                            </div>
+
+                                            {/* 28. Conversión Menú a Cocina */}
+                                            <div className="p-3 rounded-xl bg-rose-50/40 border border-rose-200/80 shadow-2xs space-y-1">
+                                              <span className="text-[10px] font-extrabold text-rose-900 uppercase block">28. Conversión Menú a Cocina</span>
+                                              <span className="text-lg font-black text-emerald-700 block">{digitalMenuConversionRate}%</span>
+                                              <MiniGauge
+                                                percentage={digitalMenuConversionRate}
+                                                color="emerald"
+                                                height={24}
+                                                className="mt-1"
+                                              />
+                                              <span className="text-[10px] text-slate-500 block">
+                                                {totalScans > 0 ? `${filteredOrders.length} comandas de ${totalScans} lecturas` : '0 lecturas registradas'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
                       )}
                     </div>

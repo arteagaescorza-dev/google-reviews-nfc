@@ -38,8 +38,8 @@ const NAV_ITEMS = [
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Estado para contraer/expandir barra lateral reactiva al hover
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  // Estado para contraer/expandir barra lateral reactiva al hover (por defecto colapsada según requerimiento POL-008)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const [isHovered, setIsHovered] = useState<boolean>(false);
 
   const isExpanded = !isCollapsed || isHovered;
