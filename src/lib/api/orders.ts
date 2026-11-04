@@ -441,9 +441,144 @@ async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {
         created_at: new Date(now - 38 * 60 * 1000).toISOString(),
         updated_at: new Date(now - 10 * 60 * 1000).toISOString(),
       },
+      {
+        id: 'ord-5',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'PICKUP-01',
+        table_number: 'Mostrador Pick Up 101',
+        items: [
+          { menu_item_id: 'menu-3', name: 'Pizza Cuatro Quesos para Llevar', price: 260, quantity: 1 },
+          { menu_item_id: 'menu-8', name: 'Refresco Artesanal', price: 55, quantity: 2 },
+        ],
+        total_amount: 370,
+        status: 'delivered',
+        customer_name: 'David R. (Pick Up)',
+        created_at: new Date(now - 86400000 * 1).toISOString(),
+        updated_at: new Date(now - 86400000 * 1 + 6 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-6',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-003',
+        table_number: 'Mesa 3',
+        items: [
+          { menu_item_id: 'menu-5', name: 'Hamburguesa Gourmet con Papas Trufadas', price: 280, quantity: 2 },
+          { menu_item_id: 'menu-7', name: 'Cerveza de Barril', price: 85, quantity: 2 },
+        ],
+        total_amount: 730,
+        status: 'delivered',
+        customer_name: 'Fernando V.',
+        created_at: new Date(now - 86400000 * 2).toISOString(),
+        updated_at: new Date(now - 86400000 * 2 + 18 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-7',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-005',
+        table_number: 'Mesa 5',
+        items: [
+          { menu_item_id: 'menu-1', name: 'Ensalada César con Pollo al Grill', price: 175, quantity: 1 },
+          { menu_item_id: 'menu-6', name: 'Vino Tinto Copa', price: 150, quantity: 1 },
+        ],
+        total_amount: 325,
+        status: 'delivered',
+        customer_name: 'Lucía M.',
+        created_at: new Date(now - 86400000 * 4).toISOString(),
+        updated_at: new Date(now - 86400000 * 4 + 12 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-8',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-002',
+        table_number: 'Mesa 2',
+        items: [
+          { menu_item_id: 'menu-4', name: 'Lasagna Bolognese al Horno de Piedra', price: 270, quantity: 2 },
+          { menu_item_id: 'menu-9', name: 'Café Espresso Doble', price: 55, quantity: 2 },
+        ],
+        total_amount: 650,
+        status: 'delivered',
+        customer_name: 'Gabriel T.',
+        created_at: new Date(now - 86400000 * 6).toISOString(),
+        updated_at: new Date(now - 86400000 * 6 + 15 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-9',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-006',
+        table_number: 'Mesa 6 Barra',
+        items: [
+          { menu_item_id: 'menu-5', name: 'Corte New York Prime 350g', price: 390, quantity: 1 },
+          { menu_item_id: 'menu-6', name: 'Vino Tinto Reserva Botella', price: 780, quantity: 1 },
+        ],
+        total_amount: 1170,
+        status: 'delivered',
+        customer_name: 'Esteban C.',
+        created_at: new Date(now - 86400000 * 12).toISOString(),
+        updated_at: new Date(now - 86400000 * 12 + 22 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-10',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-001',
+        table_number: 'Mesa 1',
+        items: [
+          { menu_item_id: 'menu-3', name: 'Risotto de Hongos Portobello', price: 290, quantity: 1 },
+          { menu_item_id: 'menu-8', name: 'Agua San Pellegrino 500ml', price: 75, quantity: 1 },
+        ],
+        total_amount: 365,
+        status: 'delivered',
+        customer_name: 'Patricia B.',
+        created_at: new Date(now - 86400000 * 18).toISOString(),
+        updated_at: new Date(now - 86400000 * 18 + 14 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-11',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'PICKUP-02',
+        table_number: 'Mostrador Pick Up 102',
+        items: [
+          { menu_item_id: 'menu-3', name: 'Pizza Prosciutto Arugula', price: 285, quantity: 1 },
+        ],
+        total_amount: 285,
+        status: 'delivered',
+        customer_name: 'Arturo N. (Llevar)',
+        created_at: new Date(now - 86400000 * 25).toISOString(),
+        updated_at: new Date(now - 86400000 * 25 + 7 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-12',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-004',
+        table_number: 'Mesa 4',
+        items: [
+          { menu_item_id: 'menu-5', name: 'Picaña Brasileña a las Brasas', price: 340, quantity: 2 },
+          { menu_item_id: 'menu-7', name: 'Cerveza Modelo Especial', price: 70, quantity: 4 },
+        ],
+        total_amount: 960,
+        status: 'delivered',
+        customer_name: 'Héctor S.',
+        created_at: new Date(now - 86400000 * 35).toISOString(),
+        updated_at: new Date(now - 86400000 * 35 + 20 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'ord-13',
+        restaurant_id: restaurantId || 'res-1',
+        tag_code: 'TAG-ROM-007',
+        table_number: 'Mesa 7',
+        items: [
+          { menu_item_id: 'menu-1', name: 'Tabla de Quesos y Carnes Frías', price: 320, quantity: 1 },
+          { menu_item_id: 'menu-6', name: 'Vino Blanco Sauvignon Blanc', price: 540, quantity: 1 },
+        ],
+        total_amount: 860,
+        status: 'delivered',
+        customer_name: 'Sonia G.',
+        created_at: new Date(now - 86400000 * 42).toISOString(),
+        updated_at: new Date(now - 86400000 * 42 + 16 * 60 * 1000).toISOString(),
+      },
     ];
 
-    const current = getLocalItem<TableOrder[]>(STORAGE_KEYS.TABLE_ORDERS, defaultOrders);
+    const rawOrders = getLocalItem<TableOrder[]>(STORAGE_KEYS.TABLE_ORDERS, defaultOrders);
+    const current = rawOrders.length <= 4 ? defaultOrders : rawOrders;
     if (!restaurantId) return current;
     return current.filter((o) => o.restaurant_id === restaurantId || o.restaurant_id === 'res-1');
   },
@@ -1003,8 +1138,17 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
         console.warn('Error obteniendo table_sessions de Supabase:', err.message);
       }
     }
-    const sessions = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, []);
-    return restaurantId ? sessions.filter((s) => s.restaurant_id === restaurantId) : sessions;
+    const defaultSessions: TableSession[] = [
+      { id: 'sess-1', restaurant_id: restaurantId || 'res-1', table_number: 1, opened_at: new Date(Date.now() - 3600000 * 2).toISOString(), closed_at: new Date(Date.now() - 3600000 * 1.3).toISOString(), status: 'closed', total_amount: 850, paid_amount: 850, participants: [] },
+      { id: 'sess-2', restaurant_id: restaurantId || 'res-1', table_number: 4, opened_at: new Date(Date.now() - 3600000 * 3).toISOString(), closed_at: new Date(Date.now() - 3600000 * 2.2).toISOString(), status: 'closed', total_amount: 1450, paid_amount: 1450, participants: [] },
+      { id: 'sess-3', restaurant_id: restaurantId || 'res-1', table_number: 2, opened_at: new Date(Date.now() - 86400000 * 2).toISOString(), closed_at: new Date(Date.now() - 86400000 * 2 + 3600000 * 0.8).toISOString(), status: 'closed', total_amount: 620, paid_amount: 620, participants: [] },
+      { id: 'sess-4', restaurant_id: restaurantId || 'res-1', table_number: 5, opened_at: new Date(Date.now() - 86400000 * 5).toISOString(), closed_at: new Date(Date.now() - 86400000 * 5 + 3600000 * 0.7).toISOString(), status: 'closed', total_amount: 980, paid_amount: 980, participants: [] },
+      { id: 'sess-5', restaurant_id: restaurantId || 'res-1', table_number: 3, opened_at: new Date(Date.now() - 86400000 * 15).toISOString(), closed_at: new Date(Date.now() - 86400000 * 15 + 3600000 * 0.75).toISOString(), status: 'closed', total_amount: 1150, paid_amount: 1150, participants: [] },
+      { id: 'sess-6', restaurant_id: restaurantId || 'res-1', table_number: 7, opened_at: new Date(Date.now() - 86400000 * 35).toISOString(), closed_at: new Date(Date.now() - 86400000 * 35 + 3600000 * 0.9).toISOString(), status: 'closed', total_amount: 1300, paid_amount: 1300, participants: [] },
+    ];
+    const rawSessions = getLocalItem<TableSession[]>(STORAGE_KEYS.TABLE_SESSIONS, defaultSessions);
+    const sessions = rawSessions.length === 0 ? defaultSessions : rawSessions;
+    return restaurantId ? sessions.filter((s) => s.restaurant_id === restaurantId || s.restaurant_id === 'res-1') : sessions;
   },
 
   async getTableSession(restaurantId: string, tableNumber: number): Promise<TableSession | null> {
@@ -1481,61 +1625,31 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
       }
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const todayDate = new Date();
+    const dayAgoStr = (days: number) => {
+      const d = new Date(todayDate.getTime() - days * 86400000);
+      return d.toISOString().slice(0, 10);
+    };
+    const todayStr = dayAgoStr(0);
+    // tomorrowStr reserved
     const targetResId = restaurantId || 'res-1';
+
     const defaultShifts: StaffShift[] = [
-      {
-        id: 'shift-1',
-        restaurant_id: targetResId,
-        staff_id: 'staff-1',
-        staff_name: 'Marco Antonio (Mesero)',
-        staff_role: 'waiter',
-        shift_date: todayStr,
-        shift_type: 'matutino',
-        start_time: '08:00',
-        end_time: '16:00',
-        assigned_station: 'all',
-        assigned_tables: ['Mesa 1', 'Mesa 2', 'Mesa 3'],
-        notes: 'Salón principal',
-        created_by_manager: 'Lic. Mauricio Salinas',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 'shift-2',
-        restaurant_id: targetResId,
-        staff_id: 'staff-2',
-        staff_name: 'Chef Roberto (Jefe de Cocina)',
-        staff_role: 'kitchen',
-        shift_date: todayStr,
-        shift_type: 'completo',
-        start_time: '09:00',
-        end_time: '18:00',
-        assigned_station: 'cocina',
-        assigned_tables: [],
-        notes: 'Estación Cocina Caliente KDS',
-        created_by_manager: 'Lic. Mauricio Salinas',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 'shift-3',
-        restaurant_id: targetResId,
-        staff_id: 'staff-5',
-        staff_name: 'Diego Herrera (Barista & Barra)',
-        staff_role: 'barista',
-        shift_date: tomorrowStr,
-        shift_type: 'vespertino',
-        start_time: '14:00',
-        end_time: '22:00',
-        assigned_station: 'barista',
-        assigned_tables: [],
-        notes: 'Barra, Coctelería, Repostería y Café',
-        created_by_manager: 'Lic. Mauricio Salinas',
-        created_at: new Date().toISOString(),
-      },
+      { id: 'shift-1', restaurant_id: targetResId, staff_id: 'staff-1', staff_name: 'Marco Antonio (Mesero)', staff_role: 'waiter', shift_date: todayStr, shift_type: 'matutino', start_time: '08:00', end_time: '16:00', assigned_station: 'all', assigned_tables: ['Mesa 1', 'Mesa 2', 'Mesa 3'], notes: 'Salón principal', created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date().toISOString() },
+      { id: 'shift-2', restaurant_id: targetResId, staff_id: 'staff-2', staff_name: 'Chef Roberto (Jefe de Cocina)', staff_role: 'kitchen', shift_date: todayStr, shift_type: 'completo', start_time: '09:00', end_time: '18:00', assigned_station: 'cocina', assigned_tables: [], notes: 'Estación Cocina Caliente KDS', created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date().toISOString() },
+      { id: 'shift-3', restaurant_id: targetResId, staff_id: 'staff-3', staff_name: 'Sarah Mendoza (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(1), shift_type: 'vespertino', start_time: '15:00', end_time: '23:00', assigned_station: 'all', assigned_tables: ['Mesa 4', 'Mesa 5'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 1).toISOString() },
+      { id: 'shift-4', restaurant_id: targetResId, staff_id: 'staff-1', staff_name: 'Marco Antonio (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(3), shift_type: 'matutino', start_time: '08:00', end_time: '16:00', assigned_station: 'all', assigned_tables: ['Mesa 1', 'Mesa 2'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+      { id: 'shift-5', restaurant_id: targetResId, staff_id: 'staff-3', staff_name: 'Sarah Mendoza (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(5), shift_type: 'matutino', start_time: '08:00', end_time: '16:00', assigned_station: 'all', assigned_tables: ['Mesa 3', 'Mesa 4'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
+      { id: 'shift-6', restaurant_id: targetResId, staff_id: 'staff-1', staff_name: 'Marco Antonio (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(10), shift_type: 'vespertino', start_time: '15:00', end_time: '23:00', assigned_station: 'all', assigned_tables: ['Mesa 1', 'Mesa 2'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
+      { id: 'shift-7', restaurant_id: targetResId, staff_id: 'staff-3', staff_name: 'Sarah Mendoza (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(15), shift_type: 'vespertino', start_time: '15:00', end_time: '23:00', assigned_station: 'all', assigned_tables: ['Mesa 4', 'Mesa 5'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 15).toISOString() },
+      { id: 'shift-8', restaurant_id: targetResId, staff_id: 'staff-1', staff_name: 'Marco Antonio (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(22), shift_type: 'matutino', start_time: '08:00', end_time: '16:00', assigned_station: 'all', assigned_tables: ['Mesa 1', 'Mesa 2'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 22).toISOString() },
+      { id: 'shift-9', restaurant_id: targetResId, staff_id: 'staff-3', staff_name: 'Sarah Mendoza (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(28), shift_type: 'vespertino', start_time: '15:00', end_time: '23:00', assigned_station: 'all', assigned_tables: ['Mesa 3', 'Mesa 4'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 28).toISOString() },
+      { id: 'shift-10', restaurant_id: targetResId, staff_id: 'staff-1', staff_name: 'Marco Antonio (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(38), shift_type: 'vespertino', start_time: '15:00', end_time: '23:00', assigned_station: 'all', assigned_tables: ['Mesa 1', 'Mesa 2'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 38).toISOString() },
+      { id: 'shift-11', restaurant_id: targetResId, staff_id: 'staff-3', staff_name: 'Sarah Mendoza (Mesero)', staff_role: 'waiter', shift_date: dayAgoStr(45), shift_type: 'matutino', start_time: '08:00', end_time: '16:00', assigned_station: 'all', assigned_tables: ['Mesa 4', 'Mesa 5'], created_by_manager: 'Lic. Mauricio Salinas', created_at: new Date(Date.now() - 86400000 * 45).toISOString() },
     ];
 
-    const list = getLocalItem<StaffShift[]>(STORAGE_KEYS.STAFF_SHIFTS, defaultShifts);
+    const rawShifts = getLocalItem<StaffShift[]>(STORAGE_KEYS.STAFF_SHIFTS, defaultShifts);
+    const list = rawShifts.length <= 4 ? defaultShifts : rawShifts;
     if (!restaurantId) return list;
     return list.filter((s) => s.restaurant_id === restaurantId || s.restaurant_id === 'res-1');
   },
@@ -1839,7 +1953,13 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
       }
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayDate = new Date();
+    const dayAgoStr = (days: number) => {
+      const d = new Date(todayDate.getTime() - days * 86400000);
+      return d.toISOString().slice(0, 10);
+    };
+    const todayStr = dayAgoStr(0);
+
     const defaultReports: ManagerShiftReport[] = [
       {
         id: 'mrep-1',
@@ -1862,40 +1982,200 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
           { table_number: 'Mesa 4', orders_count: 7, total_amount: 4150, average_ticket: 592 },
         ],
         employee_metrics: [
-          {
-            staff_name: 'Marco Antonio (Mesero)',
-            role: 'waiter',
-            tables_served: 14,
-            sales_generated: 8450,
-            tips_estimated: 1180,
-            calls_attended: 19,
-          },
-          {
-            staff_name: 'Chef Roberto (Jefe de Cocina)',
-            role: 'kitchen',
-            tables_served: 14,
-            sales_generated: 5900,
-            tips_estimated: 0,
-            calls_attended: 14,
-          },
-          {
-            staff_name: 'Diego Herrera (Barista & Barra)',
-            role: 'barista',
-            tables_served: 11,
-            sales_generated: 2550,
-            tips_estimated: 0,
-            calls_attended: 11,
-          },
+          { staff_name: 'Marco Antonio (Mesero)', role: 'waiter', tables_served: 14, sales_generated: 8450, tips_estimated: 1180, calls_attended: 19 },
+          { staff_name: 'Chef Roberto (Jefe de Cocina)', role: 'kitchen', tables_served: 14, sales_generated: 5900, tips_estimated: 0, calls_attended: 14 },
+          { staff_name: 'Diego Herrera (Barista & Barra)', role: 'barista', tables_served: 11, sales_generated: 2550, tips_estimated: 0, calls_attended: 11 },
         ],
         sent_to_owner: true,
         created_at: new Date().toISOString(),
       },
+      {
+        id: 'mrep-2',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Sarah Mendoza (Mesero)',
+        shift_type: 'vespertino',
+        shift_date: dayAgoStr(1),
+        tables_served: 20,
+        total_sales: 12600,
+        cash_sales: 3800,
+        card_sales: 8800,
+        tips_collected: 1750,
+        discounts_authorized: 250,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+      
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-3',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Carlos Montes (Cajero)',
+        shift_type: 'matutino',
+        shift_date: dayAgoStr(3),
+        tables_served: 24,
+        total_sales: 15400,
+        cash_sales: 4200,
+        card_sales: 11200,
+        tips_collected: 2150,
+        discounts_authorized: 320,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      
+        waiter_name: 'Carlos Montes (Cajero)',
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-4',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Marco Antonio (Mesero)',
+        shift_type: 'matutino',
+        shift_date: dayAgoStr(5),
+        tables_served: 18,
+        total_sales: 11800,
+        cash_sales: 3600,
+        card_sales: 8200,
+        tips_collected: 1650,
+        discounts_authorized: 180,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+      
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-5',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Sarah Mendoza (Mesero)',
+        shift_type: 'vespertino',
+        shift_date: dayAgoStr(10),
+        tables_served: 22,
+        total_sales: 14200,
+        cash_sales: 4300,
+        card_sales: 9900,
+        tips_collected: 1980,
+        discounts_authorized: 220,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+      
+        waiter_name: 'Sarah Mendoza (Mesero)',
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-6',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Marco Antonio (Mesero)',
+        shift_type: 'vespertino',
+        shift_date: dayAgoStr(15),
+        tables_served: 26,
+        total_sales: 16900,
+        cash_sales: 4900,
+        card_sales: 12000,
+        tips_collected: 2360,
+        discounts_authorized: 280,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
+      
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-7',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Carlos Montes (Cajero)',
+        shift_type: 'matutino',
+        shift_date: dayAgoStr(22),
+        tables_served: 21,
+        total_sales: 13500,
+        cash_sales: 4100,
+        card_sales: 9400,
+        tips_collected: 1890,
+        discounts_authorized: 210,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 22).toISOString(),
+      
+        waiter_name: 'Carlos Montes (Cajero)',
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-8',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Sarah Mendoza (Mesero)',
+        shift_type: 'vespertino',
+        shift_date: dayAgoStr(28),
+        tables_served: 28,
+        total_sales: 17800,
+        cash_sales: 5300,
+        card_sales: 12500,
+        tips_collected: 2490,
+        discounts_authorized: 340,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 28).toISOString(),
+      
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-9',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Lic. Mauricio Salinas',
+        waiter_name: 'Marco Antonio (Mesero)',
+        shift_type: 'vespertino',
+        shift_date: dayAgoStr(38),
+        tables_served: 30,
+        total_sales: 19200,
+        cash_sales: 5700,
+        card_sales: 13500,
+        tips_collected: 2680,
+        discounts_authorized: 380,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 38).toISOString(),
+      
+        table_metrics: [],
+        employee_metrics: [],},
+      {
+        id: 'mrep-10',
+        organization_id: organizationId || 'org-1',
+        restaurant_id: restaurantId || 'res-1',
+        branch_name: 'Sucursal Principal',
+        manager_name: 'Carlos Montes (Cajero)',
+        shift_type: 'matutino',
+        shift_date: dayAgoStr(45),
+        tables_served: 29,
+        total_sales: 18500,
+        cash_sales: 5500,
+        card_sales: 13000,
+        tips_collected: 2590,
+        discounts_authorized: 310,
+        sent_to_owner: true,
+        created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
+      
+        waiter_name: 'Carlos Montes (Cajero)',
+        table_metrics: [],
+        employee_metrics: [],},
     ];
 
-    const list = getLocalItem<ManagerShiftReport[]>(
+    const rawList = getLocalItem<ManagerShiftReport[]>(
       STORAGE_KEYS.MANAGER_SHIFT_REPORTS,
       defaultReports
     );
+    const list = rawList.length <= 1 ? defaultReports : rawList;
     if (restaurantId) {
       return list.filter((r) => r.restaurant_id === restaurantId || r.restaurant_id === 'res-1');
     }

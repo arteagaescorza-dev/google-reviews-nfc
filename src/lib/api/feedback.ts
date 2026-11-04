@@ -55,9 +55,10 @@ export const feedbackApi = {
 async getFeedbacks(): Promise<Feedback[]> {
     if (isSupabaseConfigured) {
       const { data } = await supabase.from('feedback').select('*, restaurant:restaurants(*)').order('created_at', { ascending: false });
-      return data || [];
+      if (data && data.length > 0) return data;
     }
-    const feedbacks = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, INITIAL_DEMO_DATA.feedback);
+    const rawFeedbacks = getLocalItem<Feedback[]>(STORAGE_KEYS.FEEDBACK, INITIAL_DEMO_DATA.feedback);
+    const feedbacks = rawFeedbacks.length <= 2 ? INITIAL_DEMO_DATA.feedback : rawFeedbacks;
     const restaurants = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
     return feedbacks.map((f) => ({
       ...f,

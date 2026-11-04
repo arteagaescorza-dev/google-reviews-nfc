@@ -251,6 +251,15 @@ export interface Tag {
   restaurant?: Restaurant;
 }
 
+
+export interface TagScan {
+  id: string;
+  tag_code?: string;
+  restaurant_id?: string | null;
+  scan_method: 'nfc' | 'qr' | string;
+  created_at: string;
+}
+
 export type AdPlacement = 'bottom_banner' | 'interstitial';
 export type AdTargetType = 'all' | 'specific_restaurants' | 'specific_tags';
 

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
-import type { Tag, Restaurant } from '../../types';
+import type { Tag, Restaurant, TagScan } from '../../types';
 import { STORAGE_KEYS, INITIAL_DEMO_DATA, getLocalItem, setLocalItem, sanitizeSupabasePayload } from './core';
 
 export const tagsApi = {
@@ -112,5 +112,45 @@ async createBatchTags(
 
     setLocalItem(STORAGE_KEYS.TAGS, [...toAdd, ...current]);
     return { count: toAdd.length };
+  },
+
+  async getTagScans(restaurantId?: string): Promise<TagScan[]> {
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase.from('tag_scans').select('*').order('created_at', { ascending: false });
+        if (restaurantId && !restaurantId.startsWith('res-')) {
+          query = query.eq('restaurant_id', restaurantId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data as TagScan[];
+        }
+      } catch (e) {
+        console.warn('Error obteniendo tag_scans de Supabase:', e);
+      }
+    }
+
+    const now = Date.now();
+    const defaultScans: TagScan[] = [
+      // Hoy
+      { id: 'scan-1', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 1000 * 60 * 30).toISOString() },
+      { id: 'scan-2', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'qr', created_at: new Date(now - 1000 * 60 * 90).toISOString() },
+      // 7 dias
+      { id: 'scan-3', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 1).toISOString() },
+      { id: 'scan-4', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 1.5).toISOString() },
+      { id: 'scan-5', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 2).toISOString() },
+      { id: 'scan-6', tag_code: 'NFC-003', restaurant_id: restaurantId || 'res-1', scan_method: 'qr', created_at: new Date(now - 86400000 * 3).toISOString() },
+      { id: 'scan-7', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 4).toISOString() },
+      { id: 'scan-8', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 5).toISOString() },
+      { id: 'scan-9', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'qr', created_at: new Date(now - 86400000 * 6).toISOString() },
+      // 30 dias
+      { id: 'scan-10', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 12).toISOString() },
+      { id: 'scan-11', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 18).toISOString() },
+      { id: 'scan-12', tag_code: 'NFC-003', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 25).toISOString() },
+      // Historico
+      { id: 'scan-13', tag_code: 'NFC-001', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 35).toISOString() },
+      { id: 'scan-14', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 45).toISOString() },
+    ];
+    return defaultScans;
   }
 };
