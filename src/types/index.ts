@@ -516,7 +516,7 @@ export interface TableCall {
   attended_by?: string;
 }
 
-export type StaffRole = 'waiter' | 'kitchen' | 'barista' | 'hostess' | 'manager' | 'cashier';
+export type StaffRole = 'waiter' | 'kitchen' | 'barista' | 'hostess' | 'manager' | 'cashier' | 'employee' | (string & {});
 
 export interface TierFeatureItem {
   id: string;

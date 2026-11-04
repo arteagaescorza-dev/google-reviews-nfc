@@ -238,3 +238,4 @@ SET
     {"id": "station-retail-mostrador", "name": "Mostrador Principal de Atención & Caja", "roleName": "Asesor de Tienda / Cajero", "description": "Cobro de mercancía, devoluciones y resolución de garantías."}
   ]'::jsonb
 WHERE slug = 'general';
+

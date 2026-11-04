@@ -56,6 +56,7 @@ import {
   Users,
   Mail,
   UserCheck,
+  UserMinus,
   Sliders,
   Monitor,
   Layers,
@@ -72,7 +73,6 @@ import {
   BarChart2,
   SlidersHorizontal,
   ChevronUp,
-  Clock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -401,6 +401,7 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [staffModalBranchId, setStaffModalBranchId] = useState<string>('');
   const [staffModalBranchName, setStaffModalBranchName] = useState<string>('');
+  const [staffModalInitialRole, setStaffModalInitialRole] = useState<StaffRole | undefined>(undefined);
 
   // Estados de Colapso Inteligente y Renderizado Suave
   const [isTopKpisExpanded, setIsTopKpisExpanded] = useState<boolean>(true);
@@ -916,8 +917,9 @@ export const AdminRestaurantsPage: React.FC = () => {
     await api.updateStaffMember(staff.id, { role: newRole });
   };
 
-  const handleCreateNewStaff = (branchId: string, branchName: string) => {
+  const handleCreateNewStaff = (branchId: string, branchName: string, initialRole?: StaffRole) => {
     setEditingStaff(null);
+    setStaffModalInitialRole(initialRole);
     setStaffModalBranchId(branchId);
     setStaffModalBranchName(branchName);
     setIsStaffModalOpen(true);
@@ -1009,26 +1011,30 @@ export const AdminRestaurantsPage: React.FC = () => {
     );
     const latestReport = branchReports[0];
 
-    // Ordenar personal por categoría de rol: Hostess -> Cajero -> Meseros -> Barista -> Jefe de Cocina -> Capitán
+    // Ordenar personal por categoría de rol: Capitán -> Hostess -> Cajero -> Meseros -> Jefe de Cocina -> Barista -> Empleado
     const roleOrder: Record<string, number> = {
-      hostess: 1,
-      cashier: 2,
-      waiter: 3,
-      barista: 4,
+      manager: 1,
+      hostess: 2,
+      cashier: 3,
+      waiter: 4,
       kitchen: 5,
-      manager: 6,
+      barista: 6,
+      employee: 7,
+      empleado: 7,
     };
     const sortedStaff = [...staff].sort(
       (a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9)
     );
 
     const roleSelectColors: Record<string, string> = {
+      manager: 'bg-purple-50 text-purple-700 border-purple-200',
       hostess: 'bg-violet-50 text-violet-700 border-violet-200',
       cashier: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       waiter: 'bg-blue-50 text-blue-700 border-blue-200',
-      barista: 'bg-teal-50 text-teal-800 border-teal-200',
       kitchen: 'bg-amber-50 text-amber-800 border-amber-200',
-      manager: 'bg-purple-50 text-purple-700 border-purple-200',
+      barista: 'bg-teal-50 text-teal-800 border-teal-200',
+      employee: 'bg-slate-100 text-slate-700 border-slate-200',
+      empleado: 'bg-slate-100 text-slate-700 border-slate-200',
     };
 
     const tierBadgeColors: Record<string, string> = {
@@ -2102,6 +2108,11 @@ export const AdminRestaurantsPage: React.FC = () => {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-[10px] font-bold text-emerald-700">
                         {sortedStaff.filter((s) => s.is_active).length} de {sortedStaff.length} operadores
+                        {(() => {
+                          const standardRoles = ['manager', 'hostess', 'cashier', 'waiter', 'kitchen', 'barista', 'employee'];
+                          const vacant = standardRoles.filter((r) => !sortedStaff.some((s) => s.role === r));
+                          return vacant.length > 0 ? ` (${vacant.length} vacantes)` : '';
+                        })()}
                       </span>
 
                       <button
@@ -2162,187 +2173,243 @@ export const AdminRestaurantsPage: React.FC = () => {
                     {getBranchCategoryAllowed(res, 4) &&
                       branchMasterCategoriesState[res.id]?.[4] !== false && (
                   <div className="divide-y divide-slate-100 text-xs">
-                  {/* Fila Informativa de Horarios Operativos de la Sucursal por Día (Requerimiento 2) */}
                   {(() => {
-                    let scheduleList: { name: string; isOpen: boolean; open: string; close: string }[] = [];
-                    if (res.daily_operating_hours) {
-                      try {
-                        const parsed = typeof res.daily_operating_hours === 'string'
-                          ? JSON.parse(res.daily_operating_hours)
-                          : res.daily_operating_hours;
-                        if (Array.isArray(parsed)) {
-                          scheduleList = parsed;
-                        } else if (typeof parsed === 'object') {
-                          scheduleList = Object.values(parsed);
-                        }
-                      } catch {}
-                    }
-                    if (scheduleList.length === 0) {
-                      const defDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-                      scheduleList = defDays.map((name) => ({
-                        name,
-                        isOpen: true,
-                        open: res.opening_time || '08:00',
-                        close: res.closing_time || '23:00',
-                      }));
-                    }
+                    const standardOperationalRoles: {
+                      role: StaffRole;
+                      title: string;
+                      subtitle: string;
+                      buttonLabel: string;
+                      badgeColor: string;
+                    }[] = [
+                      {
+                        role: 'manager',
+                        title: 'Capitán / Gerente de Piso',
+                        subtitle: 'Gestión de piso, supervisión de mesas y cortes de caja',
+                        buttonLabel: 'Capitán',
+                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                      },
+                      {
+                        role: 'hostess',
+                        title: 'Hostess / Recepción de Mesas',
+                        subtitle: 'Recepción comensales, aforo y asignación de mesas',
+                        buttonLabel: 'Hostess',
+                        badgeColor: 'bg-violet-50 text-violet-700 border-violet-200',
+                      },
+                      {
+                        role: 'cashier',
+                        title: 'Cajero / Despachador (Mostrador & Pick Up)',
+                        subtitle: 'Cobro en mostrador, despacho de comandas y entrega pick up',
+                        buttonLabel: 'Cajero',
+                        badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                      },
+                      {
+                        role: 'waiter',
+                        title: 'Mesero de Sala',
+                        subtitle: 'Toma de comandas móviles, atención de mesas y llamados',
+                        buttonLabel: 'Mesero',
+                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                      },
+                      {
+                        role: 'kitchen',
+                        title: 'Jefe de Cocina (KDS Cocina)',
+                        subtitle: 'Comandas de cocina caliente, tiempos y despacho KDS',
+                        buttonLabel: 'Cocinero',
+                        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                      },
+                      {
+                        role: 'barista',
+                        title: 'Barista (Barra, Coctelería, Repostería & Café)',
+                        subtitle: 'Bebidas, barra, coctelería y estación de postres KDS',
+                        buttonLabel: 'Barista',
+                        badgeColor: 'bg-teal-50 text-teal-800 border-teal-200',
+                      },
+                      {
+                        role: 'employee',
+                        title: 'Empleado Operativo / General',
+                        subtitle: 'Apoyo general de sucursal y tareas polifuncionales',
+                        buttonLabel: 'Empleado',
+                        badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+                      },
+                    ];
 
-                    return (
-                      <div className="px-4 py-2 bg-emerald-50/50 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                        <div className="flex items-center gap-1.5 font-bold text-emerald-950">
-                          <Clock className="w-3.5 h-3.5 text-emerald-700" />
-                          <span>Horario Semanal de la Sucursal:</span>
-                          <span className="text-emerald-700 font-medium">
-                            {res.operating_days || 'Lun - Dom'} ({res.opening_time || '08:00'} &ndash; {res.closing_time || '23:00'})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {scheduleList.map((d, i) => (
-                            <span
-                              key={i}
-                              title={`${d.name}: ${d.isOpen ? `${d.open} - ${d.close}` : 'Cerrado'}`}
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold border ${
-                                d.isOpen
-                                  ? 'bg-white text-emerald-800 border-emerald-200'
-                                  : 'bg-slate-100 text-slate-400 border-slate-200'
+                    const renderStaffRow = (member: StaffMember) => {
+                      const memberStations: KitchenStation[] =
+                        member.allowed_stations && member.allowed_stations.length > 0
+                          ? member.allowed_stations
+                          : member.role === 'barista'
+                          ? ['barista']
+                          : ['cocina'];
+
+                      return (
+                        <div
+                          key={member.id}
+                          className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <span className="font-bold text-slate-900">{member.name}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                              ID: {member.id}
+                            </span>
+
+                            {/* Selector Interactivo de Rol / Puesto Operativo */}
+                            <select
+                              value={member.role}
+                              onChange={(e) =>
+                                handleChangeStaffRole(member, e.target.value as StaffRole)
+                              }
+                              title={`Cambiar puesto operativo de ${member.name}`}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${
+                                roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
                               }`}
                             >
-                              {d.name.slice(0, 2)}: {d.isOpen ? `${d.open.slice(0, 5)}` : 'Cerrado'}
+                              <option value="manager" className="bg-white text-slate-900 font-bold">
+                                Capitán / Gerente de Piso
+                              </option>
+                              <option value="hostess" className="bg-white text-slate-900 font-bold">
+                                Hostess / Recepción de Mesas
+                              </option>
+                              <option value="cashier" className="bg-white text-slate-900 font-bold">
+                                Cajero / Despachador (Mostrador & Pick Up)
+                              </option>
+                              <option value="waiter" className="bg-white text-slate-900 font-bold">
+                                Mesero de Sala
+                              </option>
+                              <option value="kitchen" className="bg-white text-slate-900 font-bold">
+                                Jefe de Cocina (KDS Cocina)
+                              </option>
+                              <option value="barista" className="bg-white text-slate-900 font-bold">
+                                Barista (Barra, Coctelería, Repostería & Café)
+                              </option>
+                              <option value="employee" className="bg-white text-slate-900 font-bold">
+                                Empleado Operativo / General
+                              </option>
+                            </select>
+
+                            <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                              PIN: {member.pin_code}
                             </span>
-                          ))}
+
+                            {/* Selector de incidencia sobre pantallas KDS (Cocina vs Barra/Barista vs Pick Up) */}
+                            {(member.role === 'kitchen' || member.role === 'barista' || member.role === 'cashier' || member.role === 'manager' || member.role === 'employee' || member.role === 'empleado') && (
+                              <div className="inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-lg border border-slate-200">
+                                <span className="text-[9px] font-extrabold text-slate-500 uppercase">
+                                  Pantallas:
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStaffStation(member, 'cocina')}
+                                  className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                    memberStations.includes('cocina')
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-white text-slate-500 border border-slate-200'
+                                  }`}
+                                >
+                                  Cocina KDS
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStaffStation(member, 'barista')}
+                                  className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                    memberStations.includes('barista')
+                                      ? 'bg-teal-600 text-white'
+                                      : 'bg-white text-slate-500 border border-slate-200'
+                                  }`}
+                                >
+                                  Barra & Café
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStaffStation(member, 'pickup')}
+                                  className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
+                                    memberStations.includes('pickup')
+                                      ? 'bg-orange-600 text-white'
+                                      : 'bg-white text-slate-500 border border-slate-200'
+                                  }`}
+                                >
+                                  Pick Up
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleEditStaff(member, res.name || res.branch_name)}
+                              className="p-1 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors cursor-pointer"
+                              title={`Editar datos y PIN de ${member.name}`}
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStaff(member)}
+                              className="p-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer"
+                              title={`Eliminar empleado ${member.name}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <StatusBadgeAndSwitch
+                              isOn={member.is_active}
+                              onToggle={() => handleToggleStaffActive(member)}
+                              title={`Prender o apagar acceso PIN de ${member.name}`}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Filas de Personal Operativo con Rol, Incidencia en Pantallas KDS, Turno a 60 días y Métricas */}
-                  {sortedStaff.map((member) => {
-                    const memberStations: KitchenStation[] =
-                      member.allowed_stations && member.allowed_stations.length > 0
-                        ? member.allowed_stations
-                        : member.role === 'barista'
-                        ? ['barista']
-                        : ['cocina'];
-
-
+                      );
+                    };
 
                     return (
-                      <div
-                        key={member.id}
-                        className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-emerald-50/20"
-                      >
-                        <div className="flex flex-wrap items-center gap-2 min-w-0">
-                          <span className="font-bold text-slate-900">{member.name}</span>
-                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
-                            ID: {member.id}
-                          </span>
+                      <>
+                        {standardOperationalRoles.map((roleDef) => {
+                          const roleMembers = sortedStaff.filter((s) => s.role === roleDef.role);
 
-                          {/* Selector Interactivo de Rol / Puesto Operativo */}
-                          <select
-                            value={member.role}
-                            onChange={(e) =>
-                              handleChangeStaffRole(member, e.target.value as StaffRole)
-                            }
-                            title={`Cambiar puesto operativo de ${member.name}`}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors ${
-                              roleSelectColors[member.role] || 'bg-slate-100 text-slate-700 border-slate-200'
-                            }`}
-                          >
-                            <option value="hostess" className="bg-white text-slate-900 font-bold">
-                              Hostess / Recepción de Mesas
-                            </option>
-                            <option value="waiter" className="bg-white text-slate-900 font-bold">
-                              Mesero de Sala
-                            </option>
-                            <option value="barista" className="bg-white text-slate-900 font-bold">
-                              Barista (Barra, Coctelería, Repostería & Café)
-                            </option>
-                            <option value="kitchen" className="bg-white text-slate-900 font-bold">
-                              Jefe de Cocina (KDS Cocina)
-                            </option>
-                            <option value="cashier" className="bg-white text-slate-900 font-bold">
-                              Cajero / Despachador (Mostrador & Pick Up)
-                            </option>
-                            <option value="manager" className="bg-white text-slate-900 font-bold">
-                              Capitán / Gerente de Piso
-                            </option>
-                          </select>
-
-                          <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
-                            PIN: {member.pin_code}
-                          </span>
-
-                          {/* Selector de incidencia sobre pantallas KDS (Cocina vs Barra/Barista vs Pick Up) */}
-                          {(member.role === 'kitchen' || member.role === 'barista' || member.role === 'cashier' || member.role === 'manager') && (
-                            <div className="inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-lg border border-slate-200">
-                              <span className="text-[9px] font-extrabold text-slate-500 uppercase">
-                                Pantallas:
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStaffStation(member, 'cocina')}
-                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
-                                  memberStations.includes('cocina')
-                                    ? 'bg-amber-600 text-white'
-                                    : 'bg-white text-slate-500 border border-slate-200'
-                                }`}
+                          if (roleMembers.length === 0) {
+                            return (
+                              <div
+                                key={`vacant-${roleDef.role}`}
+                                className="px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/50 hover:bg-slate-50 border-b border-slate-100 transition-colors"
                               >
-                                Cocina KDS
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStaffStation(member, 'barista')}
-                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
-                                  memberStations.includes('barista')
-                                    ? 'bg-teal-600 text-white'
-                                    : 'bg-white text-slate-500 border border-slate-200'
-                                }`}
-                              >
-                                Barra & Café
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStaffStation(member, 'pickup')}
-                                className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-colors ${
-                                  memberStations.includes('pickup')
-                                    ? 'bg-orange-600 text-white'
-                                    : 'bg-white text-slate-500 border border-slate-200'
-                                }`}
-                              >
-                                Pick Up
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                  <UserMinus className="w-4 h-4 text-slate-400 shrink-0" />
+                                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border ${roleDef.badgeColor}`}>
+                                    {roleDef.title}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                                    Rol Vacío &bull; Disponible para ocuparse
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 hidden md:inline">
+                                    {roleDef.subtitle}
+                                  </span>
+                                </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-center">
-                          <button
-                            type="button"
-                            onClick={() => handleEditStaff(member, res.name || res.branch_name)}
-                            className="p-1 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors cursor-pointer"
-                            title={`Editar datos y PIN de ${member.name}`}
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
+                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCreateNewStaff(res.id, res.name || res.branch_name, roleDef.role)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 border border-emerald-200 hover:border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+                                    title={`Asignar personal al rol de ${roleDef.title}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>Asignar {roleDef.buttonLabel}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteStaff(member)}
-                            className="p-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer"
-                            title={`Eliminar empleado ${member.name}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          return roleMembers.map((member) => renderStaffRow(member));
+                        })}
 
-                          <StatusBadgeAndSwitch
-                            isOn={member.is_active}
-                            onToggle={() => handleToggleStaffActive(member)}
-                            title={`Prender o apagar acceso PIN de ${member.name}`}
-                          />
-                        </div>
-                      </div>
+                        {/* Empleados adicionales con roles no estándar */}
+                        {sortedStaff
+                          .filter((s) => !standardOperationalRoles.some((r) => r.role === s.role))
+                          .map((member) => renderStaffRow(member))}
+                      </>
                     );
-                  })}
+                  })()}
                   </div>
                     )}
                     </div>
@@ -4658,10 +4725,12 @@ export const AdminRestaurantsPage: React.FC = () => {
         onClose={() => {
           setIsStaffModalOpen(false);
           setEditingStaff(null);
+          setStaffModalInitialRole(undefined);
         }}
         staff={editingStaff}
         restaurantId={staffModalBranchId}
         branchName={staffModalBranchName}
+        initialRole={staffModalInitialRole}
         onSaved={handleStaffSaved}
       />
     </div>

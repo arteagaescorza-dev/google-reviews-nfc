@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { StaffMember, StaffRole, KitchenStation } from '../../types';
-import { api } from '../../lib/api';
+import { api, getDefaultStationsForRole } from '../../lib/api';
 import {
   X,
   UserCheck,
@@ -15,6 +15,7 @@ interface StaffMemberModalProps {
   staff: StaffMember | null;
   restaurantId: string;
   branchName?: string;
+  initialRole?: StaffRole;
   onSaved: (savedStaff: StaffMember) => void;
 }
 
@@ -24,10 +25,11 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
   staff,
   restaurantId,
   branchName = 'Sucursal',
+  initialRole,
   onSaved,
 }) => {
   const [name, setName] = useState('');
-  const [role, setRole] = useState<StaffRole>('waiter');
+  const [role, setRole] = useState<StaffRole>(initialRole || 'waiter');
   const [pinCode, setPinCode] = useState('');
   const [allowedStations, setAllowedStations] = useState<KitchenStation[]>(['cocina']);
   const [zoneName, setZoneName] = useState('');
@@ -40,19 +42,20 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
       setName(staff.name || '');
       setRole(staff.role || 'waiter');
       setPinCode(staff.pin_code || '');
-      setAllowedStations(staff.allowed_stations && staff.allowed_stations.length > 0 ? staff.allowed_stations : ['cocina']);
+      setAllowedStations(staff.allowed_stations && staff.allowed_stations.length > 0 ? staff.allowed_stations : getDefaultStationsForRole(staff.role));
       setZoneName(staff.zone_name || '');
       setIsActive(staff.is_active !== false);
     } else {
       setName('');
-      setRole('waiter');
+      const defaultRole = initialRole || 'waiter';
+      setRole(defaultRole);
       generateRandomPin();
-      setAllowedStations(['cocina']);
+      setAllowedStations(getDefaultStationsForRole(defaultRole));
       setZoneName('');
       setIsActive(true);
     }
     setErrorMsg('');
-  }, [staff, isOpen]);
+  }, [staff, isOpen, initialRole]);
 
   const generateRandomPin = () => {
     const random = Math.floor(1000 + Math.random() * 9000).toString();
@@ -193,7 +196,13 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as StaffRole)}
+              onChange={(e) => {
+                const newRole = e.target.value as StaffRole;
+                setRole(newRole);
+                if (!staff) {
+                  setAllowedStations(getDefaultStationsForRole(newRole));
+                }
+              }}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
             >
               <option value="hostess">Hostess / Recepción de Mesas</option>
@@ -202,6 +211,7 @@ export const StaffMemberModal: React.FC<StaffMemberModalProps> = ({
               <option value="kitchen">Jefe de Cocina (KDS Cocina)</option>
               <option value="cashier">Cajero / Despachador (Mostrador & Pick Up)</option>
               <option value="manager">Capitán / Gerente de Piso</option>
+              <option value="employee">Empleado Operativo / General</option>
             </select>
           </div>
 

@@ -163,3 +163,4 @@ describe('POL-008 & POL-010: CRUD de Giros Comerciales (Business Verticals) e Hi
     expect(barberCaps.stations.some((s) => s.id === 'station-barber-sillon')).toBe(true);
   });
 });
+

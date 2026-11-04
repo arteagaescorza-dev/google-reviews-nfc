@@ -54,6 +54,8 @@ export function filterBranchesBySameOrganization(
 export function getDefaultStationsForRole(role: StaffMember['role']): KitchenStation[] {
   if (role === 'kitchen') return ['cocina'];
   if (role === 'barista') return ['barra', 'postres'];
+  if (role === 'cashier') return ['pickup'];
+  if (role === 'employee' || role === 'empleado') return ['all'];
   return ['all'];
 }
 
@@ -644,49 +646,7 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
     return { success: true, data: resolvedCall };
   },
 
-async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
-    const localStaff = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, []);
-
-    if (isSupabaseConfigured) {
-      try {
-        let query = supabase.from('restaurant_staff').select('*');
-        if (restaurantId && restaurantId !== 'res-1') {
-          query = query.eq('restaurant_id', restaurantId);
-        }
-        const { data, error } = await query;
-        if (!error && data) {
-          const remoteList = (data as StaffMember[]).map((s) => ({
-            ...s,
-            allowed_stations:
-              s.allowed_stations && s.allowed_stations.length > 0
-                ? s.allowed_stations
-                : getDefaultStationsForRole(s.role),
-          }));
-
-          const merged = [...remoteList];
-          localStaff.forEach((ls) => {
-            if (!merged.some((m) => m.id === ls.id)) {
-              if (!restaurantId || ls.restaurant_id === restaurantId || restaurantId === 'res-1') {
-                merged.push({
-                  ...ls,
-                  allowed_stations:
-                    ls.allowed_stations && ls.allowed_stations.length > 0
-                      ? ls.allowed_stations
-                      : getDefaultStationsForRole(ls.role),
-                });
-              }
-            }
-          });
-
-          if (merged.length > 0) {
-            return merged;
-          }
-        }
-      } catch (err) {
-        console.warn('Fallo al obtener restaurant_staff de Supabase, usando respaldo local:', err);
-      }
-    }
-
+  async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
     const defaultStaff: StaffMember[] = [
       {
         id: 'staff-1',
@@ -739,6 +699,42 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
         created_at: new Date().toISOString(),
       },
     ];
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        let query = supabase.from('restaurant_staff').select('*').order('created_at', { ascending: true });
+        const isUUID =
+          typeof restaurantId === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(restaurantId);
+
+        if (isUUID) {
+          query = query.eq('restaurant_id', restaurantId);
+        } else if (restaurantId === 'res-1') {
+          const localStored = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
+          return localStored.filter((s) => s.restaurant_id === 'res-1');
+        } else if (restaurantId) {
+          // Si tiene un formato no-UUID y no es demo general, no coincide en BD relacional
+          return [];
+        }
+
+        const { data, error } = await query;
+        if (!error && data) {
+          const remoteList = (data as StaffMember[]).map((s) => ({
+            ...s,
+            allowed_stations:
+              s.allowed_stations && s.allowed_stations.length > 0
+                ? s.allowed_stations
+                : getDefaultStationsForRole(s.role),
+          }));
+
+          return remoteList;
+        }
+      } catch (err) {
+        console.warn('Fallo al obtener restaurant_staff de Supabase, usando respaldo local:', err);
+      }
+    }
 
     const stored = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, defaultStaff);
     const normalized = stored.map((s) => ({
@@ -904,16 +900,21 @@ async getStaffMembers(restaurantId?: string): Promise<StaffMember[]> {
       notes: combinedNotes,
     });
   },
-async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
+  async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
-    if (!isDemo && isSupabaseConfigured) {
+    const isUUID =
+      typeof staff.restaurant_id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staff.restaurant_id);
+
+    if (!isDemo && isSupabaseConfigured && isUUID) {
       try {
         const clean = sanitizeSupabasePayload(staff, true);
         const { data, error } = await supabase.from('restaurant_staff').insert([clean]).select().single();
         if (error) throw error;
         return { success: true, data: data as StaffMember };
       } catch (err: any) {
-        console.warn('Error insertando restaurant_staff en Supabase, aplicando fallback local:', err.message);
+        console.error('Error insertando restaurant_staff en Supabase:', err.message);
+        return { success: false, error: err.message };
       }
     }
 
@@ -929,7 +930,11 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
 
   async updateStaffMember(id: string, updates: Partial<StaffMember>): Promise<{ success: boolean; data?: StaffMember; error?: string }> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
-    if (!isDemo && isSupabaseConfigured && !id.startsWith('staff-')) {
+    const isUUID =
+      typeof id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    if (!isDemo && isSupabaseConfigured && isUUID) {
       try {
         const clean = sanitizeSupabasePayload(updates, false);
         const { data, error } = await supabase
@@ -938,19 +943,18 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
           .eq('id', id)
           .select()
           .maybeSingle();
-        if (!error && data) {
-          const current = await ordersApi.getStaffMembers();
-          const updated = current.map((s) => (s.id === id ? { ...s, ...updates } : s));
-          setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
+        if (error) throw error;
+        if (data) {
           return { success: true, data: data as StaffMember };
         }
       } catch (err: any) {
-        console.warn('Error actualizando restaurant_staff en Supabase:', err.message);
+        console.error('Error actualizando restaurant_staff en Supabase:', err.message);
+        return { success: false, error: err.message };
       }
     }
 
-    const current = await ordersApi.getStaffMembers();
-    const updated = current.map((s) => (s.id === id ? { ...s, ...updates } : s));
+    const local = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, []);
+    const updated = local.map((s) => (s.id === id ? { ...s, ...updates } : s));
     setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
     return { success: true, data: updated.find((s) => s.id === id) };
   },
@@ -961,18 +965,23 @@ async createStaffMember(staff: Omit<StaffMember, 'id' | 'created_at'>): Promise<
 
   async deleteStaffMember(id: string): Promise<{ success: boolean; error?: string }> {
     const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
-    if (!isDemo && isSupabaseConfigured && !id.startsWith('staff-')) {
+    const isUUID =
+      typeof id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    if (!isDemo && isSupabaseConfigured && isUUID) {
       try {
         const { error } = await supabase.from('restaurant_staff').delete().eq('id', id);
         if (error) throw error;
         return { success: true };
       } catch (err: any) {
-        console.warn('Error eliminando restaurant_staff de Supabase:', err.message);
+        console.error('Error eliminando restaurant_staff de Supabase:', err.message);
+        return { success: false, error: err.message };
       }
     }
 
-    const current = await ordersApi.getStaffMembers();
-    const updated = current.filter((s) => s.id !== id);
+    const local = getLocalItem<StaffMember[]>(STORAGE_KEYS.STAFF_MEMBERS, []);
+    const updated = local.filter((s) => s.id !== id);
     setLocalItem(STORAGE_KEYS.STAFF_MEMBERS, updated);
     return { success: true };
   },

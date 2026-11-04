@@ -535,7 +535,9 @@ export function buildOrganizationTree(
     }
 
     const capabilities = getBranchCapabilities(res, businessVerticals);
-    const branchStaff = staffByRestaurant[res.id] || (capabilities.supportsFloorStaff ? genericStaff : []);
+    const branchStaff =
+      staffByRestaurant[res.id] ||
+      (capabilities.supportsFloorStaff && genericStaff.length > 0 ? genericStaff : []);
 
     const trialInfo = isBranchTrialActive(res);
     const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (res.tier || 1);
@@ -651,6 +653,28 @@ export function buildOrganizationTree(
       branches,
       totalTagsCount,
     };
+  });
+
+  // Construir nodos sintéticos para organizaciones en sucursales no presentes en la lista
+  Object.keys(branchesByOrg).forEach((orgId) => {
+    if (!orgNodes.some((node) => node.organization.id === orgId)) {
+      const branches = branchesByOrg[orgId] || [];
+      const syntheticOrg: Organization = {
+        id: orgId,
+        name: branches[0]?.restaurant.name || 'Organización',
+        owner_name: 'Dirección Corporativa',
+        notify_negative_feedback: true,
+        created_at: branches[0]?.restaurant.created_at || new Date().toISOString(),
+      };
+      const brands = buildBrandsForOrg(orgId, branches);
+      const totalTagsCount = branches.reduce((acc, b) => acc + b.tags.length, 0);
+      orgNodes.push({
+        organization: syntheticOrg,
+        brands,
+        branches,
+        totalTagsCount,
+      });
+    }
   });
 
   // Filtrado por Organización seleccionada en el combo
