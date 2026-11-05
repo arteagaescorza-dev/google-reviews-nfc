@@ -79,31 +79,31 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
   return (
     <div className="space-y-4">
       {/* Banner de Blindaje y Activación: Cliente Fundador (Visita 2) */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+      <div className="p-4 sm:p-5 rounded-3xl bg-white text-slate-900 shadow-xs border border-indigo-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
         <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 flex-shrink-0 shadow-inner">
-            <ShieldCheck className="w-6 h-6 text-emerald-400" />
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 flex-shrink-0 shadow-2xs">
+            <ShieldCheck className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-extrabold text-sm sm:text-base text-white tracking-tight">
+              <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
                 Plan Fundador: Filtro de Reseñas Activo
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
                 100% Gratis de por vida
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-1 leading-relaxed max-w-xl">
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-xl">
               Tu escudo contra malas opiniones está protegiendo tus placas físicas. Las calificaciones de 1 a 3 estrellas son interceptadas aquí en tu celular antes de que dañen tu calificación en Google Maps.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:self-center bg-white/10 px-3.5 py-2 rounded-2xl border border-white/10 flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="flex items-center gap-2 sm:self-center bg-slate-50 px-3.5 py-2 rounded-2xl border border-slate-200 flex-shrink-0">
+          <Sparkles className="w-4 h-4 text-amber-500" />
           <div className="text-left">
-            <span className="text-[10px] uppercase font-bold text-slate-300 block leading-tight">Blindaje Activo</span>
-            <span className="text-xs font-black text-white">{feedbacks.length} quejas contenidas</span>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block leading-tight">Blindaje Activo</span>
+            <span className="text-xs font-black text-slate-900">{feedbacks.length} quejas contenidas</span>
           </div>
         </div>
       </div>
@@ -258,9 +258,9 @@ export const PortalFeedbackTab: React.FC<PortalFeedbackTabProps> = ({
                           : 'bg-emerald-50 border-emerald-200 text-emerald-700'
                       }`}
                     >
-                      <option value="new">🔴 Pendiente</option>
-                      <option value="contacted">🔵 Contactado</option>
-                      <option value="resolved">🟢 Resuelto</option>
+                      <option value="new">Pendiente</option>
+                      <option value="contacted">Contactado</option>
+                      <option value="resolved">Resuelto</option>
                     </select>
                   </div>
                 </div>

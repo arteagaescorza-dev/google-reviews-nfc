@@ -118,7 +118,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     setIsRequestingPush(false);
     if (perm === 'granted') {
       sendLocalNotification(
-        '🔔 ¡Notificaciones Push Activadas!',
+        'Notificaciones Push Activadas',
         'Tu teléfono vibrará y sonará de inmediato ante cualquier queja de 1 a 3 estrellas en tus mesas.',
         { isUrgent: false }
       );
@@ -129,7 +129,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
     setPushTestSuccess(true);
     playAlertSound('warning');
     await sendLocalNotification(
-      '🚨 Alerta Urgente: Mesa 4 (★ 2)',
+      'Alerta Urgente: Mesa 4 (2 Estrellas)',
       'Comensal reporta: "El servicio tardó demasiado". Atiéndelo en vivo antes de que pida la cuenta.',
       { isUrgent: true }
     );
@@ -296,7 +296,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
         ? `${window.location.origin}${window.location.pathname}#/portal/cocina`
         : `${window.location.origin}${window.location.pathname}#/portal/mesero`;
 
-    return `¡Hola ${createdStaffCreds.name}! 🍽️\nTu acceso al sistema operativo de ${createdStaffCreds.branchName} está listo:\n\nRol: ${roleTitle}\n🔗 Enlace de tu terminal: ${terminalUrl}\n🔑 Tu PIN de 4 dígitos: ${createdStaffCreds.pin}\n\nIngresa tu PIN en la pantalla para comenzar tu turno.`;
+    return `Hola ${createdStaffCreds.name}.\nTu acceso al sistema operativo de ${createdStaffCreds.branchName} está listo:\n\nRol: ${roleTitle}\nEnlace de tu terminal: ${terminalUrl}\nTu PIN de 4 dígitos: ${createdStaffCreds.pin}\n\nIngresa tu PIN en la pantalla para comenzar tu turno.`;
   };
 
   const loadMembers = async () => {
@@ -456,7 +456,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
   const getManagerCopyMessage = () => {
     if (!invitedCredentials) return '';
     const portalUrl = `${window.location.origin}${window.location.pathname}#/portal/login`;
-    return `¡Hola! 👋\nTe comparto tu acceso como ${invitedCredentials.role === 'owner' ? 'Dueño' : 'Gerente'} para gestionar las quejas y enlaces del restaurante:\n\n🔗 Entra aquí: ${portalUrl}\n✉️ Correo: ${invitedCredentials.email}\n🔑 Contraseña: ${invitedCredentials.pass}\n\n(Revisa tu correo para confirmar tu cuenta y entrar).`;
+    return `Hola.\nTe comparto tu acceso como ${invitedCredentials.role === 'owner' ? 'Dueño' : 'Gerente'} para gestionar las quejas y enlaces del restaurante:\n\nEnlace de acceso: ${portalUrl}\nCorreo: ${invitedCredentials.email}\nContraseña: ${invitedCredentials.pass}\n\n(Revisa tu correo para confirmar tu cuenta y entrar).`;
   };
 
   const handleCopyCredentials = () => {
@@ -799,7 +799,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                         ? 'bg-blue-50 text-blue-700 border-blue-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}>
-                      {m.role === 'owner' ? '👑 Dueño' : '🧑‍💼 Gerente'}
+                      {m.role === 'owner' ? 'Dueño' : 'Gerente'}
                     </span>
                     {isOwner && m.role !== 'owner' && (
                       <button
@@ -1168,7 +1168,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                       ? 'bg-rose-50 text-rose-700 border border-rose-200'
                       : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
-                    {pushPermission === 'granted' ? '🔔 Activas' : pushPermission === 'denied' ? '🔕 Bloqueadas' : '⚠️ Pendientes'}
+                    {pushPermission === 'granted' ? 'Activas' : pushPermission === 'denied' ? 'Bloqueadas' : 'Pendientes'}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">
@@ -1203,21 +1203,21 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="font-bold text-slate-700 block">🚨 Contención en Vivo</span>
+              <span className="font-bold text-slate-700 block">Contención en Vivo</span>
               <p className="text-[11px] text-slate-500">
                 Tu teléfono suena al instante cuando una mesa califica mal, para que puedas levantarte y solucionar el problema antes de que se vayan.
               </p>
             </div>
 
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="font-bold text-slate-700 block">📱 Soporte S.O. Nativo</span>
+              <span className="font-bold text-slate-700 block">Soporte S.O. Nativo</span>
               <p className="text-[11px] text-slate-500">
                 Funciona en Android (Chrome/PWA/APK) e iOS (Safari PWA/App Store). No requiere tener la pantalla del portal encendida.
               </p>
             </div>
 
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-              <span className="font-bold text-slate-700 block">📍 Geocercas GPS 200m</span>
+              <span className="font-bold text-slate-700 block">Geocercas GPS 200m</span>
               <p className="text-[11px] text-slate-500">
                 Integrado con Apple Wallet y Google Wallet para despertar cupones en la pantalla bloqueada cuando el cliente camina cerca.
               </p>
@@ -1486,7 +1486,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                         </span>
                         <h4 className="text-xs font-bold text-slate-800 truncate">{ad.title}</h4>
                         <span className="text-[10px] text-slate-500">
-                          {isVetoed ? '🚫 Vetado en tus mesas' : 'Rotando actualmente'}
+                          {isVetoed ? 'Vetado en tus mesas' : 'Rotando actualmente'}
                         </span>
                       </div>
 
@@ -1562,7 +1562,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                         {r.branch_name || r.name}
                       </span>
                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
-                        {r.business_type === 'gym' ? '🏋️ Gym' : r.business_type === 'dental' ? '🦷 Dental' : r.business_type === 'spa' ? '💆 Spa' : '🍽️ Gastro'}
+                        {r.business_type === 'gym' ? 'Gym' : r.business_type === 'dental' ? 'Dental' : r.business_type === 'spa' ? 'Spa' : 'Gastro'}
                       </span>
                     </div>
                     <span
@@ -1998,8 +1998,8 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
                       onChange={(e) => setNewRole(e.target.value as MemberRole)}
                       className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium"
                     >
-                      <option value="manager">🧑‍💼 Gerente de Turno (Quejas y Enlaces)</option>
-                      {isOwner && <option value="owner">👑 Co-Propietario (Acceso Completo)</option>}
+                      <option value="manager">Gerente de Turno (Quejas y Enlaces)</option>
+                      {isOwner && <option value="owner">Co-Propietario (Acceso Completo)</option>}
                     </select>
                   </div>
 
@@ -2090,7 +2090,7 @@ export const PortalAccountTab: React.FC<PortalAccountTabProps> = ({
 
               {adFreeFromVeto && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
-                  <strong>⚠️ Límite de veto alcanzado:</strong> Ya utilizaste tu bloqueo mensual gratuito (1 anunciante cada 30 días). Si deseas eliminar todos los anuncios sin restricciones, activa Marca Blanca.
+                  <strong>Límite de veto alcanzado:</strong> Ya utilizaste tu bloqueo mensual gratuito (1 anunciante cada 30 días). Si deseas eliminar todos los anuncios sin restricciones, activa Marca Blanca.
                 </div>
               )}
 

@@ -177,5 +177,16 @@ export const couponsApi = {
     setLocalItem(STORAGE_KEYS.COUPONS, [newCoupon, ...list]);
 
     return { success: true, coupon: newCoupon };
+  },
+
+  /**
+   * Quema y redime un cupón desde la terminal de mesero
+   */
+  async redeemCouponByStaff(
+    code: string,
+    _restaurantId?: string,
+    staffName?: string
+  ): Promise<{ success: boolean; error?: string; coupon?: Coupon }> {
+    return couponsApi.redeemCoupon(code, undefined, staffName || 'Mesero en Sala');
   }
 };

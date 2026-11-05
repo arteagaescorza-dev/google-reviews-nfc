@@ -290,7 +290,7 @@ export const ResolverPage: React.FC = () => {
                     </div>
                   </div>
                   <span className="px-2.5 py-1 rounded-full bg-white text-blue-700 font-black text-[11px]">
-                    Activo ✓
+                    Activo
                   </span>
                 </div>
               </div>
@@ -352,7 +352,7 @@ export const ResolverPage: React.FC = () => {
                     </div>
                   </div>
                   <span className="px-2.5 py-1 rounded-full bg-white text-teal-800 font-black text-[11px]">
-                    Indicaciones ✓
+                    Indicaciones
                   </span>
                 </div>
               </div>
@@ -362,15 +362,15 @@ export const ResolverPage: React.FC = () => {
 
         // Spa o General
         return (
-          <div className="mb-4 p-3.5 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
+          <div className="mb-4 p-3.5 rounded-2xl bg-white border border-slate-200 text-slate-900 shadow-2xs flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+              <Sparkles className="w-5 h-5 text-amber-500" />
               <div>
-                <p className="text-xs font-bold">{vConfig.catalogTitle}</p>
-                <p className="text-[10px] text-slate-400">{vConfig.catalogSubtitle}</p>
+                <p className="text-xs font-bold text-slate-900">{vConfig.catalogTitle}</p>
+                <p className="text-[10px] text-slate-500">{vConfig.catalogSubtitle}</p>
               </div>
             </div>
-            <span className="text-xs text-amber-400 font-bold">★ Califícanos</span>
+            <span className="text-xs text-amber-600 font-bold">Califícanos</span>
           </div>
         );
       })()}

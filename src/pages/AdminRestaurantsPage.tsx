@@ -3272,7 +3272,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 <span className="text-xl font-black text-slate-900">
                                   {avgRating}
                                 </span>
-                                <span className="text-xs font-bold text-sky-700">★ Google</span>
+                                <span className="text-xs font-bold text-sky-700">Google</span>
                               </div>
                               <MiniSparkline
                                 data={totalFeedbacksCount > 0 ? [Math.max(1, (parseFloat(avgRating) || 0) - 0.4), Math.max(1, (parseFloat(avgRating) || 0) - 0.2), parseFloat(avgRating) || 0, parseFloat(avgRating) || 0] : [0, 0, 0, 0, 0]}
@@ -3282,7 +3282,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                               />
                               <span className="text-[11px] text-slate-500 block">
                                 {totalFeedbacksCount > 0
-                                  ? `${goodRatings} excelentes (4-5★) · ${totalFeedbacksCount} totales`
+                                  ? `${goodRatings} excelentes (4-5 estrellas) · ${totalFeedbacksCount} totales`
                                   : '0 opiniones registradas en este periodo'}
                               </span>
                             </div>
@@ -3435,7 +3435,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <span className="text-[10px] font-bold text-sky-700 hidden sm:inline">
-                                        ★ {avgRating} · {nfcScans} NFC / {qrScans} QR
+                                        {avgRating} Estrellas · {nfcScans} NFC / {qrScans} QR
                                       </span>
                                       <span className="text-[9px] uppercase tracking-wider font-extrabold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">
                                         {isSubAExpanded ? 'Colapsar' : 'Expandir'}
@@ -3453,7 +3453,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           {/* 1. Calificación Google */}
                                           <div className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
                                             <span className="text-[10px] font-extrabold text-slate-500 uppercase block">1. Calificación Google</span>
-                                            <span className="text-lg font-black text-slate-900 block">{avgRating} <span className="text-xs font-bold text-amber-500">★</span></span>
+                                            <span className="text-lg font-black text-slate-900 block">{avgRating} <span className="text-xs font-bold text-amber-600">Estrellas</span></span>
                                             <MiniSparkline
                                               data={parseFloat(avgRating) > 0 ? [Math.max(1, (parseFloat(avgRating) || 0) - 0.4), Math.max(1, (parseFloat(avgRating) || 0) - 0.2), parseFloat(avgRating) || 0, parseFloat(avgRating) || 0] : [0, 0, 0, 0, 0]}
                                               color="amber"
@@ -5009,11 +5009,11 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           {avgRating}
                                         </span>
                                         <span className="text-xs font-bold text-sky-700">
-                                          ★ Google Media
+                                          Google Media
                                         </span>
                                       </div>
                                       <span className="text-[11px] text-slate-500 block">
-                                        {goodRatings} opiniones 4-5★ · {filteredFeedbacks.length}{' '}
+                                        {goodRatings} opiniones 4-5 estrellas · {filteredFeedbacks.length}{' '}
                                         totales
                                       </span>
                                     </div>
@@ -5120,7 +5120,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                                 </td>
                                                 <td className="py-2.5 px-3">
                                                   <span className="font-bold text-slate-900">
-                                                    {brRating} ★
+                                                    {brRating} Estrellas
                                                   </span>
                                                   <span className="text-[10px] text-slate-500 ml-1">
                                                     ({brFbs.length})

@@ -228,14 +228,14 @@ export const PortalLinksTab: React.FC<PortalLinksTabProps> = ({
                     onChange={(e) => updateLink(idx, 'icon', e.target.value as LinkType)}
                     className="p-2 text-xs font-semibold rounded-xl border border-slate-200 bg-white"
                   >
-                    <option value="wifi">📶 Wi-Fi Clientes</option>
-                    <option value="menu">🍽️ Menú Digital</option>
-                    <option value="instagram">📸 Instagram</option>
-                    <option value="facebook">👍 Facebook</option>
-                    <option value="tiktok">🎵 TikTok</option>
-                    <option value="whatsapp">💬 WhatsApp</option>
-                    <option value="website">🌐 Sitio Web</option>
-                    <option value="other">🔗 Otro</option>
+                    <option value="wifi">Wi-Fi Clientes</option>
+                    <option value="menu">Menú Digital</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="website">Sitio Web</option>
+                    <option value="other">Otro</option>
                   </select>
 
                   <input

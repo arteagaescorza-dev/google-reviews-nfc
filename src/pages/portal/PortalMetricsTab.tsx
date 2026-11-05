@@ -101,24 +101,22 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
       </div>
 
       {/* Banner de Valor de Marca */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="flex items-center gap-2 text-xs font-bold text-blue-400 mb-1">
+      <div className="bg-white border border-slate-200/90 text-slate-900 rounded-3xl p-5 shadow-xs relative overflow-hidden">
+        <div className="flex items-center gap-2 text-xs font-bold text-blue-600 mb-1">
           <Sparkles className="w-4 h-4" />
           <span>Filtro de Reputación Activo</span>
         </div>
 
-        <h3 className="text-lg font-black tracking-tight text-white mt-1">
+        <h3 className="text-lg font-black tracking-tight text-slate-900 mt-1">
           {badReviewsPrevented} Malas Reseñas Evitadas
         </h3>
-        <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
           Tu sistema contuvo estas opiniones de 1 a 3 estrellas internamente antes de que pudieran dañar el promedio de tu negocio en Google Maps.
         </p>
 
-        <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
-          <span className="text-slate-400">Índice de comensales satisfechos:</span>
-          <span className="font-black text-emerald-400 text-sm">{satisfactionRate}%</span>
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+          <span className="text-slate-500">Índice de comensales satisfechos:</span>
+          <span className="font-black text-emerald-600 text-sm">{satisfactionRate}%</span>
         </div>
       </div>
 
@@ -134,7 +132,7 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
               {happyClientsEstimated}
             </span>
             <span className="text-[11px] font-bold text-slate-500 block leading-tight">
-              A Google Reseñas (4-5 ⭐)
+              A Google Reseñas (4-5 Estrellas)
             </span>
           </div>
         </div>
@@ -428,7 +426,7 @@ export const PortalMetricsTab: React.FC<PortalMetricsTabProps> = ({
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}
                       >
-                        {b.satRate >= 90 ? '🟢 Óptimo' : b.satRate >= 75 ? '🟡 Estable' : '🔴 Atención'}
+                        {b.satRate >= 90 ? 'Óptimo' : b.satRate >= 75 ? 'Estable' : 'Atención'}
                       </span>
                     </td>
                   </tr>

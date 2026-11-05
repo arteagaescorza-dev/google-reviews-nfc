@@ -94,7 +94,7 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
 
   const getWhatsAppOrderUrl = () => {
     if (!createdBranch) return '';
-    const msg = `¡Hola Soporte! 👋 Acabo de dar de alta la sucursal "${createdBranch.name}" de mi grupo "${organization.name}".\n\nRequiero solicitar ${createdBranch.tagCount} tags NFC físicos para las mesas.\nDirección de envío: ${address || 'Por confirmar'}.\n\n¿Me apoyan con la activación y envío?`;
+    const msg = `Hola Soporte, acabo de dar de alta la sucursal "${createdBranch.name}" de mi grupo "${organization.name}".\n\nRequiero solicitar ${createdBranch.tagCount} tags NFC físicos para las mesas.\nDirección de envío: ${address || 'Por confirmar'}.\n\n¿Me apoyan con la activación y envío?`;
     return `https://wa.me/525557510201?text=${encodeURIComponent(msg)}`;
   };
 
@@ -181,11 +181,11 @@ export const NewBranchModal: React.FC<NewBranchModalProps> = ({
                 onChange={(e) => setBusinessType(e.target.value as BusinessType)}
                 className="w-full p-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
               >
-                <option value="restaurant">🍽️ Restaurante / Cafetería / Bar</option>
-                <option value="gym">🏋️ Gimnasio / Centro Fitness / Crossfit</option>
-                <option value="dental">🦷 Clínica Dental / Consultorio Médico</option>
-                <option value="spa">💆 Spa / Salón de Belleza / Barbería</option>
-                <option value="general">🏬 Comercio Local / Servicio General</option>
+                <option value="restaurant">Restaurante / Cafetería / Bar</option>
+                <option value="gym">Gimnasio / Centro Fitness / Crossfit</option>
+                <option value="dental">Clínica Dental / Consultorio Médico</option>
+                <option value="spa">Spa / Salón de Belleza / Barbería</option>
+                <option value="general">Comercio Local / Servicio General</option>
               </select>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 Adapta automáticamente la pantalla del tag NFC y oculta KDS/meseros en negocios no gastronómicos.

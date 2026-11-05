@@ -96,7 +96,8 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               )}
 
               <span className="inline-flex sm:hidden items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase border border-emerald-500/30">
-                <span>🛡️ Filtro Gratis</span>
+                <ShieldCheck className="w-2.5 h-2.5" />
+                <span>Filtro Gratis</span>
               </span>
 
               {onAddBranch && (

@@ -187,7 +187,7 @@ describe('UI-EX-01: Sucursales & Restaurantes en Bento Grid Light', () => {
       [
         {
           id: 'st-1',
-          restaurant_id: 'res-1',
+          restaurant_id: 'res-gastro',
           name: 'Marco Antonio',
           role: 'waiter',
           pin_code: '1234',

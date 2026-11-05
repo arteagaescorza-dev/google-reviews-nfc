@@ -180,7 +180,7 @@ export function setupRealtimeAlerts(
           if (fb && fb.rating <= 3) {
             playAlertSound('warning');
             sendLocalNotification(
-              `🚨 Queja en Mesa (★ ${fb.rating})`,
+              `Queja en Mesa (${fb.rating} Estrellas)`,
               `Comensal en mesa reporta: "${fb.comments?.slice(0, 70)}..." Atiéndelo de inmediato.`,
               { isUrgent: true, tag: `feedback-${fb.id}` }
             );
@@ -197,7 +197,7 @@ export function setupRealtimeAlerts(
             playAlertSound('chime');
             const callTypeLabel = call.call_type === 'waiter' ? 'solicita mesero' : 'pide la cuenta';
             sendLocalNotification(
-              `🔔 Llamada de Servicio: ${call.table_number}`,
+              `Llamada de Servicio: ${call.table_number}`,
               `La ${call.table_number} ${callTypeLabel}.`,
               { isUrgent: false, tag: `call-${call.id}` }
             );

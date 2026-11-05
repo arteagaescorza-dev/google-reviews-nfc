@@ -208,7 +208,7 @@ export const AdminAdsPage: React.FC = () => {
                     {isAtOrAbove80 && (
                       <div className="absolute top-2.5 left-2.5">
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-white shadow-md flex items-center gap-1 animate-pulse">
-                          <span>🟡</span>
+                          <RefreshCw className="w-3 h-3" />
                           <span>80% RENOVANDO</span>
                         </span>
                       </div>

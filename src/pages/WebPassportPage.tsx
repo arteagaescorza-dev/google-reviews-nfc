@@ -58,44 +58,44 @@ export const WebPassportPage: React.FC = () => {
   const historyCoupons = coupons.filter((c) => c.status !== 'active');
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
       {/* Cabecera Pasaporte */}
-      <header className="p-4 sm:p-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-20">
+      <header className="p-4 sm:p-6 border-b border-slate-200/90 bg-white/90 backdrop-blur-md sticky top-0 z-20 shadow-2xs">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shadow-xs">
               <Ticket className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-sm font-extrabold tracking-tight text-white uppercase">
+                <h1 className="text-sm font-extrabold tracking-tight text-slate-900 uppercase">
                   Pasaporte Digital
                 </h1>
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-wider border border-amber-500/30">
+                <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9px] font-black uppercase tracking-wider border border-amber-200">
                   PWA
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">Tus beneficios y cupones de mesa activos</p>
+              <p className="text-[11px] text-slate-500">Tus beneficios y cupones de mesa activos</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               to="/mi-cuenta"
-              className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center gap-1.5 border border-amber-500/30 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 border border-slate-200 transition-colors"
               title="Mi Cuenta y Monedero"
             >
-              <User className="w-4 h-4" />
+              <User className="w-4 h-4 text-amber-600" />
               <span className="hidden sm:inline">Mi Cuenta</span>
             </Link>
 
             <button
               type="button"
               onClick={() => setShowPwaTip(!showPwaTip)}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-700 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-slate-200 transition-colors cursor-pointer"
               title="Guardar en Pantalla de Inicio"
             >
-              <Smartphone className="w-4 h-4 text-amber-400" />
+              <Smartphone className="w-4 h-4 text-amber-600" />
               <span className="hidden sm:inline">Guardar App</span>
             </button>
           </div>
@@ -103,15 +103,15 @@ export const WebPassportPage: React.FC = () => {
 
         {/* Tip de instalación en pantalla de inicio */}
         {showPwaTip && (
-          <div className="max-w-md mx-auto mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-200 animate-fadeIn space-y-1.5">
-            <p className="font-bold flex items-center gap-1.5 text-amber-300">
-              <Sparkles className="w-4 h-4" />
+          <div className="max-w-md mx-auto mt-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 animate-fadeIn space-y-1.5">
+            <p className="font-bold flex items-center gap-1.5 text-amber-800">
+              <Sparkles className="w-4 h-4 text-amber-600" />
               <span>Instalar en tu celular sin App Store:</span>
             </p>
-            <p className="text-[11px] text-slate-300">
+            <p className="text-[11px] text-slate-700">
               En iPhone: Toca el botón <strong>Compartir (⎋)</strong> en Safari y selecciona <strong>"Agregar al inicio"</strong>.
             </p>
-            <p className="text-[11px] text-slate-300">
+            <p className="text-[11px] text-slate-700">
               En Android: Toca los <strong>tres puntos (⋮)</strong> en Chrome y selecciona <strong>"Instalar aplicación"</strong>.
             </p>
           </div>
@@ -121,18 +121,18 @@ export const WebPassportPage: React.FC = () => {
       {/* Cuerpo Principal */}
       <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-4">
         {/* Selector de pestañas */}
-        <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-2xl border border-slate-800 text-xs font-bold">
+        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab('active')}
-            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'active'
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md font-extrabold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-slate-900 shadow-xs font-extrabold'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <span>Activos</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-900/60 text-[10px]">
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 text-[10px]">
               {activeCoupons.length}
             </span>
           </button>
@@ -140,14 +140,14 @@ export const WebPassportPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md font-extrabold'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-slate-900 shadow-xs font-extrabold'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <span>Historial</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-900/60 text-[10px]">
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 text-[10px]">
               {historyCoupons.length}
             </span>
           </button>
@@ -157,11 +157,11 @@ export const WebPassportPage: React.FC = () => {
         {loading ? (
           <div className="py-12 text-center text-slate-500 text-xs">Cargando tus beneficios...</div>
         ) : (activeTab === 'active' ? activeCoupons : historyCoupons).length === 0 ? (
-          <div className="py-12 text-center bg-slate-950/50 rounded-3xl border border-slate-800 p-6 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+          <div className="py-12 text-center bg-white rounded-3xl border border-slate-200/90 p-6 space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <Ticket className="w-6 h-6" />
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600">
               {activeTab === 'active'
                 ? 'No tienes cupones activos en este momento.'
                 : 'No tienes cupones canjeados en tu historial.'}
@@ -186,40 +186,40 @@ export const WebPassportPage: React.FC = () => {
                   onClick={() => setSelectedCoupon(cpn)}
                   className={`p-4 rounded-3xl border transition-all cursor-pointer relative overflow-hidden ${
                     isSelected
-                      ? 'bg-slate-800/90 border-amber-500 shadow-xl shadow-amber-500/10'
-                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      ? 'bg-white border-2 border-amber-500 shadow-md'
+                      : 'bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
                         {cpn.advertiser_name}
                       </span>
-                      <h3 className="text-sm font-bold text-white leading-snug">{cpn.title}</h3>
+                      <h3 className="text-sm font-bold text-slate-900 leading-snug">{cpn.title}</h3>
                     </div>
 
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                         isRedeemed
-                          ? 'bg-slate-800 text-slate-400 border-slate-700'
-                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          ? 'bg-slate-100 text-slate-600 border-slate-200'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                       }`}
                     >
                       {isRedeemed ? 'Canjeado' : `${daysLeft}d vigencia`}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
                     {cpn.discount_description}
                   </p>
 
                   {/* Bloque del Código de Canje Único (SPEC-006) */}
-                  <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-between gap-2">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-2">
                     <div>
-                      <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 block tracking-wider">
                         Código de Canje en Mostrador
                       </span>
-                      <span className="font-mono font-black text-amber-400 text-base tracking-widest">
+                      <span className="font-mono font-black text-slate-900 text-base tracking-widest">
                         {cpn.coupon_code}
                       </span>
                     </div>
@@ -231,11 +231,11 @@ export const WebPassportPage: React.FC = () => {
                           e.stopPropagation();
                           handleCopyCode(cpn.coupon_code);
                         }}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors flex items-center gap-1"
+                        className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
                         title="Copiar Código"
                       >
                         {copiedCode === cpn.coupon_code ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
+                          <Check className="w-4 h-4 text-emerald-600" />
                         ) : (
                           <Share2 className="w-4 h-4" />
                         )}
@@ -248,7 +248,7 @@ export const WebPassportPage: React.FC = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+                        className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer"
                         title="Canjear por WhatsApp"
                       >
                         <MessageCircle className="w-4 h-4" />
@@ -257,10 +257,10 @@ export const WebPassportPage: React.FC = () => {
                   </div>
 
                   {/* Botones de Billetera Digital Nativa (Apple Wallet & Google Wallet) con Geocerca GPS */}
-                  <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-[10px] text-amber-400/90 font-bold">
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] text-amber-800 font-bold">
                       <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-amber-400" />
+                        <MapPin className="w-3 h-3 text-amber-600" />
                         <span>Geocerca GPS activa: despierta a &lt;200m</span>
                       </span>
                       <span className="text-slate-400 text-[9px] font-normal">Billetera del S.O.</span>
@@ -272,9 +272,9 @@ export const WebPassportPage: React.FC = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           exportApplePassJson(cpn);
-                          alert('🍏 Manifiesto de Apple Wallet (.pkpass) generado con coordenadas GPS de locales aliados.');
+                          alert('Manifiesto de Apple Wallet (.pkpass) generado con coordenadas GPS de locales aliados.');
                         }}
-                        className="py-2 px-2.5 rounded-xl bg-slate-950 hover:bg-black border border-slate-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                        className="py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5 text-slate-300" />
                         <span>Apple Wallet</span>
@@ -285,16 +285,16 @@ export const WebPassportPage: React.FC = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="py-2 px-2.5 rounded-xl bg-slate-950 hover:bg-black border border-slate-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                        className="py-2 px-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                        <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
                         <span>Google Wallet</span>
                       </a>
                     </div>
                   </div>
 
                   {/* Pie de cupón */}
-                  <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-500" />
                       <span>Vence: {new Date(cpn.expires_at).toLocaleDateString()}</span>
@@ -309,9 +309,9 @@ export const WebPassportPage: React.FC = () => {
       </main>
 
       {/* Pie de página con enlace de retorno */}
-      <footer className="p-4 border-t border-slate-800 text-center text-xs text-slate-500 space-y-1">
+      <footer className="p-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-1">
         <p>Red de Comercios Aliados • Google Reseñas & Cupones NFC</p>
-        <Link to="/" className="inline-flex items-center gap-1 text-slate-400 hover:text-amber-400 text-[11px]">
+        <Link to="/" className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 text-[11px]">
           <ArrowLeft className="w-3 h-3" />
           <span>Volver al inicio</span>
         </Link>

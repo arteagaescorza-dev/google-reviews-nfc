@@ -91,7 +91,7 @@ export const OrganizationUserModal: React.FC<OrganizationUserModalProps> = ({
 
   const getCopyMessage = () => {
     const portalUrl = `${window.location.origin}${window.location.pathname}#/portal/login`;
-    return `¡Hola ${currentOrg?.owner_name || 'estimado cliente'}! 👋\nTu acceso como *Cliente Fundador* a Google Reseñas está listo.\n\n🎁 *Beneficio Exclusivo Fundador:*\nTienes activo tu *Filtro Inteligente de Reseñas 100% GRATIS de por vida* (las quejas de 1 a 3 estrellas son blindadas y te llegarán directo a tu portal antes de que dañen tu calificación pública en Google Maps).\n\n🔗 Entra aquí a tu portal: ${portalUrl}\n✉️ Correo: ${email}\n🔑 Contraseña: ${password}\n\n(Accede desde tu celular para revisar tus quejas contenidas y métricas en cualquier momento).`;
+    return `Hola ${currentOrg?.owner_name || 'estimado cliente'}.\nTu acceso como *Cliente Fundador* a Google Reseñas está listo.\n\n*Beneficio Exclusivo Fundador:*\nTienes activo tu *Filtro Inteligente de Reseñas 100% GRATIS de por vida* (las quejas de 1 a 3 estrellas son blindadas y te llegarán directo a tu portal antes de que dañen tu calificación pública en Google Maps).\n\nEnlace de acceso a tu portal: ${portalUrl}\nCorreo: ${email}\nContraseña: ${password}\n\n(Accede desde tu celular para revisar tus quejas contenidas y métricas en cualquier momento).`;
   };
 
   const handleCopyCredentials = () => {

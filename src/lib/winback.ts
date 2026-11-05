@@ -41,7 +41,7 @@ export function generateWinbackEmail(
   reactivateUrl = 'https://app.tuplataforma.mx/#/portal/login?reactivate=true'
 ): WinbackEmailMessage {
   if (step === 'day_3') {
-    const subject = `⚠️ Atención ${ownerName}: Tus comensales en ${restaurantName} ya no tienen filtro anti-reseñas`;
+    const subject = `Atención ${ownerName}: Tus comensales en ${restaurantName} ya no tienen filtro anti-reseñas`;
     const previewText = `Las quejas de 1 a 3 estrellas ahora van directo a Google Maps sin previo aviso.`;
     const plainText = `Hola ${ownerName},
 
@@ -60,7 +60,7 @@ Equipo de Operaciones y Calidad`;
 
     const htmlBody = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
-        <h2 style="color: #e11d48; margin-top: 0;">⚠️ Atención ${ownerName}</h2>
+        <h2 style="color: #e11d48; margin-top: 0;">Atención ${ownerName}</h2>
         <p style="font-size: 15px; color: #334155;">Te escribimos porque hace 3 días se pausó la protección en <strong>${restaurantName}</strong>.</p>
         <div style="background-color: #fff1f2; border-left: 4px solid #f43f5e; padding: 12px 16px; margin: 16px 0; border-radius: 8px;">
           <p style="margin: 0; color: #9f1239; font-size: 14px; font-weight: bold;">Riesgo de Reputación Activo:</p>
@@ -77,7 +77,7 @@ Equipo de Operaciones y Calidad`;
   }
 
   // ETAPA DÍA 14: OFERTA DE REACTIVACIÓN CON 30% OFF
-  const subject = `🎁 Oferta Exclusiva: Reactiva ${restaurantName} con 30% de Descuento Vitalicio`;
+  const subject = `Oferta Exclusiva: Reactiva ${restaurantName} con 30% de Descuento Vitalicio`;
   const previewText = `Queremos que sigas creciendo. Reactiva hoy por solo $209 MXN/mes.`;
   const plainText = `Hola ${ownerName},
 
@@ -85,7 +85,7 @@ Te extrañamos en la red de restaurantes inteligentes.
 
 Sabemos lo difícil que es mantener los costos a raya mientras cuidas la experiencia de tus clientes en ${restaurantName}. Por eso, queremos ofrecerte un 30% de descuento vitalicio en tu suscripción de Marca Blanca:
 
-De $299 MXN/mes ➡️ a solo $209 MXN/mes para siempre.
+De $299 MXN/mes a solo $209 MXN/mes para siempre.
 
 Tus mesas siguen listas, tus códigos QR siguen funcionando. Solo pulsa el enlace para reactivar tu tarifa preferencial:
 ${reactivateUrl}&coupon=WINBACK30
@@ -95,7 +95,7 @@ Dirección Comercial`;
 
   const htmlBody = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
-      <h2 style="color: #0f172a; margin-top: 0;">🎁 Oferta Exclusiva para ${ownerName}</h2>
+      <h2 style="color: #0f172a; margin-top: 0;">Oferta Exclusiva para ${ownerName}</h2>
       <p style="font-size: 15px; color: #334155;">Queremos que <strong>${restaurantName}</strong> continúe recibiendo reseñas de 5 estrellas en automático.</p>
       <div style="background-color: #f0fdf4; border: 1px solid #86efac; padding: 16px; margin: 16px 0; border-radius: 12px; text-align: center;">
         <span style="font-size: 12px; font-weight: bold; color: #166534; text-transform: uppercase;">Tarifa Especial de Reactivación</span>

@@ -465,38 +465,38 @@ export const PortalManagerPage: React.FC = () => {
 
   if (!loggedInManagerName) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center items-center p-6 selection:bg-indigo-600 selection:text-white">
+        <div className="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xl">
           <div className="flex items-center justify-between mb-6">
             <Link
               to="/portal"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Volver al Portal del Dueño
             </Link>
-            <span className="px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[11px] font-black uppercase tracking-wider">
+            <span className="px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-black uppercase tracking-wider">
               Gerencia de Sucursal
             </span>
           </div>
 
-          <div className="w-16 h-16 bg-indigo-600/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 text-indigo-400">
+          <div className="w-16 h-16 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-center mx-auto mb-5 text-indigo-600 shadow-2xs">
             <Lock className="w-8 h-8" />
           </div>
 
-          <h1 className="text-2xl font-black text-center mb-1">Consola de Gerente de Tienda</h1>
-          <p className="text-slate-400 text-xs text-center mb-6">
+          <h1 className="text-2xl font-black text-center text-slate-900 mb-1">Consola de Gerente de Tienda</h1>
+          <p className="text-slate-500 text-xs text-center mb-6">
             Gestión de empleados y estaciones KDS, turnos a 2 meses, cortes de caja por mesero y autorización de cupones por quejas
           </p>
 
           {sameOrgBranches.length > 0 && (
             <div className="mb-4">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Sucursal Asignada (Misma Organización)
               </label>
               <select
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500"
               >
                 {sameOrgBranches.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -509,7 +509,7 @@ export const PortalManagerPage: React.FC = () => {
 
           <form onSubmit={handleManagerLogin} className="space-y-4">
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-center">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5 text-center">
                 PIN de Gerente / Capitán de Piso
               </label>
               <input
@@ -519,28 +519,28 @@ export const PortalManagerPage: React.FC = () => {
                 onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
                 autoFocus
-                className="w-full text-center text-3xl tracking-[0.8em] font-black py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-indigo-500"
+                className="w-full text-center text-3xl tracking-[0.8em] font-black py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
 
             {pinError && (
-              <p className="text-rose-400 text-xs font-bold text-center bg-rose-950/50 border border-rose-800/50 py-2 px-3 rounded-xl">
+              <p className="text-rose-700 text-xs font-bold text-center bg-rose-50 border border-rose-200 py-2 px-3 rounded-xl">
                 {pinError}
               </p>
             )}
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-xs transition-all cursor-pointer"
             >
               Entrar a Consola de Gerente
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-800/80 text-center space-y-1">
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-1">
             <p className="text-[11px] text-slate-500">
-              PIN Demo Gerente de Tienda: <strong className="text-slate-300">8888</strong> • Capitán de Piso:{' '}
-              <strong className="text-slate-300">9999</strong>
+              PIN Demo Gerente de Tienda: <strong className="text-slate-800">8888</strong> • Capitán de Piso:{' '}
+              <strong className="text-slate-800">9999</strong>
             </p>
           </div>
         </div>
@@ -558,46 +558,46 @@ export const PortalManagerPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      {/* Encabezado de Gerente de Tienda */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 sticky top-0 z-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-12 selection:bg-indigo-600 selection:text-white">
+      {/* Encabezado de Gerente de Tienda Bento Light */}
+      <header className="bg-white border-b border-slate-200/90 px-6 py-4 sticky top-0 z-20 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               to="/portal"
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
               title="Ir al Portal General"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-400" />
-                <h1 className="text-lg font-black tracking-tight">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <h1 className="text-lg font-black text-slate-900 tracking-tight">
                   Consola Operativa de Gerente de Tienda
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-black uppercase">
+                <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-black uppercase">
                   {loggedInManagerRole === 'capitan_piso' ? 'Capitán de Piso' : 'Gerente de Tienda'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Responsable en turno: <strong className="text-white">{loggedInManagerName}</strong> • Sucursal:{' '}
-                <strong className="text-indigo-300">{currentBranch?.name || 'Sucursal Principal'}</strong>
+              <p className="text-xs text-slate-500">
+                Responsable en turno: <strong className="text-slate-800">{loggedInManagerName}</strong> • Sucursal:{' '}
+                <strong className="text-indigo-700">{currentBranch?.name || 'Sucursal Principal'}</strong>
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {sameOrgBranches.length > 1 && (
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
-                <Building2 className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                <Building2 className="w-4 h-4 text-indigo-600" />
                 <select
                   value={selectedBranchId}
                   onChange={(e) => handleBranchChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-white focus:outline-none"
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
                 >
                   {sameOrgBranches.map((r) => (
-                    <option key={r.id} value={r.id} className="bg-slate-900 text-white">
+                    <option key={r.id} value={r.id}>
                       {r.name}
                     </option>
                   ))}
@@ -607,45 +607,45 @@ export const PortalManagerPage: React.FC = () => {
 
             <Link
               to={`/portal/hostess?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-300 hover:bg-violet-600/30 text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 text-xs font-bold flex items-center gap-1.5"
             >
               <Users className="w-3.5 h-3.5" /> Pantalla Hostess
             </Link>
 
             <Link
               to={`/portal/mesero?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
             >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-400" /> Pantalla Mesero
+              <UserCheck className="w-3.5 h-3.5 text-emerald-600" /> Pantalla Mesero
             </Link>
 
             <Link
               to={`/portal/cocina?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
             >
-              <ChefHat className="w-3.5 h-3.5 text-amber-400" /> KDS Cocina & Barra
+              <ChefHat className="w-3.5 h-3.5 text-amber-600" /> KDS Cocina & Barra
             </Link>
 
             <Link
               to={`/portal/pickup?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-orange-600/20 border border-orange-500/30 text-orange-300 hover:bg-orange-600/30 text-xs font-bold flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 text-xs font-bold flex items-center gap-1.5"
             >
-              <ShoppingBag className="w-3.5 h-3.5 text-orange-400" /> Pantalla Pick Up
+              <ShoppingBag className="w-3.5 h-3.5 text-orange-600" /> Pantalla Pick Up
             </Link>
 
             <button
               type="button"
               onClick={() => setIsMenuModalOpen(true)}
-              className="px-3 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-              title="Administrar categorías, platillos y disponibilidad temporal (86) de la carta"
+              className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Administrar categorías, platillos y disponibilidad de la carta"
             >
-              <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
+              <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
               <span>Carta & Menú Digital</span>
             </button>
 
             <button
               onClick={loadBranchData}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
               title="Sincronizar datos"
             >
               <RefreshCw className="w-4 h-4" />
@@ -653,7 +653,7 @@ export const PortalManagerPage: React.FC = () => {
 
             <button
               onClick={() => setLoggedInManagerName(null)}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" /> Salir
             </button>
@@ -663,83 +663,83 @@ export const PortalManagerPage: React.FC = () => {
 
       <main className="max-w-7xl mx-auto w-full flex-1 p-6 space-y-6">
         {toastMsg && (
-          <div className="bg-indigo-950/90 border border-indigo-500/40 text-indigo-200 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-lg">
+          <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xs">
             <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
               {toastMsg}
             </span>
-            <button onClick={() => setToastMsg(null)} className="text-indigo-300 hover:text-white">
+            <button onClick={() => setToastMsg(null)} className="text-indigo-700 hover:text-indigo-900 cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Navegación de las 4 Funciones del Gerente de Tienda */}
+        {/* Navegación de las 4 Funciones del Gerente de Tienda Bento Light */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <button
             onClick={() => setActiveTab('staff')}
-            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
               activeTab === 'staff'
-                ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/10'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider">1. Personal & Estaciones</span>
-              <Sliders className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-900">1. Personal & Estaciones</span>
+              <Sliders className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Crear empleados, roles y asignar pantalla KDS (Cocina vs Barista)
             </p>
           </button>
 
           <button
             onClick={() => setActiveTab('shifts')}
-            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
               activeTab === 'shifts'
-                ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/10'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider">2. Turnos (Hasta 2 Meses)</span>
-              <Calendar className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-900">2. Turnos (Hasta 2 Meses)</span>
+              <Calendar className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Programación anticipada de turnos hasta 60 días ({shifts.length} activos)
             </p>
           </button>
 
           <button
             onClick={() => setActiveTab('cash_metrics')}
-            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
               activeTab === 'cash_metrics'
-                ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/10'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider">3. Cortes & Métricas</span>
-              <Receipt className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-900">3. Cortes & Métricas</span>
+              <Receipt className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Corte de caja por turno de mesero y envío de métricas al Dueño
             </p>
           </button>
 
           <button
             onClick={() => setActiveTab('complaints_coupons')}
-            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
               activeTab === 'complaints_coupons'
-                ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-lg shadow-indigo-600/10'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider">4. Quejas & Cupones</span>
-              <MessageSquareWarning className="w-4 h-4 text-rose-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-900">4. Quejas & Cupones</span>
+              <MessageSquareWarning className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500">
               Autorizar descuentos por quejas y cupones con límite mensual
             </p>
           </button>
@@ -749,17 +749,17 @@ export const PortalManagerPage: React.FC = () => {
         {activeTab === 'staff' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Formulario: Alta de Empleado */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 h-fit">
-              <h2 className="text-base font-black text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-indigo-400" /> Crear Empleado en Sucursal
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 h-fit shadow-xs">
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-indigo-600" /> Crear Empleado en Sucursal
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Define el puesto del colaborador y gestiona directamente sobre cuál pantalla operativa o estación KDS incide.
               </p>
 
               <form onSubmit={handleCreateEmployee} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Nombre del Empleado *
                   </label>
                   <input
@@ -768,12 +768,12 @@ export const PortalManagerPage: React.FC = () => {
                     value={newStaffName}
                     onChange={(e) => setNewStaffName(e.target.value)}
                     placeholder="Ej. Luis Fernando (Barista)"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Rol Operativo *
                   </label>
                   <select
@@ -786,7 +786,7 @@ export const PortalManagerPage: React.FC = () => {
                       else if (r === 'cashier') setNewStaffStation('pickup');
                       else setNewStaffStation('all');
                     }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                   >
                     <option value="waiter">Mesero en Sala</option>
                     <option value="kitchen">Jefe de Cocina (Acceso exclusivo Cocina KDS)</option>
@@ -798,13 +798,13 @@ export const PortalManagerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Pantalla / Estación KDS Asignada por el Gerente *
                   </label>
                   <select
                     value={newStaffStation}
                     onChange={(e) => setNewStaffStation(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                   >
                     <option value="all">Todas las Pantallas de su Rol</option>
                     <option value="cocina">Exclusivo: Estación Cocina Caliente (Jefe de Cocina)</option>
@@ -816,7 +816,7 @@ export const PortalManagerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     PIN de Acceso (4 dígitos)
                   </label>
                   <input
@@ -825,13 +825,13 @@ export const PortalManagerPage: React.FC = () => {
                     required
                     value={newStaffPin}
                     onChange={(e) => setNewStaffPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-600/20 cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs cursor-pointer transition-all"
                 >
                   Dar de Alta Empleado
                 </button>
@@ -839,47 +839,47 @@ export const PortalManagerPage: React.FC = () => {
             </div>
 
             {/* Lista de Empleados y Control de Estaciones del Gerente */}
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-black text-white">
+                  <h2 className="text-base font-black text-slate-900">
                     Plantilla de la Sucursal ({staffList.length} colaboradores)
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Cambia el puesto o la pantalla KDS sobre la que incide cada empleado en tiempo real
                   </p>
                 </div>
               </div>
 
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-2xl overflow-hidden">
+              <div className="divide-y divide-slate-100 border border-slate-200/90 rounded-2xl overflow-hidden bg-slate-50/50">
                 {staffList.map((member) => {
                   const currentStationVal = getStationSelectValue(member);
                   return (
                     <div
                       key={member.id}
-                      className="p-4 bg-slate-950/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      className="p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-black text-sm text-white">{member.name}</span>
-                          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                          <span className="font-black text-sm text-slate-900">{member.name}</span>
+                          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
                             PIN: {member.pin_code}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                        <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5">
                           {member.role === 'kitchen' ? (
-                            <ChefHat className="w-3.5 h-3.5 text-amber-400" />
+                            <ChefHat className="w-3.5 h-3.5 text-amber-600" />
                           ) : member.role === 'barista' ? (
-                            <Coffee className="w-3.5 h-3.5 text-teal-400" />
+                            <Coffee className="w-3.5 h-3.5 text-teal-600" />
                           ) : member.role === 'cashier' ? (
-                            <ShoppingBag className="w-3.5 h-3.5 text-orange-400" />
+                            <ShoppingBag className="w-3.5 h-3.5 text-orange-600" />
                           ) : member.role === 'hostess' ? (
-                            <Users className="w-3.5 h-3.5 text-violet-400" />
+                            <Users className="w-3.5 h-3.5 text-violet-600" />
                           ) : (
-                            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                           )}
                           Estaciones habilitadas:{' '}
-                          <strong className="text-slate-200">
+                          <strong className="text-slate-800">
                             {(member.allowed_stations || ['all']).join(', ').toUpperCase()}
                           </strong>
                         </p>
@@ -895,7 +895,7 @@ export const PortalManagerPage: React.FC = () => {
                               currentStationVal
                             )
                           }
-                          className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white"
+                          className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 cursor-pointer"
                         >
                           <option value="hostess">Hostess / Recepción</option>
                           <option value="waiter">Mesero en Sala</option>
@@ -910,7 +910,7 @@ export const PortalManagerPage: React.FC = () => {
                           onChange={(e) =>
                             handleUpdateStaffRoleAndStation(member, member.role, e.target.value)
                           }
-                          className="bg-slate-900 border border-indigo-500/40 rounded-xl px-2.5 py-1.5 text-xs font-bold text-indigo-200"
+                          className="bg-indigo-50/70 border border-indigo-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-indigo-700 cursor-pointer"
                           title="Pantalla KDS sobre la que incide este empleado"
                         >
                           <option value="all">Pantalla: General según Rol</option>
@@ -932,18 +932,18 @@ export const PortalManagerPage: React.FC = () => {
         {/* PESTAÑA 2: ORGANIZADOR DE TURNOS CON HASTA 2 MESES (60 DÍAS) DE ANTICIPACIÓN */}
         {activeTab === 'shifts' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 h-fit">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 h-fit shadow-xs">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-black text-white flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-400" /> Programar Turno
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-600" /> Programar Turno
                 </h2>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Hasta +2 Meses
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Organiza los turnos de meseros, hostess, baristas, jefe de cocina y capitanes desde hoy ({todayIso}) hasta el{' '}
-                <strong className="text-emerald-300">{maxDateIso}</strong>.
+                <strong className="text-emerald-700">{maxDateIso}</strong>.
               </p>
 
               {/* Tarjeta de Información de Horario Operativo de la Sucursal */}
@@ -956,19 +956,19 @@ export const PortalManagerPage: React.FC = () => {
                 const opDays = targetBranchObj?.operating_days || 'Lun - Dom';
 
                 return (
-                  <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs space-y-1">
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-xs space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-indigo-300 uppercase tracking-wider text-[10px]">
+                      <span className="font-extrabold text-indigo-800 uppercase tracking-wider text-[10px]">
                         Horario Oficial de la Sucursal
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-200 font-bold text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-bold text-[10px]">
                         {opDays}
                       </span>
                     </div>
-                    <p className="text-white font-black text-sm">
+                    <p className="text-slate-900 font-black text-sm">
                       {opOpen} — {opClose}
                     </p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-slate-500">
                       Al seleccionar un turno, los horarios de entrada y salida se ajustan a la apertura y cierre de esta sucursal.
                     </p>
                   </div>
@@ -977,13 +977,13 @@ export const PortalManagerPage: React.FC = () => {
 
               <form onSubmit={handleCreateShift} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Colaborador de la Organización *
                   </label>
                   <select
                     value={shiftStaffId}
                     onChange={(e) => setShiftStaffId(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
                   >
                     {(orgStaffList.length > 0 ? orgStaffList : staffList).map((s) => {
                       const homeBranchName =
@@ -998,16 +998,16 @@ export const PortalManagerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
                     <span>Sucursal Destino del Turno</span>
-                    <span className="text-[10px] font-black text-indigo-300 flex items-center gap-1">
+                    <span className="text-[10px] font-black text-indigo-700 flex items-center gap-1">
                       <ArrowLeftRight className="w-3 h-3" /> Movimiento entre Sucursales
                     </span>
                   </label>
                   <select
                     value={shiftTargetBranchId || selectedBranchId}
                     onChange={(e) => setShiftTargetBranchId(e.target.value)}
-                    className="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-200"
+                    className="w-full bg-indigo-50/50 border border-indigo-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-indigo-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                   >
                     {sameOrgBranches.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -1015,13 +1015,13 @@ export const PortalManagerPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-[10px] text-slate-500 mt-1">
                     Permite entre gerentes mover personal a otra sucursal de la misma organización y dejarlo en la planeación.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Fecha del Turno (Máx. 2 meses de anticipación) *
                   </label>
                   <input
@@ -1031,12 +1031,12 @@ export const PortalManagerPage: React.FC = () => {
                     max={maxDateIso}
                     value={shiftDate}
                     onChange={(e) => setShiftDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Tipo de Turno *
                   </label>
                   <select
@@ -1064,7 +1064,7 @@ export const PortalManagerPage: React.FC = () => {
                         setShiftEndTime(opClose);
                       }
                     }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer"
                   >
                     <option value="matutino">Matutino (Apertura)</option>
                     <option value="vespertino">Vespertino (Comida / Tarde)</option>
@@ -1075,33 +1075,33 @@ export const PortalManagerPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Hora Entrada</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Hora Entrada</label>
                     <input
                       type="time"
                       value={shiftStartTime}
                       onChange={(e) => setShiftStartTime(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Hora Salida</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Hora Salida</label>
                     <input
                       type="time"
                       value={shiftEndTime}
                       onChange={(e) => setShiftEndTime(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Estación / Zona Asignada en el Turno
                   </label>
                   <select
                     value={shiftStation}
                     onChange={(e) => setShiftStation(e.target.value as KitchenStation)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:bg-white cursor-pointer"
                   >
                     <option value="all">Salón General / Recepción</option>
                     <option value="cocina">Estación Cocina Caliente KDS</option>
@@ -1113,7 +1113,7 @@ export const PortalManagerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Notas del Turno
                   </label>
                   <input
@@ -1121,26 +1121,26 @@ export const PortalManagerPage: React.FC = () => {
                     value={shiftNotes}
                     onChange={(e) => setShiftNotes(e.target.value)}
                     placeholder="Ej. Encargado de terraza o cierre de barra"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/20 cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-xs cursor-pointer transition-all"
                 >
                   Guardar Turno en Calendario
                 </button>
               </form>
             </div>
 
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-black text-white">
+                  <h2 className="text-base font-black text-slate-900">
                     Calendario de Turnos Programados ({shifts.length})
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Horarios asignados por el Gerente de Tienda (horizonte de hasta 2 meses)
                   </p>
                 </div>
@@ -1150,33 +1150,33 @@ export const PortalManagerPage: React.FC = () => {
                 {shifts.map((sh) => (
                   <div
                     key={sh.id}
-                    className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="p-4 rounded-2xl bg-white border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-colors"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-black">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-mono text-xs font-black">
                           {sh.shift_date}
                         </span>
-                        <span className="font-black text-sm text-white">{sh.staff_name}</span>
-                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        <span className="font-black text-sm text-slate-900">{sh.staff_name}</span>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
                           {sh.shift_type} ({sh.start_time} - {sh.end_time})
                         </span>
                         {sh.notes?.includes('[Movimiento Inter-Sucursal') && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] font-black uppercase">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-black uppercase">
                             <ArrowLeftRight className="w-3 h-3" /> Movimiento Inter-Sucursal
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                        Estación: <strong className="text-slate-200">{sh.assigned_station || 'all'}</strong>
+                      <p className="text-xs text-slate-500 flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                        Estación: <strong className="text-slate-800">{sh.assigned_station || 'all'}</strong>
                         {sh.notes && <span>• Nota: {sh.notes}</span>}
                       </p>
                     </div>
 
                     <button
                       onClick={() => handleDeleteShift(sh.id)}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 self-end sm:self-center cursor-pointer"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 self-end sm:self-center cursor-pointer transition-colors"
                       title="Eliminar turno"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1191,23 +1191,23 @@ export const PortalManagerPage: React.FC = () => {
         {/* PESTAÑA 3: CORTES DE CAJA POR TURNO DE MESEROS Y ENVÍO DE MÉTRICAS AL DUEÑO */}
         {activeTab === 'cash_metrics' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 h-fit">
-              <h2 className="text-base font-black text-white flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-amber-400" /> Generar Corte por Turno de Mesero
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 h-fit shadow-xs">
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-amber-600" /> Generar Corte por Turno de Mesero
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Cierra el turno del mesero y envía las métricas detalladas de cada mesa y cada empleado a la pantalla general del Dueño.
               </p>
 
               <form onSubmit={handleGenerateShiftCloseAndSendMetrics} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Mesero / Turno a Cortar *
                   </label>
                   <select
                     value={selectedWaiterForClose}
                     onChange={(e) => setSelectedWaiterForClose(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
                   >
                     {staffList
                       .filter((s) => s.role === 'waiter' || s.role === 'manager')
@@ -1220,13 +1220,13 @@ export const PortalManagerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Turno Operativo
                   </label>
                   <select
                     value={closeShiftType}
                     onChange={(e) => setCloseShiftType(e.target.value as StaffShiftType)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
                   >
                     <option value="matutino">Turno Matutino</option>
                     <option value="vespertino">Turno Vespertino</option>
@@ -1236,7 +1236,7 @@ export const PortalManagerPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Ventas Efectivo ($ MXN)
                     </label>
                     <input
@@ -1244,11 +1244,11 @@ export const PortalManagerPage: React.FC = () => {
                       min={0}
                       value={closeCashSales}
                       onChange={(e) => setCloseCashSales(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Ventas Tarjeta ($ MXN)
                     </label>
                     <input
@@ -1256,14 +1256,14 @@ export const PortalManagerPage: React.FC = () => {
                       min={0}
                       value={closeCardSales}
                       onChange={(e) => setCloseCardSales(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Propinas del Turno ($)
                     </label>
                     <input
@@ -1271,11 +1271,11 @@ export const PortalManagerPage: React.FC = () => {
                       min={0}
                       value={closeTips}
                       onChange={(e) => setCloseTips(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Descuentos por Queja ($)
                     </label>
                     <input
@@ -1283,14 +1283,14 @@ export const PortalManagerPage: React.FC = () => {
                       min={0}
                       value={closeDiscounts}
                       onChange={(e) => setCloseDiscounts(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
                 >
                   <Send className="w-4 h-4" /> Generar Corte y Enviar Métricas al Dueño
                 </button>
@@ -1299,40 +1299,40 @@ export const PortalManagerPage: React.FC = () => {
 
             <div className="lg:col-span-2 space-y-6">
               {/* Vista previa de Métricas por Mesa y por Empleado */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-wider text-amber-300">
-                  Métricas por Mesa y por Empleado en este Turno (Se sincronizan con el Dueño)
+              <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 shadow-xs">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Métricas por Mesa y por Empleado en este Turno (Sincronización con el Dueño)
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
-                    <h4 className="text-xs font-black text-white uppercase">Rendimiento por Mesa</h4>
+                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-2">
+                    <h4 className="text-xs font-black text-slate-900 uppercase">Rendimiento por Mesa</h4>
                     {computedTableMetrics.map((tm) => (
                       <div
                         key={tm.table_number}
-                        className="flex items-center justify-between text-xs py-1.5 border-b border-slate-900 last:border-0"
+                        className="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/70 last:border-0"
                       >
-                        <span className="font-bold text-slate-200">
+                        <span className="font-bold text-slate-700">
                           {tm.table_number} ({tm.orders_count} comandas)
                         </span>
-                        <span className="font-mono font-black text-emerald-400">
+                        <span className="font-mono font-black text-emerald-600">
                           ${tm.total_amount.toLocaleString('es-MX')} MXN
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
-                    <h4 className="text-xs font-black text-white uppercase">Rendimiento por Empleado</h4>
+                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-2">
+                    <h4 className="text-xs font-black text-slate-900 uppercase">Rendimiento por Empleado</h4>
                     {computedEmployeeMetrics.map((em) => (
                       <div
                         key={em.staff_name}
-                        className="flex items-center justify-between text-xs py-1.5 border-b border-slate-900 last:border-0"
+                        className="flex items-center justify-between text-xs py-1.5 border-b border-slate-200/70 last:border-0"
                       >
-                        <span className="font-bold text-slate-200 truncate max-w-[170px]">
+                        <span className="font-bold text-slate-700 truncate max-w-[170px]">
                           {em.staff_name}
                         </span>
-                        <span className="font-mono font-bold text-indigo-300">
+                        <span className="font-mono font-bold text-indigo-700">
                           {em.tables_served} mesas • ${em.sales_generated.toLocaleString('es-MX')}
                         </span>
                       </div>
@@ -1342,38 +1342,38 @@ export const PortalManagerPage: React.FC = () => {
               </div>
 
               {/* Historial de Cortes Enviados al Dueño */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-3">
-                <h3 className="text-sm font-black text-white">
+              <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-3 shadow-xs">
+                <h3 className="text-sm font-black text-slate-900">
                   Historial de Cortes de Turno Enviados al Dueño ({shiftReports.length})
                 </h3>
                 <div className="space-y-2.5">
                   {shiftReports.map((rep) => (
                     <div
                       key={rep.id}
-                      className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      className="p-4 rounded-2xl bg-white border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs hover:border-slate-300 transition-colors"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-black text-white">{rep.waiter_name}</span>
-                          <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 font-bold text-[10px] uppercase">
+                          <span className="font-black text-slate-900">{rep.waiter_name}</span>
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px] uppercase border border-amber-200">
                             Turno {rep.shift_type} • {rep.shift_date}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-bold text-[10px]">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px] border border-emerald-200">
                             Enviado al Dueño
                           </span>
                         </div>
-                        <p className="text-slate-400 mt-1">
-                          Mesas atendidas: <strong className="text-white">{rep.tables_served}</strong> • Efectivo: $
+                        <p className="text-slate-500 mt-1">
+                          Mesas atendidas: <strong className="text-slate-900">{rep.tables_served}</strong> • Efectivo: $
                           {Number(rep.cash_sales).toLocaleString('es-MX')} • Tarjeta: $
                           {Number(rep.card_sales).toLocaleString('es-MX')} • Propinas: $
                           {Number(rep.tips_collected).toLocaleString('es-MX')}
                         </p>
                       </div>
                       <div className="text-right">
-                        <span className="text-base font-black text-emerald-400">
+                        <span className="text-base font-black text-emerald-600">
                           ${Number(rep.total_sales).toLocaleString('es-MX')} MXN
                         </span>
-                        <span className="block text-[10px] text-slate-500">
+                        <span className="block text-[10px] text-slate-400">
                           Autorizó: {rep.manager_name}
                         </span>
                       </div>
@@ -1389,22 +1389,22 @@ export const PortalManagerPage: React.FC = () => {
         {activeTab === 'complaints_coupons' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Creador de Cupones de Retención del Gerente con Límite Mensual */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 h-fit">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 h-fit shadow-xs">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-black text-white flex items-center gap-2">
-                  <Ticket className="w-4 h-4 text-purple-400" /> Crear Cupón de Gerente
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Ticket className="w-4 h-4 text-purple-600" /> Crear Cupón de Gerente
                 </h2>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
                   Límite Mensual
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Crea tus propios cupones para compensar quejas o incentivar próximas visitas y establece el límite máximo de usos al mes.
               </p>
 
               <form onSubmit={handleCreateManagerCoupon} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Código del Cupón *
                   </label>
                   <input
@@ -1413,12 +1413,12 @@ export const PortalManagerPage: React.FC = () => {
                     value={newCouponCode}
                     onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
                     placeholder="Ej. GERENTE-CORTESIA"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-white uppercase"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 uppercase focus:bg-white focus:outline-none focus:border-purple-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Título del Beneficio *
                   </label>
                   <input
@@ -1427,13 +1427,13 @@ export const PortalManagerPage: React.FC = () => {
                     value={newCouponTitle}
                     onChange={(e) => setNewCouponTitle(e.target.value)}
                     placeholder="Ej. 25% OFF en Próxima Visita por Garantía de Servicio"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-bold text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 transition-colors"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       % Descuento
                     </label>
                     <input
@@ -1442,11 +1442,11 @@ export const PortalManagerPage: React.FC = () => {
                       max={100}
                       value={newCouponPercent}
                       onChange={(e) => setNewCouponPercent(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Límite Mensual *
                     </label>
                     <input
@@ -1456,13 +1456,13 @@ export const PortalManagerPage: React.FC = () => {
                       required
                       value={newCouponMonthlyLimit}
                       onChange={(e) => setNewCouponMonthlyLimit(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-purple-500/40 rounded-xl px-3 py-2 text-xs font-black text-purple-200"
+                      className="w-full bg-purple-50/50 border border-purple-200 rounded-xl px-3 py-2 text-xs font-black text-purple-900 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Condiciones / Descripción
                   </label>
                   <input
@@ -1470,37 +1470,37 @@ export const PortalManagerPage: React.FC = () => {
                     value={newCouponDesc}
                     onChange={(e) => setNewCouponDesc(e.target.value)}
                     placeholder="Válido en consumo en sala o próxima visita"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-lg shadow-purple-600/20 cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-xs cursor-pointer transition-all"
                 >
                   Guardar Cupón con Límite Mensual
                 </button>
               </form>
 
               {/* Lista de Cupones del Gerente y su Consumo Mensual */}
-              <div className="pt-4 border-t border-slate-800 space-y-2.5">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
                   Tus Cupones Activos y Cupo del Mes
                 </h3>
                 {coupons.map((c) => {
                   const pct = Math.min(100, Math.round((c.used_this_month / Math.max(1, c.monthly_limit)) * 100));
                   return (
-                    <div key={c.id} className="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div key={c.id} className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-1.5 shadow-2xs">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-mono font-black text-purple-300">{c.coupon_code}</span>
-                        <span className="text-[11px] font-bold text-slate-300">
-                          Usados este mes: <strong>{c.used_this_month}</strong> / {c.monthly_limit}
+                        <span className="font-mono font-black text-purple-700">{c.coupon_code}</span>
+                        <span className="text-[11px] font-bold text-slate-600">
+                          Usados este mes: <strong className="text-slate-900">{c.used_this_month}</strong> / {c.monthly_limit}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400">{c.title}</p>
-                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <p className="text-[11px] text-slate-600">{c.title}</p>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${pct >= 100 ? 'bg-rose-500' : 'bg-purple-500'}`}
+                          className={`h-full rounded-full ${pct >= 100 ? 'bg-rose-500' : 'bg-purple-600'}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -1511,21 +1511,21 @@ export const PortalManagerPage: React.FC = () => {
             </div>
 
             {/* Bandeja de Notificaciones de Quejas y Autorización del Gerente */}
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4">
+            <div className="lg:col-span-2 bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-black text-white flex items-center gap-2">
-                    <MessageSquareWarning className="w-5 h-5 text-rose-400" />
+                  <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <MessageSquareWarning className="w-5 h-5 text-rose-600" />
                     Notificaciones de Quejas en Sucursal ({complaints.length})
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Autoriza descuentos directos por quejas o asigna un cupón de gerencia para su próxima visita
                   </p>
                 </div>
               </div>
 
               {complaints.length === 0 ? (
-                <div className="p-10 text-center text-slate-400 text-xs font-bold bg-slate-950/50 rounded-2xl border border-slate-800">
+                <div className="p-10 text-center text-slate-500 text-xs font-bold bg-slate-50 rounded-2xl border border-slate-200">
                   No hay quejas registradas en esta sucursal.
                 </div>
               ) : (
@@ -1533,34 +1533,34 @@ export const PortalManagerPage: React.FC = () => {
                   {complaints.map((fb) => (
                     <div
                       key={fb.id}
-                      className="p-4 rounded-2xl bg-slate-950 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      className="p-4 rounded-2xl bg-white border border-rose-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs hover:border-rose-300 transition-colors"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-black">
+                          <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black">
                             Calificación: {fb.rating} / 5
                           </span>
-                          <span className="font-black text-sm text-white">
+                          <span className="font-black text-sm text-slate-900">
                             {fb.customer_name || 'Comensal en Mesa'}
                           </span>
                           {fb.tag_code && (
-                            <span className="font-mono text-[11px] text-slate-400">
+                            <span className="font-mono text-[11px] text-slate-500">
                               Tag: {fb.tag_code}
                             </span>
                           )}
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
                               fb.status === 'resolved'
-                                ? 'bg-emerald-500/20 text-emerald-300'
-                                : 'bg-amber-500/20 text-amber-300'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
                             }`}
                           >
                             {fb.status === 'resolved' ? 'Atendida / Autorizada' : 'Pendiente de Autorización'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-200 italic">"{fb.comments}"</p>
+                        <p className="text-xs text-slate-700 italic">"{fb.comments}"</p>
                         {fb.internal_notes && (
-                          <p className="text-[11px] text-emerald-300 font-bold pt-1">
+                          <p className="text-[11px] text-emerald-700 font-bold pt-1">
                             {fb.internal_notes}
                           </p>
                         )}
@@ -1568,7 +1568,7 @@ export const PortalManagerPage: React.FC = () => {
 
                       <button
                         onClick={() => setAuthorizingFeedback(fb)}
-                        className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shrink-0 cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shrink-0 cursor-pointer shadow-xs transition-all"
                       >
                         Autorizar Descuento / Cupón
                       </button>
@@ -1583,36 +1583,36 @@ export const PortalManagerPage: React.FC = () => {
 
       {/* Modal: Autorizar Descuento o Cupón de Próxima Visita por Queja */}
       {authorizingFeedback && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-white">
+              <h3 className="text-base font-black text-slate-900">
                 Autorizar Compensación por Queja
               </h3>
               <button
                 onClick={() => setAuthorizingFeedback(null)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+                className="p-1.5 rounded-xl bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 text-xs space-y-1">
-              <span className="font-black text-rose-300">
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs space-y-1">
+              <span className="font-black text-rose-800">
                 Queja de {authorizingFeedback.customer_name || 'Comensal'} ({authorizingFeedback.rating} estrellas):
               </span>
-              <p className="text-slate-200 italic">"{authorizingFeedback.comments}"</p>
+              <p className="text-rose-900 italic">"{authorizingFeedback.comments}"</p>
             </div>
 
             <form onSubmit={handleConfirmAuthorizeComplaint} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Cupón de Retención / Próxima Visita (Descuenta de tu límite mensual)
                 </label>
                 <select
                   value={selectedCouponForComplaint}
                   onChange={(e) => setSelectedCouponForComplaint(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                 >
                   <option value="">Solo descuento directo en cuenta actual (sin cupón)</option>
                   {coupons.map((c) => (
@@ -1628,7 +1628,7 @@ export const PortalManagerPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Descuento Autorizado en Cuenta / Nota de Resolución
                 </label>
                 <input
@@ -1636,21 +1636,21 @@ export const PortalManagerPage: React.FC = () => {
                   required
                   value={customDiscountNote}
                   onChange={(e) => setCustomDiscountNote(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setAuthorizingFeedback(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black cursor-pointer shadow-xs transition-all"
                 >
                   Confirmar Autorización de Gerente
                 </button>

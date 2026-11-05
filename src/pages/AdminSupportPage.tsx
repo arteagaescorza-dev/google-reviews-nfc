@@ -117,10 +117,10 @@ export const AdminSupportPage: React.FC = () => {
               className="bg-transparent font-medium text-slate-700 outline-none cursor-pointer"
             >
               <option value="all">Todas las Categorías</option>
-              <option value="plate_damaged">🛠️ Placa Dañada / Despegada</option>
-              <option value="more_plates">🏷️ Solicitud de Más Placas</option>
-              <option value="billing">💰 Facturación</option>
-              <option value="general">💬 General / Técnico</option>
+              <option value="plate_damaged">Placa Dañada / Despegada</option>
+              <option value="more_plates">Solicitud de Más Placas</option>
+              <option value="billing">Facturación</option>
+              <option value="general">General / Técnico</option>
             </select>
           </div>
         </div>
@@ -187,7 +187,7 @@ export const AdminSupportPage: React.FC = () => {
             const CategoryIcon = CATEGORY_ICONS[ticket.category] || HelpCircle;
             const cleanPhone = ticket.organization?.owner_phone?.replace(/[^0-9]/g, '');
 
-            const waMessage = `¡Hola ${ticket.organization?.owner_name || 'estimado locatario'}! 👋 Te escribo de soporte respecto a tu solicitud: "${ticket.subject}".`;
+            const waMessage = `Hola ${ticket.organization?.owner_name || 'estimado locatario'}, te escribo de soporte respecto a tu solicitud: "${ticket.subject}".`;
             const waUrl = cleanPhone
               ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
               : null;
