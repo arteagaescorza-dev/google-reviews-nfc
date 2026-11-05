@@ -69,9 +69,9 @@ export const PortalAuthGuard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-4">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-3" />
-        <p className="text-xs text-slate-400">Accediendo a tu local...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-900 p-4 font-sans">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
+        <p className="text-xs text-slate-500 font-semibold">Accediendo a tu local...</p>
       </div>
     );
   }
