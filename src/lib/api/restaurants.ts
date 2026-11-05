@@ -63,8 +63,9 @@ export const restaurantsApi = {
     setLocalItem(STORAGE_KEYS.TAGS, updated);
   },
 
-async toggleRestaurantActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
-    if (isSupabaseConfigured) {
+  async toggleRestaurantActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         const { error } = await supabase.from('restaurants').update({ is_active: isActive }).eq('id', id);
         if (error) throw error;
@@ -85,7 +86,8 @@ async toggleRestaurantActive(id: string, isActive: boolean): Promise<{ success: 
    * Permite baja permanente (purge/delete completo) para que no quede como local huérfano.
    */
   async deleteRestaurant(id: string, hardDelete: boolean = true): Promise<{ success: boolean; error?: string }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         if (hardDelete) {
           const { error } = await supabase.from('restaurants').delete().eq('id', id);
@@ -116,8 +118,9 @@ async toggleRestaurantActive(id: string, isActive: boolean): Promise<{ success: 
     return { success: true };
   },
 
-async getRestaurants(): Promise<Restaurant[]> {
-    if (isSupabaseConfigured) {
+  async getRestaurants(): Promise<Restaurant[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       const { data } = await supabase.from('restaurants').select('*, organization:organizations(*)').order('created_at', { ascending: false });
       return data || [];
     }
@@ -146,7 +149,8 @@ async getMyRestaurants(): Promise<Restaurant[]> {
   },
 
 async saveRestaurant(restaurant: Partial<Restaurant>): Promise<{ success: boolean; data?: Restaurant; error?: string }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         if (restaurant.id) {
           const clean = sanitizeSupabasePayload(restaurant, false);

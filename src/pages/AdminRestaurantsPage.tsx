@@ -1071,7 +1071,7 @@ export const AdminRestaurantsPage: React.FC = () => {
 
     // Datos cruzados de Fase B y Fase C para esta sucursal
     const branchTables = restaurantTables.filter(
-      (t) => t.restaurant_id === res.id || (res.id === restaurants[0]?.id && t.restaurant_id === 'res-1')
+      (t) => t.restaurant_id === res.id || (res.id === 'res-1' && t.restaurant_id === 'res-1')
     );
     const totalBranchCapacity = branchTables.reduce((acc, t) => acc + (t.capacity || 0), 0);
     const freeTablesCount = branchTables.filter((t) => t.status === 'libre').length;
@@ -1080,13 +1080,13 @@ export const AdminRestaurantsPage: React.FC = () => {
 
 
     const branchCoupons = managerCoupons.filter(
-      (cp) => cp.restaurant_id === res.id || (res.id === restaurants[0]?.id && cp.restaurant_id === 'res-1')
+      (cp) => cp.restaurant_id === res.id || (res.id === 'res-1' && cp.restaurant_id === 'res-1')
     );
     const branchReports = managerShiftReports.filter(
-      (rp) => rp.restaurant_id === res.id || (res.id === restaurants[0]?.id && rp.restaurant_id === 'res-1')
+      (rp) => rp.restaurant_id === res.id || (res.id === 'res-1' && rp.restaurant_id === 'res-1')
     );
     const branchFeedbacks = feedbacks.filter(
-      (fb) => fb.restaurant_id === res.id || (res.id === restaurants[0]?.id && fb.restaurant_id === 'res-1')
+      (fb) => fb.restaurant_id === res.id || (res.id === 'res-1' && fb.restaurant_id === 'res-1')
     );
     const latestReport = branchReports[0];
 
@@ -2847,7 +2847,7 @@ export const AdminRestaurantsPage: React.FC = () => {
               const isTier4 = effectiveTier >= 4;
 
               // Filtrado temporal de métricas de esta sucursal
-              const isPrimaryBranch = res.id === restaurants[0]?.id;
+              const isPrimaryBranch = res.id === 'res-1';
               const filteredFeedbacks = branchFeedbacks.filter((f) =>
                 filterByDateWindow(f.created_at, currentBranchTemporal)
               );
@@ -2917,7 +2917,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     : currentBranchTemporal === '30dias'
                     ? Math.round(branchTags.reduce((sum, t) => sum + (t.qr_scans_count || (t.scan_count || 0) * 0.12), 0) * 0.85)
                     : branchTags.reduce((sum, t) => sum + (t.qr_scans_count || (t.scan_count || 0) * 0.12), 0));
-              const totalScans = Math.max(1, nfcScans + qrScans);
+              const totalScans = nfcScans + qrScans;
 
               const sortedTags = [...branchTags].sort((a, b) => (b.scan_count || 0) - (a.scan_count || 0));
               const topTag = sortedTags.find((t) => (t.scan_count || 0) > 0) || sortedTags[0];
@@ -2976,7 +2976,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     const diff = (new Date(o.updated_at).getTime() - new Date(o.created_at).getTime()) / 60000;
                     return acc + (isNaN(diff) || diff <= 0 ? 0 : Math.min(diff, 60));
                   }, 0) / barOrders.length)
-                : (avgKitchenMinutes > 0 ? Math.round(avgKitchenMinutes * 0.42) : 0);
+                : 0;
 
               const attendedCalls = filteredCalls.filter((c) => c.status === 'attended');
               const avgCallResponseMin = attendedCalls.length > 0
@@ -2999,7 +2999,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                     const diff = (new Date(s.closed_at!).getTime() - new Date(s.opened_at).getTime()) / 60000;
                     return acc + (isNaN(diff) || diff <= 0 ? 0 : Math.min(diff, 240));
                   }, 0) / closedSessions.length)
-                : (filteredReports.length > 0 ? 42 : 0);
+                : 0;
 
               // Horas Pico: Histograma horario real agrupado por hora de created_at
               const { peakHourText, hourlyDistribution } = (() => {
@@ -3025,9 +3025,10 @@ export const AdminRestaurantsPage: React.FC = () => {
               // 4. PERSONAL OPERATIVO & TURNOS (Módulo D - 100% Real)
               const branchStaffMembers = sortedStaff;
               const branchActiveStaff = branchStaffMembers.filter((s: StaffMember) => s.is_active !== false);
-              const staffWithSalesCount = branchActiveStaff.filter((s: StaffMember) => s.role === 'waiter' || s.role === 'cashier').length || 1;
-              const avgSalesPerStaff = totalSales > 0 ? Math.round(totalSales / staffWithSalesCount) : 0;
-              const avgTipsPerStaff = totalTips > 0 ? Math.round(totalTips / staffWithSalesCount) : 0;
+              const salesStaffCount = branchActiveStaff.filter((s: StaffMember) => s.role === 'waiter' || s.role === 'cashier').length;
+              const staffWithSalesCount = salesStaffCount;
+              const avgSalesPerStaff = totalSales > 0 && salesStaffCount > 0 ? Math.round(totalSales / salesStaffCount) : 0;
+              const avgTipsPerStaff = totalTips > 0 && salesStaffCount > 0 ? Math.round(totalTips / salesStaffCount) : 0;
               const requiredRolesCount = 6;
               const coveredRolesCount = Math.min(requiredRolesCount, branchActiveStaff.length);
               const vacantRolesCount = Math.max(0, requiredRolesCount - coveredRolesCount);
@@ -3044,7 +3045,7 @@ export const AdminRestaurantsPage: React.FC = () => {
               const completedReportsCount = filteredReports.length;
               const shiftComplianceRate = scheduledShiftsCount > 0
                 ? `${Math.min(100, Math.round((completedReportsCount / scheduledShiftsCount) * 100))}%`
-                : (branchActiveStaff.length > 0 ? (completedReportsCount > 0 ? '100%' : 'Sin turnos agendados') : 'Sin personal');
+                : (branchActiveStaff.length > 0 ? (completedReportsCount > 0 ? '100%' : 'Sin turnos agendados') : 'Sin turnos');
 
               const branchActiveCoupons = branchCoupons.filter((c) => c.used_this_month < c.monthly_limit);
               const totalCouponDiscounts = branchCoupons.reduce(
@@ -3061,11 +3062,12 @@ export const AdminRestaurantsPage: React.FC = () => {
                   : currentBranchTemporal === '30dias'
                   ? 0.85
                   : 1.0;
-              const totalAdImpressions = Math.round(branchAds.reduce((sum, a) => sum + (a.impressions_count || 0), 0) * timeframeMultiplier);
-              const totalAdClicks = Math.round(branchAds.reduce((sum, a) => sum + (a.clicks_count || 0), 0) * timeframeMultiplier);
+              const hasBranchTraffic = branchTags.length > 0 && totalScans > 0;
+              const totalAdImpressions = hasBranchTraffic ? Math.round(branchAds.reduce((sum, a) => sum + (a.impressions_count || 0), 0) * timeframeMultiplier) : 0;
+              const totalAdClicks = hasBranchTraffic ? Math.round(branchAds.reduce((sum, a) => sum + (a.clicks_count || 0), 0) * timeframeMultiplier) : 0;
 
               const adCtr = totalAdImpressions > 0 ? ((totalAdClicks / totalAdImpressions) * 100).toFixed(1) : '0.0';
-              const adCreditBalance = Number(res.ad_credit_balance || 0);
+              const adCreditBalance = hasBranchTraffic ? Number(res.ad_credit_balance || 0) : 0;
               const baseSaaSFee = 1499;
               const netSaaSFee = Math.max(0, baseSaaSFee - adCreditBalance);
               const adVetoAvailable = (res as any).ad_veto_available !== false;

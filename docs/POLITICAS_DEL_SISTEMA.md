@@ -145,6 +145,25 @@
 
 ---
 
+### POL-011: Inicializacion Estricta en Cero para Nuevas Sucursales (Cero Datos Simulados o Heredados por Defecto)
+* **Declaracion:** Al dar de alta o registrar una nueva sucursal física en cualquier organización matriz, todos sus contadores, insignias de cabecera en Categorías 1 a 5, y las 28 métricas analíticas de la Categoría 6 deben inicializarse estrictamente en CERO (`0`).
+* **Directrices Técnicas:**
+  1. **Aislamiento de Semilla (Seed Isolation):** Los datos simulados o de plantilla (`genericStaff`, placas de demostración, órdenes previas, cortes de caja o impresiones publicitarias) pertenecen con exclusividad a la sucursal semilla original (`id === 'res-1'`). Queda prohibido asociar datos de ejemplo o usar índices relativos (`restaurants[0]`) para resolver valores por defecto de nuevas sucursales.
+  2. **Personal Operativo Limpio:** Si una sucursal no cuenta con personal registrado en la base de datos, Categoría 4 reporta con veracidad: `0 de 0 operadores (7 vacantes)`. Los 7 roles operativos estándar (`manager`, `hostess`, `cashier`, `waiter`, `kitchen`, `barista`, `employee`) se despliegan en estado `Disponible / Vacante` para asignación manual.
+  3. **Categoría 6 y Bento Cards en Cero:** Sin actividad registrada en la base de datos para la sucursal, los contadores inician en:
+     * Reputación Google: `0.00 ★ Google`, 0 opiniones registradas.
+     * Escudo Reputacional: `0 quejas retenidas`, 0 cupones activos.
+     * Ventas en Cortes: `$0 MXN`, 0 cortes de caja registrados.
+     * Aforo y Placas NFC: `0 placas en mesa`, 0 lecturas, 0 mesas (Capacidad: 0 comensales).
+  4. **Submódulos Operativos (Módulos A al F):** Cada submódulo calcula sus métricas a partir de registros reales vinculados mediante `restaurant_id = new_branch_id`. En ausencia de registros, muestran `0%`, `0 min`, o estados vacíos legibles como `'Sin turnos'` o `'Sin pedidos para llevar'`, sin recurrir a constantes ficticias ni extrapolaciones globales.
+* **Documentos Incidentes:**
+  * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
+  * [`src/lib/restaurants_bento.ts`](../src/lib/restaurants_bento.ts)
+  * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)
+  * [`src/lib/api/restaurants.ts`](../src/lib/api/restaurants.ts)
+
+---
+
 ## Protocolo de Actualizacion por Nuevas Politicas
 
 Cuando el usuario instruya **"Quedo inamovible"** o **"Vuelvelo politica"**:

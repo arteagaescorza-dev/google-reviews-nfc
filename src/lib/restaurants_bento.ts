@@ -535,9 +535,10 @@ export function buildOrganizationTree(
     }
 
     const capabilities = getBranchCapabilities(res, businessVerticals);
+    const isPrimaryBranch = res.id === 'res-1';
     const branchStaff =
       staffByRestaurant[res.id] ||
-      (capabilities.supportsFloorStaff && genericStaff.length > 0 ? genericStaff : []);
+      (isPrimaryBranch && capabilities.supportsFloorStaff && genericStaff.length > 0 ? genericStaff : []);
 
     const trialInfo = isBranchTrialActive(res);
     const effectiveTier = trialInfo.isActive && trialInfo.trialTier ? trialInfo.trialTier : (res.tier || 1);

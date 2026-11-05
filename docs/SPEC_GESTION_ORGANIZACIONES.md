@@ -173,3 +173,17 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
   - **Eliminar**: Purga definitiva de tiers no utilizados con confirmación preventiva.
 * **Filtrado Dinámico en Sucursales**: Los selectores de nivel contratado en el expediente de cada sucursal (`AdminRestaurantsPage.tsx`) ahora filtran y presentan exclusivamente los tiers aplicables al giro comercial de la sucursal (`business_type`) y los universales (`vertical_slug === 'all'`).
 
+### 9.12 Inicialización Estricta en Cero para Nuevas Sucursales (POL-011)
+* **Aislamiento de Sucursal Semilla**: La sucursal semilla (`res-1`) es la única autorizada a contener datos de demostración predeterminados. Cualquier nueva sucursal registrada o dada de alta nace con contadores y métricas estrictamente en CERO (`0`).
+* **Insignias y Cabeceras en Cero**:
+  - En la fila del directorio: `0 Tags`, `Quejas (0)`.
+  - En Categoría 2 (Hardware NFC & Mesas): `0 de 0 placas`.
+  - En Categoría 4 (Personal Operativo & Turnos): `0 de 0 operadores (7 vacantes)`. Los 7 roles operativos estándar se muestran vacantes y listos para ocuparse.
+  - En Categoría 6 (Métricas & Analítica): `0 cortes · 0 reseñas · 28 métricas`.
+* **Tarjetas Bento y Submódulos en Cero**:
+  - Reputación Google: `0.00 ★ Google`, 0 opiniones registradas en el periodo.
+  - Escudo Reputacional: `0 quejas retenidas`, 0 cupones activos.
+  - Ventas en Cortes: `$0 MXN`, 0 cortes de caja registrados.
+  - Aforo & Placas NFC: `0 placas en mesa`, 0 lecturas, 0 mesas (Capacidad: 0 comensales).
+  - Los 6 submódulos operativos (A al F) no proyectan números globales ni utilizan estimaciones hardcodeadas: calculan `0%`, `0 min` o muestran etiquetas sobrias como `'Sin turnos'` o `'Sin pedidos para llevar'`.
+
