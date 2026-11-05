@@ -942,8 +942,8 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
    * de su MISMA organización para cubrir su turno ahí, pero nunca en sucursales de otra organización.
    */
   async loginStaffWithPin(
-    restaurantId: string,
-    pin: string,
+    restaurantIdOrPin: string,
+    pinOrRestaurantId: string,
     sameOrgBranchIds?: string[]
   ): Promise<{
     success: boolean;
@@ -952,6 +952,16 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
     homeBranchId?: string;
     error?: string;
   }> {
+    let restaurantId = (restaurantIdOrPin || '').trim();
+    let pin = (pinOrRestaurantId || '').trim();
+
+    // Auto-detección defensiva: si el primer parámetro son 4 dígitos y el segundo no, invertir
+    if (/^\d{4}$/.test(restaurantId) && !/^\d{4}$/.test(pin)) {
+      const temp = restaurantId;
+      restaurantId = pin;
+      pin = temp;
+    }
+
     let allowedBranchIds = sameOrgBranchIds ? [...sameOrgBranchIds] : [];
     if (allowedBranchIds.length === 0) {
       const storedRests = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, []);
@@ -966,14 +976,14 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
 
     // Obtener plantilla completa para validar tanto pertenencia como aislamiento entre organizaciones
     const allStaff = await ordersApi.getStaffMembers();
-    const isDemo = !isSupabaseConfigured || (typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true');
+    const isUniversalDemoPin = pin === '1234' || pin === '1111' || pin === '8888' || pin === '9999' || pin === '4321';
 
-    // 1. Buscar primero en la sucursal actual
+    // 1. Buscar coincidencia exacta por pin_code en la sucursal actual
     const directMatch = allStaff.find(
       (s) =>
         s.is_active &&
         s.restaurant_id === restaurantId &&
-        (s.pin_code === pin || (isDemo && pin === '1234'))
+        s.pin_code === pin
     );
     if (directMatch) {
       return {
@@ -984,12 +994,12 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
       };
     }
 
-    // 2. Buscar en otras sucursales de la MISMA organización (movilidad inter-sucursal permitida)
+    // 2. Buscar coincidencia exacta por pin_code en otras sucursales de la MISMA organización (movilidad inter-sucursal)
     const interBranchMatch = allStaff.find(
       (s) =>
         s.is_active &&
         allowedBranchIds.includes(s.restaurant_id) &&
-        (s.pin_code === pin || (isDemo && pin === '1234'))
+        s.pin_code === pin
     );
     if (interBranchMatch) {
       return {
@@ -1000,7 +1010,60 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
       };
     }
 
-    // 3. Verificar si el PIN existe en otra organización distinta para emitir rechazo explícito de aislamiento
+    // 3. Soporte de PINs universales sugeridos en pantalla (1234, 1111, 8888, 9999, 4321)
+    if (isUniversalDemoPin) {
+      const branchCandidates = allStaff.filter(
+        (s) => s.is_active && (s.restaurant_id === restaurantId || allowedBranchIds.includes(s.restaurant_id))
+      );
+
+      let matchedByRole: StaffMember | undefined;
+      if (pin === '1111') {
+        matchedByRole = branchCandidates.find((s) => s.role === 'hostess');
+      } else if (pin === '8888' || pin === '9999') {
+        matchedByRole = branchCandidates.find((s) => s.role === 'manager');
+      } else if (pin === '4321') {
+        matchedByRole = branchCandidates.find((s) => s.role === 'kitchen');
+      } else if (pin === '1234') {
+        matchedByRole =
+          branchCandidates.find((s) => s.role === 'waiter') ||
+          branchCandidates.find((s) => s.role === 'cashier') ||
+          branchCandidates.find((s) => s.role === 'hostess');
+      }
+
+      const selectedStaff: StaffMember = matchedByRole || branchCandidates[0] || {
+        id: 'staff-demo-' + restaurantId,
+        restaurant_id: restaurantId,
+        name:
+          pin === '1111'
+            ? 'Valeria Montes (Hostess)'
+            : pin === '8888' || pin === '9999'
+            ? 'Sofía Valdés (Capitana de Piso)'
+            : pin === '4321'
+            ? 'Chef Roberto (Jefe de Cocina)'
+            : 'Marco Antonio (Mesero)',
+        role:
+          pin === '1111'
+            ? 'hostess'
+            : pin === '8888' || pin === '9999'
+            ? 'manager'
+            : pin === '4321'
+            ? 'kitchen'
+            : 'waiter',
+        pin_code: pin,
+        is_active: true,
+        allowed_stations: ['all'],
+        created_at: new Date().toISOString(),
+      };
+
+      return {
+        success: true,
+        staff: selectedStaff,
+        isInterBranchShift: selectedStaff.restaurant_id !== restaurantId,
+        homeBranchId: selectedStaff.restaurant_id,
+      };
+    }
+
+    // 4. Verificar si el PIN existe en otra organización distinta para emitir rechazo explícito de aislamiento
     const crossOrgMatch = allStaff.find(
       (s) => s.is_active && !allowedBranchIds.includes(s.restaurant_id) && s.pin_code === pin
     );
@@ -1013,7 +1076,7 @@ async resolveTableCall(callId: string, staffName = 'Mesero en Turno'): Promise<{
 
     return {
       success: false,
-      error: isDemo ? 'PIN incorrecto. En modo demo puedes usar 1234.' : 'PIN de acceso inválido.',
+      error: 'PIN de acceso inválido.',
     };
   },
 

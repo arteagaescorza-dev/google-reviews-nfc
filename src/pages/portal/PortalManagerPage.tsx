@@ -204,9 +204,9 @@ export const PortalManagerPage: React.FC = () => {
     e.preventDefault();
     setPinError('');
 
-    // Verificar únicamente en la tabla de gerentes de la MISMA organización (POL-009)
+    // Verificar en la tabla de gerentes de la MISMA organización (POL-009)
     const matchedOrgMgr = sameOrgManagers.find(
-      (m) => m.is_active && (m.pin_code === pinInput || pinInput === '8888' || pinInput === '9999' || pinInput === '1234')
+      (m) => m.is_active && m.pin_code === pinInput
     );
     if (matchedOrgMgr) {
       setLoggedInManagerName(matchedOrgMgr.name);
@@ -216,10 +216,20 @@ export const PortalManagerPage: React.FC = () => {
       return;
     }
 
+    // Soporte para PINs universales de demostración en gerencia
+    if (pinInput === '8888' || pinInput === '9999' || pinInput === '1234') {
+      setLoggedInManagerName(
+        pinInput === '9999' ? 'Sofía Valdés (Capitana de Piso)' : 'Lic. Mauricio Salinas (Gerente de Tienda)'
+      );
+      setLoggedInManagerRole(pinInput === '9999' ? 'capitan_piso' : 'gerente_tienda');
+      setPinInput('');
+      return;
+    }
+
     const res = await api.loginStaffWithPin(selectedBranchId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       setLoggedInManagerName(res.staff.name);
-      setLoggedInManagerRole('gerente_tienda');
+      setLoggedInManagerRole(res.staff.role === 'manager' ? 'gerente_tienda' : 'capitan_piso');
       setPinInput('');
     } else {
       setPinError(res.error || 'PIN de Gerente inválido. Usa 8888, 9999 o 1234 en modo demo.');

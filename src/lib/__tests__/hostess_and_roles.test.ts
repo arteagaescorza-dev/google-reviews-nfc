@@ -97,4 +97,24 @@ describe('Fase B: Roles Operativos (Hostess y Barista) y Gestión de Mesas con S
     expect(freedTable?.status).toBe('libre');
     expect(freedTable?.current_guests).toBe(0);
   });
+
+  it('permite iniciar sesión con PINs universales y detecta automáticamente parámetros permutados', async () => {
+    // 1. Login con orden estándar (restaurantId, pin)
+    const waiterLogin = await ordersApi.loginStaffWithPin('res-1', '1234');
+    expect(waiterLogin.success).toBe(true);
+    expect(waiterLogin.staff).toBeDefined();
+
+    const hostessLogin = await ordersApi.loginStaffWithPin('res-1', '1111');
+    expect(hostessLogin.success).toBe(true);
+    expect(hostessLogin.staff?.role).toBe('hostess');
+
+    const managerLogin = await ordersApi.loginStaffWithPin('res-1', '8888');
+    expect(managerLogin.success).toBe(true);
+    expect(managerLogin.staff?.role).toBe('manager');
+
+    // 2. Login con orden permutado defensivo (pin, restaurantId)
+    const swappedLogin = await ordersApi.loginStaffWithPin('1111', 'res-1');
+    expect(swappedLogin.success).toBe(true);
+    expect(swappedLogin.staff?.role).toBe('hostess');
+  });
 });

@@ -84,7 +84,7 @@ export const PortalPickupPage: React.FC = () => {
     e.preventDefault();
     setPinError('');
     const branchId = getBranchId() || branchInfo?.id || 'res-1';
-    const res = await api.loginStaffWithPin(pinInput.trim(), branchId);
+    const res = await api.loginStaffWithPin(branchId, pinInput.trim());
     if (res.success && res.staff) {
       setActiveCashier(res.staff);
       setIsPinModalOpen(false);

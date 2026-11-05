@@ -121,7 +121,8 @@ export const PortalHostessPage: React.FC = () => {
       return;
     }
 
-    const res = await api.loginStaffWithPin(pinInput, selectedBranchId);
+    const sameOrgBranchIds = sameOrgBranches.map((b) => b.id);
+    const res = await api.loginStaffWithPin(selectedBranchId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       if (['hostess', 'manager', 'waiter'].includes(res.staff.role)) {
         setLoggedInStaff(res.staff);

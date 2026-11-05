@@ -100,7 +100,8 @@ export const PortalStaffPage: React.FC = () => {
       return;
     }
 
-    const res = await api.loginStaffWithPin(pinInput, selectedRestaurantId);
+    const sameOrgBranchIds = sameOrgBranches.map((b) => b.id);
+    const res = await api.loginStaffWithPin(selectedRestaurantId, pinInput, sameOrgBranchIds);
     if (res.success && res.staff) {
       setCurrentStaff(res.staff);
       setIsInterBranchShift(Boolean(res.isInterBranchShift));
