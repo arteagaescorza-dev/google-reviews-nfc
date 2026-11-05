@@ -227,10 +227,12 @@ export interface Restaurant {
 }
 
 export type TagPhysicalCondition = 'nuevo' | 'instalado' | 'desgastado' | 'danado' | 'reemplazado';
+export type TagStatus = 'en_espera_activacion' | 'activo' | 'retirado_mantenimiento' | 'baja_definitiva';
 
 export interface Tag {
   id: string;
   tag_code: string;
+
   restaurant_id?: string | null;
   table_identifier?: string | null;
   custom_ad_id?: string | null;
@@ -241,6 +243,10 @@ export interface Tag {
   is_active: boolean;
   batch_id?: string | null;
   nfc_chip_model?: string;
+  chip_uid?: string | null;
+  sticker_qr?: string | null;
+  status?: TagStatus;
+  replaced_at?: string | null;
   physical_condition?: TagPhysicalCondition;
   installer_name?: string | null;
   installed_at?: string | null;
@@ -501,6 +507,7 @@ export interface TableOrder {
   id: string;
   restaurant_id: string;
   tag_code: string;
+
   table_number: string;
   items: OrderItem[];
   total_amount: number;
@@ -519,6 +526,7 @@ export interface TableCall {
   id: string;
   restaurant_id: string;
   tag_code: string;
+
   table_number: string;
   call_type: TableCallType;
   status: TableCallStatus;

@@ -195,3 +195,16 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
     - Activo: `Disponible en Sala`.
     - No disponible: `Agotado Temporalmente` (e insignia compacta `Agotado` sobre la fotografía).
 
+### 9.13 Trazabilidad Física de Placas, Apareamiento In-Situ y Protocolo de Retiro (POL-012)
+* **Apareamiento Físico In-Situ (`PlatePairingModal`)**:
+  - Reconoce que los Tags NFC y los Viniles QR se manufacturan por separado.
+  - El instalador asocia in-situ el código de vinil preimpreso (`sticker_qr`), el UID del chip físico (`chip_uid`) y el identificador de mesa (`table_identifier`).
+  - La placa se activa de inmediato bajo la política de solo lectura inmutable, previniendo alteraciones manuales no autorizadas.
+  - Disponible con doble acceso: botón `[+ Vincular Placa In-Situ]` en la Categoría 2 de cada sucursal y en el panel central de hardware (`/admin/hardware`).
+* **Protocolo de Sustitución por Mantenimiento**:
+  - Cuando una placa sufre deterioro por desengrasante o desgaste físico, la reposición formal (`api.replaceDamagedTableTag`) desactiva el hardware anterior pasándolo a estado `retirado_mantenimiento` con trazabilidad del folio de reemplazo.
+* **Aviso de Seguridad Sobrio en Mesa**:
+  - Si un comensal escanea el código antiguo retirado, `ResolverPage.tsx` intercepta la solicitud y despliega la tarjeta Bento sobria de `TagStatusFallback.tsx`:
+    > *"Esta placa ha sido retirada y sustituida por mantenimiento. Por favor utiliza el código activo en tu mesa."*
+  - Bloquea cualquier comanda o reseña desde el código retirado y ofrece el botón de asistencia `[Llamar al Mesero / Asistencia en Sala]`.
+

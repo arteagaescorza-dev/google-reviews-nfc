@@ -34,6 +34,7 @@ import { ManagerEditModal } from '../components/admin/ManagerEditModal';
 import { MenuManagementModal } from '../components/admin/MenuManagementModal';
 import { ManagerCouponModal } from '../components/admin/ManagerCouponModal';
 import { StaffMemberModal } from '../components/admin/StaffMemberModal';
+import { PlatePairingModal } from '../components/admin/PlatePairingModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS, STATION_ID_MAP } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -432,6 +433,12 @@ export const AdminRestaurantsPage: React.FC = () => {
 
   // Estados para Modal de Empleados de Categoría 4 (Requerimiento 3)
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [pairingBranchId, setPairingBranchId] = useState<string | null>(null);
+  const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
+  const handleOpenPairingModal = (branchId: string) => {
+    setPairingBranchId(branchId);
+    setIsPairingModalOpen(true);
+  };
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [staffModalBranchId, setStaffModalBranchId] = useState<string>('');
   const [staffModalBranchName, setStaffModalBranchName] = useState<string>('');
@@ -1560,6 +1567,18 @@ export const AdminRestaurantsPage: React.FC = () => {
                       <span className="text-[10px] font-bold text-purple-700">
                         {branchTags.filter((t) => t.is_active !== false).length} de {branchTags.length} placas
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenPairingModal(res.id);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold transition-colors shadow-2xs"
+                        title="Apareamiento in-situ de Tag NFC y Vinil QR a mesa"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+ Vincular Placa In-Situ</span>
+                      </button>
                       <a
                         href={`#/portal/hostess?branch=${res.id}`}
                         target="_blank"
@@ -1579,14 +1598,23 @@ export const AdminRestaurantsPage: React.FC = () => {
                   {isCat2Expanded && (
                 <>
                   {branchTags.length === 0 && branchTables.length === 0 ? (
-                <div className="px-4 py-3 text-[11px] text-slate-500 flex items-center justify-between">
+                <div className="px-4 py-3 text-[11px] text-slate-500 flex items-center justify-between flex-wrap gap-2">
                   <span>No hay placas físicas ni mesas registradas en esta sucursal todavía.</span>
-                  <Link
-                    to={`/admin/tags?restaurant=${res.id}`}
-                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold hover:bg-purple-100"
-                  >
-                    + Asignar Placas NFC
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPairingModal(res.id)}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-2xs transition-colors"
+                    >
+                      + Vincular Placa In-Situ
+                    </button>
+                    <Link
+                      to={`/admin/tags?restaurant=${res.id}`}
+                      className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold hover:bg-purple-100"
+                    >
+                      + Asignar Placas NFC
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 text-xs">
@@ -1618,6 +1646,16 @@ export const AdminRestaurantsPage: React.FC = () => {
                           <span className="font-mono font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {tag.tag_code}
                           </span>
+                          {tag.sticker_qr && (
+                            <span className="font-mono font-bold text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded text-[10px] border border-slate-200" title="Token Vinil QR">
+                              QR: {tag.sticker_qr}
+                            </span>
+                          )}
+                          {(tag.status === 'retirado_mantenimiento' || (tag as any).physical_condition === 'reemplazado') && (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-[10px] font-bold">
+                              Retirada por Mantenimiento
+                            </span>
+                          )}
                           <span className="font-bold text-slate-800">
                             {tag.table_identifier
                               ? `${capabilities.unitLabel}: ${tag.table_identifier}`
@@ -1694,6 +1732,19 @@ export const AdminRestaurantsPage: React.FC = () => {
                       </div>
                     );
                   })}
+                  <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <span className="text-slate-500 text-[11px]">
+                      {branchTags.filter((t) => t.is_active && t.status !== 'retirado_mantenimiento').length} placas activas en sala (solo lectura)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPairingModal(res.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-colors shadow-2xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Vincular Placa In-Situ</span>
+                    </button>
+                  </div>
                 </div>
               )}
                 </>
@@ -5779,6 +5830,22 @@ export const AdminRestaurantsPage: React.FC = () => {
         branchName={couponModalBranchName}
         onCouponCreated={loadData}
       />
+
+      {/* Modal de Apareamiento In-Situ de Placa (Fase 2 / POL-012) */}
+      {isPairingModalOpen && (
+        <PlatePairingModal
+          isOpen={isPairingModalOpen}
+          onClose={() => {
+            setIsPairingModalOpen(false);
+            setPairingBranchId(null);
+          }}
+          restaurants={restaurants}
+          targetRestaurantId={pairingBranchId || undefined}
+          onPairingCompleted={async () => {
+            await loadData();
+          }}
+        />
+      )}
 
       {/* Modal de Creación / Edición de Empleados de Categoría 4 (Requerimiento 3) */}
       <StaffMemberModal

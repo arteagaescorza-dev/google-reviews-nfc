@@ -168,6 +168,27 @@
 
 ---
 
+### POL-012: Trazabilidad Física de Hardware (Apareamiento In-Situ y Protocolo de Placas Retiradas por Mantenimiento)
+* **Declaración:** Los componentes físicos de hardware (Tag NFC y Vinil QR) se fabrican y entregan en lotes desacoplados; su apareamiento formal se ejecuta in-situ en el local físico, vinculando el chip físico y el sticker impreso a una mesa específica bajo un estado protegido de solo lectura.
+* **Directrices Técnicas:**
+  1. **Entidad Placa Unificada:** La tabla `tags` modela la placa completa integrando `chip_uid` (UID de chip NFC de fábrica), `sticker_qr` (folio del vinil impreso) y `tag_code` (folio de placa universal). El sistema resuelve la mesa en `/t/:code` aceptando indistintamente cualquiera de los tres identificadores.
+  2. **Inmutabilidad y Estado Solo Lectura:** Al completarse el apareamiento in-situ mediante `PlatePairingModal`, la placa pasa atómicamente a estado `activo` (`status = 'activo'`). Queda prohibida la edición manual o reasignación arbitraria de la mesa desde la interfaz estándar.
+  3. **Protocolo de Sustitución por Mantenimiento:** La reposición por desgaste o daño químico transfiere la mesa a la nueva placa y transiciona la placa anterior a estado `retirado_mantenimiento` con registro inmutable de `replaced_by_tag_code`, `replaced_at`, `installer_name` y `replacement_reason`.
+  4. **Aviso de Seguridad Sobrio al Comensal:** Ante el escaneo de cualquier código perteneciente a una pieza en estado `retirado_mantenimiento`, el sistema intercepta la petición y despliega en `TagStatusFallback.tsx` el aviso sobrio normado:
+     > *"Esta placa ha sido retirada y sustituida por mantenimiento. Por favor utiliza el código activo en tu mesa."*
+     Bloquea cualquier envío de órdenes o reseñas desde la placa retirada e incorpora el botón sobrio `[Llamar al Mesero / Asistencia en Sala]`.
+* **Documentos Incidentes:**
+  * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
+  * [`src/components/admin/PlatePairingModal.tsx`](../src/components/admin/PlatePairingModal.tsx)
+  * [`src/components/client/TagStatusFallback.tsx`](../src/components/client/TagStatusFallback.tsx)
+  * [`src/pages/ResolverPage.tsx`](../src/pages/ResolverPage.tsx)
+  * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)
+  * [`src/pages/AdminHardwarePage.tsx`](../src/pages/AdminHardwarePage.tsx)
+  * [`src/lib/api/tags.ts`](../src/lib/api/tags.ts)
+  * [`src/lib/api/hardware.ts`](../src/lib/api/hardware.ts)
+
+---
+
 ## Protocolo de Actualizacion por Nuevas Politicas
 
 Cuando el usuario instruya **"Quedo inamovible"** o **"Vuelvelo politica"**:

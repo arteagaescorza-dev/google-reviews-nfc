@@ -68,12 +68,18 @@ CREATE TABLE IF NOT EXISTS ads (
 CREATE TABLE IF NOT EXISTS tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tag_code TEXT UNIQUE NOT NULL,
+    chip_uid TEXT,
+    sticker_qr TEXT,
+    status TEXT NOT NULL DEFAULT 'activo' CHECK (status IN ('en_espera_activacion', 'activo', 'retirado_mantenimiento', 'baja_definitiva')),
     restaurant_id UUID REFERENCES restaurants(id) ON DELETE SET NULL,
     table_identifier TEXT,
     custom_ad_id UUID REFERENCES ads(id) ON DELETE SET NULL,
     scan_count INT NOT NULL DEFAULT 0,
     last_scanned_at TIMESTAMPTZ,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    replaced_by_tag_code TEXT,
+    replaced_at TIMESTAMPTZ,
+    replacement_reason TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -124,6 +130,9 @@ CREATE TABLE IF NOT EXISTS tag_scans (
 -- ÍNDICES PARA BÚSQUEDA RÁPIDA
 -- ------------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_tags_code ON tags(tag_code);
+CREATE INDEX IF NOT EXISTS idx_tags_chip_uid ON tags(chip_uid);
+CREATE INDEX IF NOT EXISTS idx_tags_sticker_qr ON tags(sticker_qr);
+CREATE INDEX IF NOT EXISTS idx_tags_status ON tags(status);
 CREATE INDEX IF NOT EXISTS idx_restaurants_slug ON restaurants(slug);
 CREATE INDEX IF NOT EXISTS idx_restaurants_org ON restaurants(organization_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_restaurant ON feedback(restaurant_id);

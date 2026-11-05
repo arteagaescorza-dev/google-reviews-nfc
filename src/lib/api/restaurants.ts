@@ -8,22 +8,21 @@ export const restaurantsApi = {
    * Resuelve un Tag físico con los datos completos del restaurante/sucursal asignado
    */
   async getTagDetails(tagCode: string): Promise<{ tag: Tag | null; restaurant: Restaurant | null }> {
-    const normalizedCode = tagCode.trim();
+    const normalizedCode = tagCode.trim().toLowerCase();
 
     if (isSupabaseConfigured) {
       try {
         const { data: tag, error } = await supabase
           .from('tags')
           .select('*, restaurant:restaurants(*)')
-          .eq('tag_code', normalizedCode)
-          .eq('is_active', true)
+          .or('tag_code.ilike.' + normalizedCode + ',sticker_qr.ilike.' + normalizedCode + ',chip_uid.ilike.' + normalizedCode)
           .single();
 
-        if (error || !tag) return { tag: null, restaurant: null };
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const restaurant = (tag as any).restaurant as Restaurant | null;
-        return { tag, restaurant };
+        if (!error && tag) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const restaurant = (tag as any).restaurant as Restaurant | null;
+          return { tag, restaurant };
+        }
       } catch (e) {
         console.error('Error al resolver tag en Supabase:', e);
       }
@@ -33,10 +32,15 @@ export const restaurantsApi = {
     const tags = getLocalItem<Tag[]>(STORAGE_KEYS.TAGS, INITIAL_DEMO_DATA.tags);
     const restaurants = getLocalItem<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, INITIAL_DEMO_DATA.restaurants);
 
-    const tag = tags.find((t) => t.tag_code.toLowerCase() === normalizedCode.toLowerCase() && t.is_active);
+    const tag = tags.find(
+      (t) =>
+        (t.tag_code && t.tag_code.toLowerCase() === normalizedCode) ||
+        (t.sticker_qr && t.sticker_qr.toLowerCase() === normalizedCode) ||
+        (t.chip_uid && t.chip_uid.toLowerCase() === normalizedCode)
+    );
     if (!tag) return { tag: null, restaurant: null };
 
-    const restaurant = restaurants.find((r) => r.id === tag.restaurant_id && r.is_active) || null;
+    const restaurant = restaurants.find((r) => r.id === tag.restaurant_id) || null;
     return { tag, restaurant };
   },
 

@@ -152,5 +152,108 @@ async createBatchTags(
       { id: 'scan-14', tag_code: 'NFC-002', restaurant_id: restaurantId || 'res-1', scan_method: 'nfc', created_at: new Date(now - 86400000 * 45).toISOString() },
     ];
     return defaultScans;
-  }
+  },
+
+  async pairPlateInSitu(params: {
+    restaurant_id: string;
+    table_identifier: string;
+    sticker_qr: string;
+    chip_uid?: string;
+    tag_code?: string;
+    installer_name?: string;
+  }): Promise<{ success: boolean; data?: Tag; error?: string }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    const tagCode = (params.tag_code || params.sticker_qr || ('PLC-' + Date.now().toString().slice(-4))).trim().toUpperCase();
+    const cleanSticker = params.sticker_qr.trim().toUpperCase();
+    const cleanChip = params.chip_uid ? params.chip_uid.trim().toUpperCase() : null;
+
+    if (isSupabaseConfigured && !isDemo) {
+      try {
+        const payload = {
+          tag_code: tagCode,
+          restaurant_id: params.restaurant_id,
+          table_identifier: params.table_identifier.trim(),
+          sticker_qr: cleanSticker,
+          chip_uid: cleanChip,
+          status: 'activo',
+          is_active: true,
+          installer_name: params.installer_name?.trim() || 'Técnico Instalador',
+          installed_at: new Date().toISOString(),
+          physical_condition: 'instalado',
+        };
+        const { data, error } = await supabase.from('tags').insert([payload]).select().single();
+        if (error) throw error;
+        return { success: true, data: data as Tag };
+      } catch (e: any) {
+        console.warn('Error en pairPlateInSitu Supabase, usando respaldo local:', e.message);
+      }
+    }
+
+    const current = getLocalItem<Tag[]>(STORAGE_KEYS.TAGS, INITIAL_DEMO_DATA.tags);
+    const existingActive = current.find(
+      (t) =>
+        t.is_active &&
+        t.status !== 'retirado_mantenimiento' &&
+        ((t.sticker_qr && t.sticker_qr.toUpperCase() === cleanSticker) ||
+          (t.tag_code && t.tag_code.toUpperCase() === tagCode))
+    );
+    if (existingActive) {
+      return {
+        success: false,
+        error: 'El código QR ' + cleanSticker + ' ya está vinculado a la mesa ' + (existingActive.table_identifier || 'otra mesa') + '.',
+      };
+    }
+
+    const newTag: Tag = {
+      id: 'tag-' + Date.now(),
+      tag_code: tagCode,
+      restaurant_id: params.restaurant_id,
+      table_identifier: params.table_identifier.trim(),
+      sticker_qr: cleanSticker,
+      chip_uid: cleanChip,
+      status: 'activo',
+      is_active: true,
+      physical_condition: 'instalado',
+      installer_name: params.installer_name?.trim() || 'Técnico Instalador',
+      installed_at: new Date().toISOString(),
+      scan_count: 0,
+      created_at: new Date().toISOString(),
+    };
+
+    setLocalItem(STORAGE_KEYS.TAGS, [newTag, ...current]);
+    return { success: true, data: newTag };
+  },
+
+  async resolvePlate(code: string): Promise<{
+    found: boolean;
+    tag?: Tag;
+    restaurant?: Restaurant;
+    isMaintenanceRetired?: boolean;
+    tableIdentifier?: string;
+  }> {
+    const cleanCode = code.trim().toUpperCase();
+    const allTags = await tagsApi.getTags();
+    const tag = allTags.find(
+      (t) =>
+        (t.tag_code && t.tag_code.toUpperCase() === cleanCode) ||
+        (t.sticker_qr && t.sticker_qr.toUpperCase() === cleanCode) ||
+        (t.chip_uid && t.chip_uid.toUpperCase() === cleanCode)
+    );
+
+    if (!tag) {
+      return { found: false };
+    }
+
+    const isMaintenanceRetired =
+      tag.status === 'retirado_mantenimiento' ||
+      tag.physical_condition === 'reemplazado';
+
+    return {
+      found: true,
+      tag,
+      restaurant: tag.restaurant,
+      isMaintenanceRetired,
+      tableIdentifier: tag.table_identifier || undefined,
+    };
+  },
 };

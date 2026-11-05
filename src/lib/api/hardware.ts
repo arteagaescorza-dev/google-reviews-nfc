@@ -277,14 +277,21 @@ export const hardwareApi = {
 
     // Fallback local garantizado
     const tags = getLocalItem<any[]>(STORAGE_KEYS.TAGS, []);
-    const oldTag = tags.find((t) => t.tag_code === params.old_tag_code.toUpperCase());
+    const oldTag = tags.find(
+      (t) =>
+        (t.tag_code && t.tag_code.toUpperCase() === params.old_tag_code.toUpperCase()) ||
+        (t.sticker_qr && t.sticker_qr.toUpperCase() === params.old_tag_code.toUpperCase()) ||
+        (t.chip_uid && t.chip_uid.toUpperCase() === params.old_tag_code.toUpperCase())
+    );
     if (!oldTag) {
       return { success: false, error: 'El tag antiguo no existe en el registro local.' };
     }
 
     oldTag.physical_condition = 'reemplazado';
+    oldTag.status = 'retirado_mantenimiento';
     oldTag.is_active = false;
     oldTag.replaced_by_tag_code = params.new_tag_code.toUpperCase();
+    oldTag.replaced_at = new Date().toISOString();
     oldTag.replacement_reason = params.reason || 'Desgaste por uso';
 
     const newTag = {
@@ -293,6 +300,7 @@ export const hardwareApi = {
       restaurant_id: oldTag.restaurant_id,
       table_identifier: oldTag.table_identifier,
       physical_condition: 'instalado',
+      status: 'activo',
       installer_name: params.installer_name || 'Técnico de Campo',
       installed_at: new Date().toISOString(),
       is_active: true,

@@ -111,6 +111,17 @@ export const ResolverPage: React.FC = () => {
     );
   }
 
+  // Si la placa ha sido retirada y sustituida por mantenimiento (POL-012)
+  if (tag && (tag.status === 'retirado_mantenimiento' || tag.physical_condition === 'reemplazado')) {
+    return (
+      <TagStatusFallback
+        tagCode={tag.tag_code}
+        reason="maintenance_retired"
+        tableIdentifier={tag.table_identifier}
+      />
+    );
+  }
+
   // Si el tag no existe o no tiene restaurante asignado
   if (!tag || !restaurant) {
     return <TagStatusFallback tagCode={tagCode} reason={!tag ? 'not_found' : 'unassigned'} />;

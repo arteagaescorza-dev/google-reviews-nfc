@@ -5,6 +5,8 @@ import { HardwareInventoryBento } from '../components/admin/HardwareInventoryBen
 import { PrintBatchModal } from '../components/admin/PrintBatchModal';
 import { InSituActivatorModal } from '../components/admin/InSituActivatorModal';
 import { TagReplacementModal } from '../components/admin/TagReplacementModal';
+import { PlatePairingModal } from '../components/admin/PlatePairingModal';
+import { Link2 } from 'lucide-react';
 import {
   Printer,
   Smartphone,
@@ -26,6 +28,7 @@ export const AdminHardwarePage: React.FC = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isInSituModalOpen, setIsInSituModalOpen] = useState(false);
   const [isReplacementModalOpen, setIsReplacementModalOpen] = useState(false);
+  const [isPlatePairingOpen, setIsPlatePairingOpen] = useState(false);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -97,6 +100,13 @@ export const AdminHardwarePage: React.FC = () => {
 
         {/* Acciones Ejecutivas */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setIsPlatePairingOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+          >
+            <Link2 className="w-4 h-4" />
+            Vincular Placa In-Situ
+          </button>
           <button
             onClick={() => setIsInSituModalOpen(true)}
             className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm hover:shadow-emerald-600/20 flex items-center gap-2"
@@ -285,6 +295,15 @@ export const AdminHardwarePage: React.FC = () => {
         tags={tags}
         restaurants={restaurants}
         onReplacementCompleted={loadAllData}
+      />
+
+      <PlatePairingModal
+        isOpen={isPlatePairingOpen}
+        onClose={() => setIsPlatePairingOpen(false)}
+        restaurants={restaurants}
+        onPairingCompleted={async () => {
+          await loadAllData();
+        }}
       />
     </div>
   );
