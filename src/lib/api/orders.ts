@@ -60,15 +60,16 @@ export function getDefaultStationsForRole(role: StaffMember['role']): KitchenSta
 }
 
 export const ordersApi = {
-async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
-    if (isSupabaseConfigured) {
+  async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         let query = supabase.from('menu_items').select('*').order('name');
-        if (restaurantId && restaurantId !== 'res-1') {
+        if (restaurantId) {
           query = query.eq('restaurant_id', restaurantId);
         }
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data as MenuItem[];
         }
       } catch (err) {
@@ -79,7 +80,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
     const defaultItems: MenuItem[] = [
       {
         id: 'menu-1',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'entradas',
         name: 'Carpaccio de Res Trufado',
         description: 'Láminas finas de lomo de res con vinagreta de trufa negra, alcaparras y lascas de parmesano reggiano.',
@@ -90,7 +91,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-2',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'entradas',
         name: 'Bruschetta Pomodoro Clásica',
         description: 'Pan rústico al horno de leña, jitomate cherry macerado en aceite de oliva virgen extra y albahaca fresca.',
@@ -101,7 +102,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-3',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'principales',
         name: 'Pizza Margherita al Horno de Leña',
         description: 'Salsa de tomate San Marzano, mozzarella fior di latte, albahaca fresca y aceite de oliva virgen extra.',
@@ -112,7 +113,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-4',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'principales',
         name: 'Fettuccine Alfredo con Camarones',
         description: 'Pasta fresca hecha en casa salteada en mantequilla infusionada, crema ligera y camarones a las hierbas finas.',
@@ -123,7 +124,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-5',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'principales',
         name: 'Corte Rib Eye Prime 400g',
         description: 'Corte premium al grill con sal de mar de Colima, acompañado de espárragos asados y papas al romero.',
@@ -134,7 +135,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-6',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'bebidas',
         name: 'Copa de Vino Tinto Chianti Reserva',
         description: 'Selección de la casa con notas de frutos rojos y madera. Ideal para maridar con carnes y pastas.',
@@ -145,7 +146,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-7',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'bebidas',
         name: 'Cerveza Artesanal IPA Mexicana 355ml',
         description: 'Cerveza de cuerpo medio con amargor balanceado y notas cítricas florales.',
@@ -156,7 +157,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-8',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'bebidas',
         name: 'Limonada Natural Menta & Jengibre',
         description: 'Refrescante limonada preparada al momento con jarabe natural, hojas de menta maceradas y toque de jengibre.',
@@ -167,7 +168,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-9',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'postres',
         name: 'Tiramisú Tradicional de Mascarpone',
         description: 'Capas de soletas remojadas en café espresso y licor amaretto con crema sedosa de queso mascarpone y cacao.',
@@ -178,7 +179,7 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
       },
       {
         id: 'menu-10',
-        restaurant_id: restaurantId || 'res-1',
+        restaurant_id: 'res-1',
         category: 'postres',
         name: 'Panna Cotta con Coulis de Frutos Rojos',
         description: 'Clásico postre italiano de crema aromatizada con vaina de vainilla y coulis artesanal de frambuesas y zarzamoras.',
@@ -191,11 +192,15 @@ async getMenuItems(restaurantId?: string): Promise<MenuItem[]> {
 
     const current = getLocalItem<MenuItem[]>(STORAGE_KEYS.MENU_ITEMS, defaultItems);
     if (!restaurantId) return current;
-    return current.filter((m) => m.restaurant_id === restaurantId || m.restaurant_id === 'res-1');
+    if (restaurantId === 'res-1') {
+      return current.filter((m) => m.restaurant_id === 'res-1' || !m.restaurant_id);
+    }
+    return current.filter((m) => m.restaurant_id === restaurantId);
   },
 
-async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: MenuItem }> {
-    if (isSupabaseConfigured) {
+  async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: MenuItem }> {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         if (item.id && !item.id.startsWith('menu-')) {
           const { data, error } = await supabase
@@ -243,7 +248,8 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
   },
 
   async deleteMenuItem(itemId: string): Promise<{ success: boolean; error?: string }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
         if (error) console.warn('Error eliminando menu_item en Supabase:', error.message);
@@ -258,7 +264,8 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
   },
 
   async toggleMenuItemAvailability(itemId: string, isAvailable: boolean): Promise<{ success: boolean }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         await supabase.from('menu_items').update({ is_available: isAvailable }).eq('id', itemId);
       } catch (err) {
@@ -272,21 +279,15 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
   },
 
   async getMenuCategories(restaurantId?: string): Promise<MenuCategory[]> {
-    const defaultCategories: MenuCategory[] = [
-      { id: 'cat-1', name: 'Entradas', slug: 'entradas', sort_order: 1 },
-      { id: 'cat-2', name: 'Principales', slug: 'principales', sort_order: 2 },
-      { id: 'cat-3', name: 'Bebidas', slug: 'bebidas', sort_order: 3 },
-      { id: 'cat-4', name: 'Postres', slug: 'postres', sort_order: 4 },
-    ];
-
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         let query = supabase.from('menu_categories').select('*').order('sort_order', { ascending: true });
-        if (restaurantId && restaurantId !== 'res-1') {
-          query = query.or(`restaurant_id.eq.${restaurantId},restaurant_id.is.null`);
+        if (restaurantId) {
+          query = query.eq('restaurant_id', restaurantId);
         }
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data as MenuCategory[];
         }
       } catch (err) {
@@ -294,12 +295,23 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
       }
     }
 
+    const defaultCategories: MenuCategory[] = [
+      { id: 'cat-1', name: 'Entradas', slug: 'entradas', sort_order: 1 },
+      { id: 'cat-2', name: 'Principales', slug: 'principales', sort_order: 2 },
+      { id: 'cat-3', name: 'Bebidas', slug: 'bebidas', sort_order: 3 },
+      { id: 'cat-4', name: 'Postres', slug: 'postres', sort_order: 4 },
+    ];
+
     const current = getLocalItem<MenuCategory[]>(STORAGE_KEYS.MENU_CATEGORIES, defaultCategories);
-    return current;
+    if (!restaurantId || restaurantId === 'res-1') {
+      return current.filter((c) => !c.restaurant_id || c.restaurant_id === 'res-1');
+    }
+    return current.filter((c) => c.restaurant_id === restaurantId);
   },
 
   async saveMenuCategory(category: Partial<MenuCategory>): Promise<{ success: boolean; data?: MenuCategory }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         if (category.id && !category.id.startsWith('cat-')) {
           const { data, error } = await supabase
@@ -350,7 +362,8 @@ async saveMenuItem(item: Partial<MenuItem>): Promise<{ success: boolean; data?: 
   },
 
   async deleteMenuCategory(categoryId: string): Promise<{ success: boolean }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (isSupabaseConfigured && !isDemo) {
       try {
         await supabase.from('menu_categories').delete().eq('id', categoryId);
       } catch (err) {

@@ -123,11 +123,26 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
       return;
     }
     setSavingItem(true);
+    const rawCategory = (itemCategory || 'principales').trim();
+    const categorySlug =
+      rawCategory.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') || 'general';
+    const existingCat = categories.find(
+      (c) => c.slug.toLowerCase() === categorySlug || c.name.toLowerCase() === rawCategory.toLowerCase()
+    );
+    if (!existingCat && rawCategory) {
+      await api.saveMenuCategory({
+        restaurant_id: restaurant.id,
+        name: rawCategory,
+        slug: categorySlug,
+        sort_order: categories.length + 1,
+      });
+    }
+
     const payload: Partial<MenuItem> = {
       ...(editingItemId ? { id: editingItemId } : {}),
       restaurant_id: restaurant.id,
       name: itemName.trim(),
-      category: itemCategory || 'principales',
+      category: categorySlug,
       price: Number(itemPrice) || 0,
       preparation_time_mins: Number(itemTimeMins) || 10,
       station: itemStation,
@@ -151,7 +166,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
     }
   };
 
-  // Toggle rápido de disponibilidad (Agotado temporalmente / 86)
+  // Toggle rápido de disponibilidad (Agotado temporalmente)
   const handleToggleAvailability = async (item: MenuItem) => {
     const nextState = !item.is_available;
     setMenuItems((prev) =>
@@ -161,7 +176,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
     showNotification(
       nextState
         ? `"${item.name}" reactivado en comanda.`
-        : `"${item.name}" marcado como Agotado (86).`
+        : `"${item.name}" marcado como Agotado.`
     );
     onMenuUpdated?.();
   };
@@ -247,7 +262,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Edición de platillos, fotografías, precios, tiempos y desactivación rápida de agotados (86).
+                Edición de platillos, fotografías, precios, tiempos y desactivación rápida de agotados.
               </p>
             </div>
           </div>
@@ -385,19 +400,38 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
               Cargando platillos de la sucursal...
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="p-12 text-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 space-y-2">
-              <UtensilsCrossed className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-bold text-slate-600">
-                No hay platillos registrados en esta categoría.
-              </p>
-              <button
-                type="button"
-                onClick={handleOpenNewItem}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Añadir Primer Platillo</span>
-              </button>
+            <div className="p-12 text-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 space-y-3">
+              <UtensilsCrossed className="w-10 h-10 text-slate-300 mx-auto" />
+              <div className="max-w-md mx-auto">
+                <p className="text-sm font-extrabold text-slate-800">
+                  {menuItems.length === 0
+                    ? 'Carta gastronómica limpia'
+                    : 'No hay platillos registrados en esta categoría'}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {menuItems.length === 0
+                    ? 'Esta sucursal no tiene platillos ni categorías predeterminadas. Comienza dando de alta las categorías y platillos oficiales.'
+                    : 'Prueba seleccionando otra categoría o añade un nuevo platillo a esta sección.'}
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 pt-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>+ Crear Categoría</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenNewItem}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Añadir Primer Platillo</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -430,7 +464,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
                         )}
                         {!isAvail && (
                           <div className="absolute inset-0 bg-rose-900/60 flex items-center justify-center text-[9px] font-black text-white uppercase text-center px-0.5">
-                            86 Agotado
+                            Agotado
                           </div>
                         )}
                       </div>
@@ -469,7 +503,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
 
                     {/* Barra de Acciones del Platillo */}
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                      {/* Switch Rápido: Disponible vs Agotado (86) */}
+                      {/* Switch Rápido: Disponible vs Agotado */}
                       <button
                         type="button"
                         onClick={() => handleToggleAvailability(item)}
@@ -488,7 +522,7 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
                         ) : (
                           <>
                             <EyeOff className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Agotado Temporalmente (86)</span>
+                            <span>Agotado Temporalmente</span>
                           </>
                         )}
                       </button>
@@ -559,17 +593,28 @@ export const MenuManagementModal: React.FC<MenuManagementModalProps> = ({
                     <label className="font-extrabold text-slate-700 block mb-1">
                       Categoría *
                     </label>
-                    <select
-                      value={itemCategory}
-                      onChange={(e) => setItemCategory(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.slug}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    {categories.length > 0 ? (
+                      <select
+                        value={itemCategory}
+                        onChange={(e) => setItemCategory(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        value={itemCategory}
+                        onChange={(e) => setItemCategory(e.target.value)}
+                        placeholder="Ej: Principales, Entradas, Bebidas..."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    )}
                   </div>
 
                   <div>

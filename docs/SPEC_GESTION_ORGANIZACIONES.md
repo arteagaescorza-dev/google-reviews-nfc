@@ -186,4 +186,12 @@ Funciona de forma universal en todo el sistema y se sincroniza en tiempo real co
   - Ventas en Cortes: `$0 MXN`, 0 cortes de caja registrados.
   - Aforo & Placas NFC: `0 placas en mesa`, 0 lecturas, 0 mesas (Capacidad: 0 comensales).
   - Los 6 submódulos operativos (A al F) no proyectan números globales ni utilizan estimaciones hardcodeadas: calculan `0%`, `0 min` o muestran etiquetas sobrias como `'Sin turnos'` o `'Sin pedidos para llevar'`.
+* **Carta Gastronómica & Menú Digital Limpio (Cero Platillos Mock)**:
+  - Al abrir el modal de Carta & Menú Digital (`MenuManagementModal.tsx`), la nueva sucursal reporta `Todo el Menú (0)` y despliega la vista vacía `Carta gastronómica limpia`, permitiendo dar de alta categorías y platillos oficiales con persistencia aislada por `restaurant_id`.
+  - Queda prohibida la herencia de los 10 platillos de demostración de `res-1` en sucursales nuevas.
+* **Retiro Estricto de la Nomenclatura "(86)"**:
+  - Se eliminó cualquier referencia a la jerga hostelera `"(86)"` o `"86"` en botones, títulos, tooltips, notificaciones y miniaturas de la carta.
+  - Los dos únicos estados de disponibilidad operativa son:
+    - Activo: `Disponible en Sala`.
+    - No disponible: `Agotado Temporalmente` (e insignia compacta `Agotado` sobre la fotografía).
 

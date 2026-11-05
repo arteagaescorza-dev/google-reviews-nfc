@@ -156,11 +156,15 @@
      * Ventas en Cortes: `$0 MXN`, 0 cortes de caja registrados.
      * Aforo y Placas NFC: `0 placas en mesa`, 0 lecturas, 0 mesas (Capacidad: 0 comensales).
   4. **Submódulos Operativos (Módulos A al F):** Cada submódulo calcula sus métricas a partir de registros reales vinculados mediante `restaurant_id = new_branch_id`. En ausencia de registros, muestran `0%`, `0 min`, o estados vacíos legibles como `'Sin turnos'` o `'Sin pedidos para llevar'`, sin recurrir a constantes ficticias ni extrapolaciones globales.
+  5. **Carta Gastronómica & Menú Digital Limpio:** Al aperturar una sucursal, la carta inicia estrictamente en cero (`Todo el Menú (0)`), sin categorías ni platillos heredados. La interfaz despliega la vista de bienvenida limpia ("Carta gastronómica limpia") con accesos directos para la creación de categorías y primer platillo. Los datos de muestra pertenecen exclusivamente a `res-1`.
+  6. **Terminología Homologada de Disponibilidad (Retiro de Jerga "86"):** Queda estrictamente prohibida la mención o código de jerga `"(86)"` o `"86"` en el panel de carta, insignias, botones, miniaturas y notificaciones del sistema. Se adopta con exclusividad la terminología sobria: `"Agotado Temporalmente"` para estados no disponibles (y `"Agotado"` en insignias compactas sobre fotos), y `"Disponible en Sala"` para platillos activos.
 * **Documentos Incidentes:**
   * [`docs/SPEC_GESTION_ORGANIZACIONES.md`](./SPEC_GESTION_ORGANIZACIONES.md)
   * [`src/lib/restaurants_bento.ts`](../src/lib/restaurants_bento.ts)
   * [`src/pages/AdminRestaurantsPage.tsx`](../src/pages/AdminRestaurantsPage.tsx)
   * [`src/lib/api/restaurants.ts`](../src/lib/api/restaurants.ts)
+  * [`src/components/admin/MenuManagementModal.tsx`](../src/components/admin/MenuManagementModal.tsx)
+  * [`src/lib/api/orders.ts`](../src/lib/api/orders.ts)
 
 ---
 

@@ -1489,7 +1489,7 @@ export const AdminRestaurantsPage: React.FC = () => {
                                               setIsMenuModalOpen(true);
                                             }}
                                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-[11px] font-bold transition-colors shadow-2xs"
-                                            title="Administrar categorías, platillos y disponibilidad (86) de la carta"
+                                            title="Administrar categorías, platillos y disponibilidad de la carta"
                                           >
                                             <UtensilsCrossed className="w-3.5 h-3.5 text-orange-600" />
                                             <span>Administrar Carta & Platillos</span>
