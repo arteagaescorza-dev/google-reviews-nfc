@@ -43,11 +43,11 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const activeLogo = currentRestaurant?.logo_url || null;
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white px-4 py-3">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 text-slate-900 px-4 py-3 shadow-2xs">
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
         {/* Identidad de la Marca / Organización */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-2xs">
             {activeLogo ? (
               <img
                 src={normalizeImageUrl(activeLogo)}
@@ -56,17 +56,17 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <Store className="w-5 h-5 text-blue-400" />
+              <Store className="w-5 h-5 text-blue-600" />
             )}
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-white truncate leading-tight">
+              <h1 className="text-sm font-bold text-slate-900 truncate leading-tight">
                 {currentRestaurant?.brand_name || organization.name}
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-black uppercase tracking-wide border border-emerald-500/30">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wide border border-emerald-200">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Cliente Fundador</span>
               </span>
             </div>
@@ -78,7 +78,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   <select
                     value={selectedRestaurantId}
                     onChange={(e) => onSelectRestaurant(e.target.value)}
-                    className="appearance-none bg-slate-800/90 text-blue-400 font-semibold text-[11px] py-0.5 pl-2 pr-5 rounded-md border border-slate-700/80 focus:outline-none cursor-pointer"
+                    className="appearance-none bg-slate-100 text-slate-800 font-semibold text-[11px] py-0.5 pl-2 pr-5 rounded-md border border-slate-200 focus:outline-none focus:bg-white cursor-pointer"
                   >
                     <option value="all">Todas ({restaurants.length})</option>
                     {restaurants.map((r) => (
@@ -87,15 +87,15 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3 h-3 text-blue-400 absolute right-1.5 pointer-events-none" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 pointer-events-none" />
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-[11px] text-slate-500 truncate">
                   {currentRestaurant?.branch_name || 'Sucursal Principal'}
                 </p>
               )}
 
-              <span className="inline-flex sm:hidden items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase border border-emerald-500/30">
+              <span className="inline-flex sm:hidden items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase border border-emerald-200">
                 <ShieldCheck className="w-2.5 h-2.5" />
                 <span>Filtro Gratis</span>
               </span>
@@ -105,7 +105,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   type="button"
                   onClick={onAddBranch}
                   title="Dar de alta o solicitar nueva sucursal"
-                  className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded border border-blue-500/30 flex items-center gap-0.5 transition-colors"
+                  className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded border border-blue-200 flex items-center gap-0.5 transition-colors cursor-pointer"
                 >
                   <span>+ Sucursal</span>
                 </button>
@@ -115,19 +115,19 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
         </div>
 
         {/* Pestañas de Navegación de Escritorio (Desktop Navigation) */}
-        <div className="hidden md:flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/70 shadow-inner">
+        <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
           <button
             onClick={() => onChangeTab('quejas')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'quejas'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <ShieldAlert className="w-4 h-4" />
             <span>Quejas Privadas</span>
             {pendingFeedbackCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black shadow-sm">
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black shadow-xs">
                 {pendingFeedbackCount}
               </span>
             )}
@@ -135,10 +135,10 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
           <button
             onClick={() => onChangeTab('enlaces')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'enlaces'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Link2 className="w-4 h-4" />
@@ -147,10 +147,10 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
           <button
             onClick={() => onChangeTab('metricas')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'metricas'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -159,10 +159,10 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
           <button
             onClick={() => onChangeTab('cuenta')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'cuenta'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Settings className="w-4 h-4" />
@@ -173,7 +173,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
         {/* Botón de Cerrar Sesión */}
         <button
           onClick={handleLogout}
-          className="p-2 px-3 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 active:scale-95 transition-all flex-shrink-0 flex items-center gap-1.5"
+          className="p-2 px-3 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition-all flex-shrink-0 flex items-center gap-1.5 cursor-pointer"
           title="Cerrar sesión"
         >
           <LogOut className="w-4 h-4" />

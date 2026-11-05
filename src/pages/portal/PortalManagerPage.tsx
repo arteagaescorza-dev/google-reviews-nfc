@@ -12,7 +12,6 @@ import {
   Lock,
   LogOut,
   ArrowLeft,
-  Building2,
   ChefHat,
   Coffee,
   UserCheck,
@@ -29,6 +28,7 @@ import {
 import { api } from '../../lib/api';
 import { filterBranchesBySameOrganization, isSameOrganizationAccessAllowed } from '../../lib/api/orders';
 import { MenuManagementModal } from '../../components/admin/MenuManagementModal';
+import { PortalManagerSidebar } from '../../components/portal/PortalManagerSidebar';
 import type {
   Restaurant,
   StaffMember,
@@ -558,192 +558,183 @@ export const PortalManagerPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col pb-12 selection:bg-indigo-600 selection:text-white">
-      {/* Encabezado de Gerente de Tienda Bento Light */}
-      <header className="bg-white border-b border-slate-200/90 px-6 py-4 sticky top-0 z-20 shadow-2xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row selection:bg-indigo-600 selection:text-white font-sans antialiased">
+      {/* Barra Lateral Bento Light Fija en Escritorio (Estilo Admin) */}
+      <PortalManagerSidebar
+        selectedBranchId={selectedBranchId}
+        onSelectBranch={handleBranchChange}
+        sameOrgBranches={sameOrgBranches}
+        currentBranch={currentBranch}
+        loggedInManagerName={loggedInManagerName}
+        loggedInManagerRole={loggedInManagerRole}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        pendingComplaintsCount={complaints.filter((c) => c.status !== 'resolved').length}
+        onOpenMenuModal={() => setIsMenuModalOpen(true)}
+        onRefresh={loadBranchData}
+        onLogout={() => setLoggedInManagerName(null)}
+      />
+
+      {/* Área Principal de Trabajo Fluida */}
+      <div className="flex-1 min-w-0 flex flex-col bg-slate-50 pb-12">
+        {/* Encabezado Responsive (Solo en pantallas móviles/tablets) */}
+        <header className="md:hidden bg-white border-b border-slate-200/90 px-4 py-3 sticky top-0 z-20 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/portal"
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                title="Ir al Portal General"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  <h1 className="text-sm font-black text-slate-900 tracking-tight">
+                    Gerencia
+                  </h1>
+                  <span className="px-2 py-0.2 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[9px] font-black uppercase">
+                    {loggedInManagerRole === 'capitan_piso' ? 'Capitán' : 'Gerente'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                  {loggedInManagerName} • {currentBranch?.name || 'Principal'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsMenuModalOpen(true)}
+                className="p-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold"
+                title="Carta & Menú Digital"
+              >
+                <UtensilsCrossed className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={loadBranchData}
+                className="p-2 rounded-xl bg-slate-100 text-slate-700"
+                title="Sincronizar"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setLoggedInManagerName(null)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700"
+                title="Salir"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Barra superior de contexto en Desktop */}
+        <div className="hidden md:flex items-center justify-between px-8 py-3.5 bg-white border-b border-slate-200/90 shadow-2xs">
           <div className="flex items-center gap-3">
-            <Link
-              to="/portal"
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-              title="Ir al Portal General"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                <h1 className="text-lg font-black text-slate-900 tracking-tight">
-                  Consola Operativa de Gerente de Tienda
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-black uppercase">
-                  {loggedInManagerRole === 'capitan_piso' ? 'Capitán de Piso' : 'Gerente de Tienda'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                Responsable en turno: <strong className="text-slate-800">{loggedInManagerName}</strong> • Sucursal:{' '}
-                <strong className="text-indigo-700">{currentBranch?.name || 'Sucursal Principal'}</strong>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {sameOrgBranches.length > 1 && (
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                <select
-                  value={selectedBranchId}
-                  onChange={(e) => handleBranchChange(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
-                >
-                  {sameOrgBranches.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <Link
-              to={`/portal/hostess?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 text-xs font-bold flex items-center gap-1.5"
-            >
-              <Users className="w-3.5 h-3.5" /> Pantalla Hostess
-            </Link>
-
-            <Link
-              to={`/portal/mesero?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-600" /> Pantalla Mesero
-            </Link>
-
-            <Link
-              to={`/portal/cocina?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5"
-            >
-              <ChefHat className="w-3.5 h-3.5 text-amber-600" /> KDS Cocina & Barra
-            </Link>
-
-            <Link
-              to={`/portal/pickup?branch=${selectedBranchId}`}
-              className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 text-xs font-bold flex items-center gap-1.5"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-orange-600" /> Pantalla Pick Up
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => setIsMenuModalOpen(true)}
-              className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-              title="Administrar categorías, platillos y disponibilidad de la carta"
-            >
-              <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
-              <span>Carta & Menú Digital</span>
-            </button>
-
-            <button
-              onClick={loadBranchData}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-              title="Sincronizar datos"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => setLoggedInManagerName(null)}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" /> Salir
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto w-full flex-1 p-6 space-y-6">
-        {toastMsg && (
-          <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xs">
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
-              {toastMsg}
+            <span className="text-xs font-bold text-slate-500">
+              Consola Operativa / <strong className="text-slate-900 capitalize">{activeTab === 'staff' ? 'Personal & Estaciones' : activeTab === 'shifts' ? 'Turnos (60 Días)' : activeTab === 'cash_metrics' ? 'Cortes & Métricas' : 'Quejas & Cupones'}</strong>
             </span>
-            <button onClick={() => setToastMsg(null)} className="text-indigo-700 hover:text-indigo-900 cursor-pointer">
-              <X className="w-4 h-4" />
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold">
+              Sucursal: {currentBranch?.name || 'Principal'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span>
+              Responsable en turno: <strong className="text-slate-800">{loggedInManagerName}</strong>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-indigo-600 font-bold">
+              {loggedInManagerRole === 'capitan_piso' ? 'Capitán de Piso' : 'Gerente de Tienda'}
+            </span>
+          </div>
+        </div>
+
+        <main className="max-w-7xl mx-auto w-full flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+          {toastMsg && (
+            <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xs">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                {toastMsg}
+              </span>
+              <button onClick={() => setToastMsg(null)} className="text-indigo-700 hover:text-indigo-900 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Navegación de las 4 Funciones del Gerente de Tienda (Solo en pantallas móviles) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:hidden">
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
+                activeTab === 'staff'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">1. Personal</span>
+                <Sliders className="w-4 h-4 text-indigo-600" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Crear empleados y estaciones KDS
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('shifts')}
+              className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
+                activeTab === 'shifts'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">2. Turnos</span>
+                <Calendar className="w-4 h-4 text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Programación ({shifts.length} activos)
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('cash_metrics')}
+              className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
+                activeTab === 'cash_metrics'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">3. Cortes</span>
+                <Receipt className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Cortes de caja y métricas
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('complaints_coupons')}
+              className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
+                activeTab === 'complaints_coupons'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
+                  : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">4. Quejas</span>
+                <MessageSquareWarning className="w-4 h-4 text-rose-600" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Autorizar descuentos
+              </p>
             </button>
           </div>
-        )}
-
-        {/* Navegación de las 4 Funciones del Gerente de Tienda Bento Light */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
-              activeTab === 'staff'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
-                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">1. Personal & Estaciones</span>
-              <Sliders className="w-4 h-4 text-indigo-600" />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Crear empleados, roles y asignar pantalla KDS (Cocina vs Barista)
-            </p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('shifts')}
-            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
-              activeTab === 'shifts'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
-                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">2. Turnos (Hasta 2 Meses)</span>
-              <Calendar className="w-4 h-4 text-emerald-600" />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Programación anticipada de turnos hasta 60 días ({shifts.length} activos)
-            </p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('cash_metrics')}
-            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
-              activeTab === 'cash_metrics'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
-                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">3. Cortes & Métricas</span>
-              <Receipt className="w-4 h-4 text-amber-600" />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Corte de caja por turno de mesero y envío de métricas al Dueño
-            </p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('complaints_coupons')}
-            className={`p-4 rounded-3xl border text-left transition-all cursor-pointer shadow-xs ${
-              activeTab === 'complaints_coupons'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 ring-2 ring-indigo-500/20'
-                : 'bg-white border-slate-200/90 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">4. Quejas & Cupones</span>
-              <MessageSquareWarning className="w-4 h-4 text-rose-600" />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Autorizar descuentos por quejas y cupones con límite mensual
-            </p>
-          </button>
-        </div>
 
         {/* PESTAÑA 1: EMPLEADOS, ROLES Y ASIGNACIÓN DE PANTALLAS / ESTACIONES KDS */}
         {activeTab === 'staff' && (
@@ -1666,6 +1657,7 @@ export const PortalManagerPage: React.FC = () => {
         onClose={() => setIsMenuModalOpen(false)}
         restaurant={currentBranch || null}
       />
+      </div>
     </div>
   );
 };

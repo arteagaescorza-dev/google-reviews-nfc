@@ -5,6 +5,7 @@ import type { Restaurant, Feedback } from '../../types';
 import { api } from '../../lib/api';
 import { setupRealtimeAlerts } from '../../lib/notifications';
 import { PortalHeader } from '../../components/portal/PortalHeader';
+import { PortalSidebar } from '../../components/portal/PortalSidebar';
 import { PortalBottomNav, type PortalTab } from '../../components/portal/PortalBottomNav';
 import { PwaInstallBanner } from '../../components/portal/PwaInstallBanner';
 import { PortalFeedbackTab } from './PortalFeedbackTab';
@@ -68,12 +69,9 @@ export const PortalDashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white pb-20 md:pb-8">
-      {/* Banner de Instalación PWA */}
-      <PwaInstallBanner />
-
-      {/* Encabezado Responsive (Móvil y Escritorio) */}
-      <PortalHeader
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans antialiased">
+      {/* Barra Lateral Bento Light Fija en Escritorio (Estilo Admin) */}
+      <PortalSidebar
         organization={organization}
         restaurants={restaurants}
         selectedRestaurantId={selectedRestaurantId}
@@ -82,61 +80,82 @@ export const PortalDashboardPage: React.FC = () => {
         onChangeTab={setActiveTab}
         pendingFeedbackCount={pendingFeedbackCount}
         onAddBranch={() => setShowNewBranchModal(true)}
+        memberEmail={member?.user_email || undefined}
       />
 
-      {/* Contenido Principal Adaptable a Pantallas Grandes */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 lg:p-8 animate-fadeIn">
-        {activeTab === 'quejas' && (
-          <PortalFeedbackTab
-            feedbacks={feedbacks}
-            restaurants={restaurants}
-            onRefresh={loadData}
-          />
-        )}
+      {/* Área Principal de Contenido Fluida */}
+      <div className="flex-1 min-w-0 flex flex-col bg-slate-50 pb-20 md:pb-8">
+        {/* Banner de Instalación PWA */}
+        <PwaInstallBanner />
 
-        {activeTab === 'enlaces' && (
-          <PortalLinksTab
-            restaurants={restaurants}
-            selectedRestaurantId={selectedRestaurantId}
-            onRefresh={loadData}
-          />
-        )}
-
-        {activeTab === 'metricas' && (
-          <PortalMetricsTab
-            restaurants={restaurants}
-            feedbacks={feedbacks}
-            selectedRestaurantId={selectedRestaurantId}
-          />
-        )}
-
-        {activeTab === 'cuenta' && (
-          <PortalAccountTab
+        {/* Encabezado Responsive (Solo en pantallas móviles/tablets) */}
+        <div className="md:hidden">
+          <PortalHeader
             organization={organization}
             restaurants={restaurants}
-            member={member}
-            onRefreshOrg={refreshMembership}
-            onRefreshRestaurants={loadData}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelectRestaurant={setSelectedRestaurantId}
+            activeTab={activeTab}
+            onChangeTab={setActiveTab}
+            pendingFeedbackCount={pendingFeedbackCount}
             onAddBranch={() => setShowNewBranchModal(true)}
           />
-        )}
-      </main>
+        </div>
 
-      {/* Modal para solicitar / registrar nueva sucursal */}
-      <NewBranchModal
-        isOpen={showNewBranchModal}
-        onClose={() => setShowNewBranchModal(false)}
-        organization={organization}
-        onSuccess={loadData}
-      />
+        {/* Contenido Principal Bento Grid Fluido */}
+        <main className="flex-1 w-full p-4 md:p-6 lg:p-8 animate-fadeIn max-w-7xl mx-auto">
+          {activeTab === 'quejas' && (
+            <PortalFeedbackTab
+              feedbacks={feedbacks}
+              restaurants={restaurants}
+              onRefresh={loadData}
+            />
+          )}
 
-      {/* Barra de Navegación Inferior Fija (Solo en móviles/tablets) */}
-      <div className="md:hidden">
-        <PortalBottomNav
-          activeTab={activeTab}
-          onChangeTab={setActiveTab}
-          pendingFeedbackCount={pendingFeedbackCount}
+          {activeTab === 'enlaces' && (
+            <PortalLinksTab
+              restaurants={restaurants}
+              selectedRestaurantId={selectedRestaurantId}
+              onRefresh={loadData}
+            />
+          )}
+
+          {activeTab === 'metricas' && (
+            <PortalMetricsTab
+              restaurants={restaurants}
+              feedbacks={feedbacks}
+              selectedRestaurantId={selectedRestaurantId}
+            />
+          )}
+
+          {activeTab === 'cuenta' && (
+            <PortalAccountTab
+              organization={organization}
+              restaurants={restaurants}
+              member={member}
+              onRefreshOrg={refreshMembership}
+              onRefreshRestaurants={loadData}
+              onAddBranch={() => setShowNewBranchModal(true)}
+            />
+          )}
+        </main>
+
+        {/* Modal para solicitar / registrar nueva sucursal */}
+        <NewBranchModal
+          isOpen={showNewBranchModal}
+          onClose={() => setShowNewBranchModal(false)}
+          organization={organization}
+          onSuccess={loadData}
         />
+
+        {/* Barra de Navegación Inferior Fija (Solo en móviles) */}
+        <div className="md:hidden">
+          <PortalBottomNav
+            activeTab={activeTab}
+            onChangeTab={setActiveTab}
+            pendingFeedbackCount={pendingFeedbackCount}
+          />
+        </div>
       </div>
     </div>
   );
