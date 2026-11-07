@@ -77,7 +77,7 @@ export const PortalAuthGuard: React.FC = () => {
   }
 
   if (!isAuthenticated || !membershipData) {
-    return <Navigate to="/portal/login" state={{ from: location }} replace />;
+    return <Navigate to="/login?type=portal" state={{ from: location }} replace />;
   }
 
   return (

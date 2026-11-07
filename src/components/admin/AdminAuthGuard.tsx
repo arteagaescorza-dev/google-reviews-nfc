@@ -38,7 +38,7 @@ export const AdminAuthGuard: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    return <Navigate to="/login?type=admin" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

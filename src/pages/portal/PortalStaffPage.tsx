@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { filterBranchesBySameOrganization } from '../../lib/api/orders';
+import {
+  subscribeToRestaurantCalls,
+  subscribeToRestaurantOrders,
+  type RealtimeConnectionStatus,
+} from '../../lib/realtimeSubscriptions';
 import type { TableCall, TableOrder, Feedback, StaffMember, Restaurant, RestaurantTable } from '../../types';
 import {
   BellRing,
@@ -20,17 +25,29 @@ import {
 } from 'lucide-react';
 
 export const PortalStaffPage: React.FC = () => {
+  const navigate = useNavigate();
   const getMinutesAgo = (dateStr: string) => {
     const diffMs = Date.now() - new Date(dateStr).getTime();
     return Math.max(1, Math.floor(diffMs / 60000));
   };
-  const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null);
+  const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(() => {
+    const saved = localStorage.getItem('nfc_active_staff_session');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('res-1');
   const [branchTables, setBranchTables] = useState<RestaurantTable[]>([]);
   const [isInterBranchShift, setIsInterBranchShift] = useState(false);
+  const [connStatus, setConnStatus] = useState<RealtimeConnectionStatus>('connected');
 
   const sameOrgBranches = React.useMemo(
     () => filterBranchesBySameOrganization(restaurants, selectedRestaurantId),
@@ -86,8 +103,31 @@ export const PortalStaffPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+
+    // Suscripción Realtime por WebSockets (POL-008)
+    const unsubCalls = subscribeToRestaurantCalls(
+      selectedRestaurantId,
+      () => {
+        loadData();
+      },
+      (st) => setConnStatus(st)
+    );
+
+    const unsubOrders = subscribeToRestaurantOrders(
+      selectedRestaurantId,
+      () => {
+        loadData();
+      }
+    );
+
+    // Latido pasivo cada 45 segundos (resiliencia ante caídas de Wi-Fi)
+    const passiveHeartbeat = setInterval(loadData, 45000);
+
+    return () => {
+      unsubCalls();
+      unsubOrders();
+      clearInterval(passiveHeartbeat);
+    };
   }, [selectedRestaurantId]);
 
   // Manejar Login con PIN
@@ -280,9 +320,48 @@ export const PortalStaffPage: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
-              Terminal de Sala • {restaurants.find((r) => r.id === selectedRestaurantId)?.brand_name || 'Restaurante'} ({restaurants.find((r) => r.id === selectedRestaurantId)?.branch_name || 'Principal'})
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[11px] text-slate-500">
+                Terminal de Sala • {restaurants.find((r) => r.id === selectedRestaurantId)?.brand_name || 'Restaurante'} ({restaurants.find((r) => r.id === selectedRestaurantId)?.branch_name || 'Principal'})
+              </p>
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 border border-slate-200">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      connStatus === 'connected'
+                        ? 'bg-emerald-400'
+                        : connStatus === 'reconnecting'
+                        ? 'bg-amber-400'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+                  <span
+                    className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                      connStatus === 'connected'
+                        ? 'bg-emerald-500'
+                        : connStatus === 'reconnecting'
+                        ? 'bg-amber-500'
+                        : 'bg-slate-500'
+                    }`}
+                  />
+                </span>
+                <span
+                  className={`text-[9px] font-bold uppercase tracking-wider ${
+                    connStatus === 'connected'
+                      ? 'text-emerald-700'
+                      : connStatus === 'reconnecting'
+                      ? 'text-amber-700'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  {connStatus === 'connected'
+                    ? 'En Vivo'
+                    : connStatus === 'reconnecting'
+                    ? 'Reconectando...'
+                    : 'Offline'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -296,7 +375,11 @@ export const PortalStaffPage: React.FC = () => {
           </Link>
 
           <button
-            onClick={() => setCurrentStaff(null)}
+            onClick={() => {
+              localStorage.removeItem('nfc_active_staff_session');
+              setCurrentStaff(null);
+              navigate(`/login?type=staff&branch=${selectedRestaurantId}`);
+            }}
             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />

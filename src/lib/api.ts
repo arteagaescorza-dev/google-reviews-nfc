@@ -10,6 +10,7 @@ import { hardwareApi } from './api/hardware';
 import { salesApi } from './api/sales';
 import { eventsApi } from './api/events';
 import { tiersApi } from './api/tiers';
+import { foodCourtsApi } from './api/foodCourts';
 
 // Constantes y modelos compartidos
 export * from './api/core';
@@ -27,6 +28,7 @@ export * from './api/hardware';
 export * from './api/sales';
 export * from './api/events';
 export * from './api/tiers';
+export * from './api/foodCourts';
 
 /**
  * Fachada API Unificada (Facade Pattern)
@@ -45,4 +47,5 @@ export const api = {
   ...salesApi,
   ...eventsApi,
   ...tiersApi,
+  ...foodCourtsApi,
 };

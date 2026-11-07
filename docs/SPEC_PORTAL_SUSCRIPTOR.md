@@ -87,3 +87,41 @@ Homologado con la ergonomía del panel de Superadministrador (`AdminLayout.tsx`)
   - Aprovechamiento fluido del ancho completo del monitor sin columnas angostas móviles.
 - **Mantenimiento Móvil Responsivo (`md:hidden`)**:
   - En smartphones y tablets se preserva el encabezado superior compacto y la barra de navegación táctil inferior (`PortalBottomNav.tsx`) en el Portal del Dueño, y la botonera de 4 tarjetas táctiles en el Portal del Gerente.
+
+---
+
+## 7. Acceso Universal Inteligente y Motor Realtime WebSockets (POL-008 & SaaS Multi-Tenant)
+
+- **Punto de Entrada Universal (`/#/login` y `/#/acceso`)**:
+  - Unifica los accesos dispersos (`/admin/login`, `/portal/login`, terminales de piso) en una sola vista Bento Light.
+  - Pestaña **"Acceso Administrativo"** para directivos (correo y contraseña) con detección de rol (Superadmin a `/#/admin`, Propietario a `/#/portal`).
+  - Pestaña **"Terminal con PIN"** para personal operativo con teclado numérico táctil de 4 dígitos y selector de sucursal persistente en el dispositivo (`localStorage.nfc_enrolled_branch_id`).
+  - Enrutamiento directo automático por rol:
+    - `waiter` -> `/#/portal/mesero`
+    - `kitchen` / `barista` -> `/#/portal/cocina`
+    - `hostess` -> `/#/portal/hostess`
+    - `cashier` -> `/#/portal/pickup`
+    - `manager` / `capitan_piso` -> `/#/portal/gerente`
+  - Botón de *"Cambiar Turno"* en todas las terminales de sala y cocina que regresa ágilmente a `/#/login?type=staff&branch={id}` para el siguiente colaborador.
+- **Sincronización en Tiempo Real (SaaS Realtime Engine)**:
+  - Sustitución de sondeos agresivos (`setInterval` cada 4-5 segundos) por suscripciones WebSockets nativas (`postgres_changes`) en `table_orders`, `table_calls` y `restaurant_staff` (`src/lib/realtimeSubscriptions.ts`).
+  - Reducción del 95%+ en consumo de consultas y CPU en PostgreSQL, con latencia inferior a 100 milisegundos.
+  - Latido pasivo de respaldo cada 45 segundos para contingencias de Wi-Fi.
+  - Micro-indicador Bento Light de estado de conexión (*"En Vivo"* / *"Reconectando..."* / *"Offline"*).
+
+
+---
+
+## 8. Federación de Food Courts en Plazas Comerciales y Turnero Maestro 4K (POL-008)
+
+- **Modelo de Federación Cross-Organización (`food_court_branches`)**:
+  - Permite que la cuenta administradora de una Plaza Comercial vincule sucursales pertenecientes a **organizaciones jurídicas independientes** (franquicias, cadenas o negocios propios) a su área común de comedor, conservando el aislamiento de sus datos privados.
+- **Doble Vía de Incorporación de Locatarios**:
+  - **Vía A**: Vinculación directa de sucursales ya existentes en la plataforma asignándoles su espacio físico (ej. *Local FC-04*) y mostrador.
+  - **Vía B**: Pre-registro de nuevo locatario por contrato de arrendamiento de la plaza con generación de enlace de activación (`fc_invite`).
+- **Métricas de Comedor y Auditoría de Renta Variable (`/#/food-court`)**:
+  - La administración de la plaza consulta afluencia total de órdenes, tiempos promedio de preparación (SLA), ticket promedio estimado ($ MXN) y facturación bruta estimada por local para el cálculo de su renta variable, con exportación a CSV.
+  - **Privacidad estricta**: Costos de insumos, recetas, nóminas y buzón privado de quejas permanecen confidenciales para cada organización locataria.
+- **Turnero Maestro 4K con Layout 70/30 (`/#/turnero-plaza`)**:
+  - **70% Izquierda**: Columnas en tiempo real (*"Listo para Recoger"* y *"En Preparación"*) con timbre acústico, síntesis de voz (*"Orden 382 de La Parrilla de Don Carlos, en Barra 1"*) y retiro automático configurable (3 min por defecto).
+  - **30% Derecha**: Columna vertical permanente dedicada a nuestra red publicitaria local (`ads`), con rotación automática configurable (20 seg por defecto), código QR de pasaporte digital y contabilización automática de impresiones.

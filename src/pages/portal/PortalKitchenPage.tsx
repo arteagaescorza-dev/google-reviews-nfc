@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { subscribeToRestaurantOrders, type RealtimeConnectionStatus } from '../../lib/realtimeSubscriptions';
 import type { TableOrder, TableOrderStatus, KitchenStation, OrderItem, Restaurant } from '../../types';
 import { MenuManagementModal } from '../../components/admin/MenuManagementModal';
 import {
@@ -17,13 +19,16 @@ import {
   Layers,
   Coffee,
   UtensilsCrossed,
+  LogOut,
 } from 'lucide-react';
 
 export const PortalKitchenPage: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<TableOrder | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [connStatus, setConnStatus] = useState<RealtimeConnectionStatus>('connected');
 
   const loadOrders = async () => {
     const data = await api.getTableOrders();
@@ -33,17 +38,33 @@ export const PortalKitchenPage: React.FC = () => {
   useEffect(() => {
     loadOrders();
     const branchParam = new URLSearchParams(window.location.hash.split('?')[1] || '').get('branch');
+    let unsubRealtime = () => {};
+
     api.getRestaurants().then((list) => {
       if (list.length > 0) {
         const found = list.find((r) => r.id === branchParam) || list[0];
         setRestaurant(found);
+
+        // Suscripción en Tiempo Real vía WebSockets filtrada por sucursal (POL-008)
+        unsubRealtime = subscribeToRestaurantOrders(
+          found.id,
+          () => {
+            loadOrders();
+          },
+          (status) => setConnStatus(status)
+        );
       }
     });
-    // Actualizar cada 20 segundos
-    const interval = setInterval(() => {
-      api.getTableOrders().then((data) => setOrders(data));
-    }, 20000);
-    return () => clearInterval(interval);
+
+    // Latido pasivo de respaldo cada 45s (tolerancia a fallas de Wi-Fi)
+    const passiveHeartbeat = setInterval(() => {
+      loadOrders();
+    }, 45000);
+
+    return () => {
+      unsubRealtime();
+      clearInterval(passiveHeartbeat);
+    };
   }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: TableOrderStatus) => {
@@ -157,13 +178,43 @@ export const PortalKitchenPage: React.FC = () => {
                   ? 'Estación Barista: Barra, Coctelería, Repostería & Café'
                   : 'KDS Cocina & Barra en Vivo'}
               </h1>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
-              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                Sincronizado
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      connStatus === 'connected'
+                        ? 'bg-emerald-400'
+                        : connStatus === 'reconnecting'
+                        ? 'bg-amber-400'
+                        : 'bg-slate-400'
+                    }`}
+                  ></span>
+                  <span
+                    className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                      connStatus === 'connected'
+                        ? 'bg-emerald-500'
+                        : connStatus === 'reconnecting'
+                        ? 'bg-amber-500'
+                        : 'bg-slate-500'
+                    }`}
+                  ></span>
+                </span>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    connStatus === 'connected'
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : connStatus === 'reconnecting'
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : 'text-slate-700 bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  {connStatus === 'connected'
+                    ? 'En Vivo (WebSockets)'
+                    : connStatus === 'reconnecting'
+                    ? 'Reconectando...'
+                    : 'Modo Offline'}
+                </span>
+              </div>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Recepción automatizada de pedidos por estación (asignada por Gerencia)
@@ -200,9 +251,21 @@ export const PortalKitchenPage: React.FC = () => {
           <button
             onClick={loadOrders}
             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-            title="Refrescar órdenes"
+            title="Refrescar órdenes manualmente"
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => {
+              localStorage.removeItem('nfc_active_staff_session');
+              navigate(`/login?type=staff&branch=${restaurant?.id || ''}`);
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 border border-slate-200/90 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Salir y permitir acceso al siguiente turno con PIN"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Cerrar Turno</span>
           </button>
         </div>
       </div>

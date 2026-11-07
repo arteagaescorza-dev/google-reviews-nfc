@@ -24,6 +24,8 @@ import type {
   StaffShift,
   Ad,
   TagScan,
+  FoodCourt,
+  FoodCourtBranchLink,
 } from '../types';
 import { RestaurantFormModal } from '../components/admin/RestaurantFormModal';
 import { OrganizationUserModal } from '../components/admin/OrganizationUserModal';
@@ -35,6 +37,7 @@ import { MenuManagementModal } from '../components/admin/MenuManagementModal';
 import { ManagerCouponModal } from '../components/admin/ManagerCouponModal';
 import { StaffMemberModal } from '../components/admin/StaffMemberModal';
 import { PlatePairingModal } from '../components/admin/PlatePairingModal';
+import { FoodCourtConfigModal } from '../components/admin/FoodCourtConfigModal';
 import { TIERS, DEFAULT_CUSTOM_TIERS, STATION_ID_MAP } from '../lib/constants';
 import {
   calculateRestaurantKpis,
@@ -515,6 +518,62 @@ export const AdminRestaurantsPage: React.FC = () => {
   const [selectedMenuRestaurant, setSelectedMenuRestaurant] = useState<Restaurant | null>(null);
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
 
+  // Estados de Plazas Comerciales / Food Courts y Federación Cross-Org
+  const [foodCourts, setFoodCourts] = useState<FoodCourt[]>([]);
+  const [foodCourtLinks, setFoodCourtLinks] = useState<FoodCourtBranchLink[]>([]);
+  const [isFoodCourtModalOpen, setIsFoodCourtModalOpen] = useState(false);
+  const [selectedFoodCourtBranch, setSelectedFoodCourtBranch] = useState<Restaurant | null>(null);
+  const [foodCourtModalTab, setFoodCourtModalTab] = useState<'tenants' | 'turnero'>('tenants');
+  const [expandedFoodCourtTenants, setExpandedFoodCourtTenants] = useState<Record<string, boolean>>({
+    'res-fc-1': true,
+  });
+
+  const handleOpenFoodCourtModal = (
+    fcBranch: Restaurant,
+    tab: 'tenants' | 'turnero' = 'tenants'
+  ) => {
+    setSelectedFoodCourtBranch(fcBranch);
+    setFoodCourtModalTab(tab);
+    setIsFoodCourtModalOpen(true);
+  };
+
+  const toggleFoodCourtTenantsSublist = (branchId: string) => {
+    setExpandedFoodCourtTenants((prev) => ({
+      ...prev,
+      [branchId]: !prev[branchId],
+    }));
+  };
+
+  const getMatchedFoodCourt = (fcBranch: Restaurant): FoodCourt | undefined => {
+    return foodCourts.find(
+      (fc) =>
+        fc.slug.toLowerCase() === (fcBranch.slug || '').toLowerCase() ||
+        fc.id === fcBranch.id ||
+        fc.id === `fc-${fcBranch.id}` ||
+        fc.name.toLowerCase() === (fcBranch.branch_name || fcBranch.name).toLowerCase()
+    );
+  };
+
+  const getTenantsForFoodCourtBranch = (fcBranch: Restaurant): FoodCourtBranchLink[] => {
+    const fc = getMatchedFoodCourt(fcBranch);
+    if (!fc) return [];
+    return foodCourtLinks.filter((l) => l.food_court_id === fc.id);
+  };
+
+  const getFederationInfoForTenantBranch = (
+    tenantBranchId: string
+  ): { link: FoodCourtBranchLink; foodCourt?: FoodCourt; fcBranch?: Restaurant } | null => {
+    const link = foodCourtLinks.find((l) => l.restaurant_id === tenantBranchId);
+    if (!link) return null;
+    const fc = foodCourts.find((f) => f.id === link.food_court_id);
+    const fcBranch = restaurants.find(
+      (r) =>
+        r.business_type === 'food_court' &&
+        (r.slug === fc?.slug || r.id === fc?.id || `fc-${r.id}` === fc?.id)
+    );
+    return { link, foodCourt: fc, fcBranch };
+  };
+
   const toggleOrgMetrics = (orgId: string) => {
     setExpandedOrgMetrics((prev) => ({
       ...prev,
@@ -548,6 +607,8 @@ export const AdminRestaurantsPage: React.FC = () => {
       shiftsList,
       adsList,
       scansList,
+      fcList,
+      fcLinksList,
     ] = await Promise.all([
       api.getRestaurants(),
       api.getOrganizations(),
@@ -567,6 +628,8 @@ export const AdminRestaurantsPage: React.FC = () => {
       api.getStaffShifts().catch(() => []),
       api.getAds().catch(() => []),
       api.getTagScans().catch(() => []),
+      api.getFoodCourts().catch(() => []),
+      api.getAllFoodCourtBranchLinks().catch(() => []),
     ]);
     setRestaurants(resList);
     setOrganizations(orgList);
@@ -586,6 +649,8 @@ export const AdminRestaurantsPage: React.FC = () => {
     setStaffShifts(shiftsList || []);
     setAds(adsList || []);
     setTagScans(scansList || []);
+    setFoodCourts(fcList || []);
+    setFoodCourtLinks(fcLinksList || []);
     setLoading(false);
   };
 
@@ -4207,7 +4272,7 @@ export const AdminRestaurantsPage: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Dar de Alta Sucursal</span>
+              <span>Dar de Alta Sucursal / Unidad</span>
             </button>
           </div>
         </div>
@@ -5282,11 +5347,24 @@ export const AdminRestaurantsPage: React.FC = () => {
                                 const tierInfo = TIERS[res.tier || 2];
                                 const isPanelExpanded = !!expandedBranchPanels[res.id];
                                 const isBranchOn = res.is_active !== false;
+                                const isFoodCourt = !!branchNode.capabilities.isFoodCourtUnit;
+                                const fcEntity = isFoodCourt ? getMatchedFoodCourt(res) : undefined;
+                                const fcTenants = isFoodCourt ? getTenantsForFoodCourtBranch(res) : [];
+                                const isFcSublistOpen = !!expandedFoodCourtTenants[res.id];
+                                const tenantFederationInfo = !isFoodCourt
+                                  ? getFederationInfoForTenantBranch(res.id)
+                                  : null;
 
                                 return (
                                   <React.Fragment key={res.id}>
-                                    {/* Fila de Sucursal Física */}
-                                    <tr className="bg-white hover:bg-blue-50/20 border-b border-slate-100 transition-colors">
+                                    {/* Fila de Sucursal Física / Unidad Operativa */}
+                                    <tr
+                                      className={`${
+                                        isFoodCourt
+                                          ? 'bg-blue-50/25 hover:bg-blue-50/50'
+                                          : 'bg-white hover:bg-blue-50/20'
+                                      } border-b border-slate-100 transition-colors`}
+                                    >
                                       {/* Col 1: Conector de árbol, Identidad y Selector del Nivel Contratado (Tier) */}
                                       <td className="py-3 px-4 pl-10 sm:pl-14">
                                         <div className="flex items-center gap-2.5">
@@ -5313,13 +5391,18 @@ export const AdminRestaurantsPage: React.FC = () => {
                                           )}
 
                                           <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className="font-extrabold text-slate-900 text-xs truncate">
                                                 {res.branch_name || 'Sucursal Principal'}
                                               </span>
                                               <span className="text-slate-400 font-semibold text-[11px] truncate">
                                                 ({res.brand_name})
                                               </span>
+                                              {isFoodCourt && (
+                                                <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-extrabold">
+                                                  Administrador de Comedor Inmobiliario
+                                                </span>
+                                              )}
                                             </div>
 
                                             {/* Selector Interactivo del Nivel Contratado (Tier 1 a 4) */}
@@ -5349,6 +5432,31 @@ export const AdminRestaurantsPage: React.FC = () => {
                                               <span className="text-[10px] text-slate-400 font-semibold">
                                                 • {branchNode.capabilities.verticalLabel}
                                               </span>
+
+                                              {/* Distintivo Bidireccional cuando la sucursal del locatario está federada en una Plaza Comercial */}
+                                              {tenantFederationInfo && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (tenantFederationInfo.fcBranch) {
+                                                      handleOpenFoodCourtModal(
+                                                        tenantFederationInfo.fcBranch,
+                                                        'tenants'
+                                                      );
+                                                    }
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-extrabold transition-colors cursor-pointer"
+                                                  title="Sucursal adherida al Turnero 4K de una Plaza Comercial. Clic para gestionar su número de local o federación."
+                                                >
+                                                  <Building2 className="w-2.5 h-2.5 text-indigo-600" />
+                                                  <span>
+                                                    Federada en:{' '}
+                                                    {tenantFederationInfo.foodCourt?.name ||
+                                                      'Food Court'}{' '}
+                                                    • {tenantFederationInfo.link.commercial_space_number}
+                                                  </span>
+                                                </button>
+                                              )}
 
                                               {(() => {
                                                 const trial = isBranchTrialActive(res);
@@ -5427,105 +5535,199 @@ export const AdminRestaurantsPage: React.FC = () => {
                                         <StatusBadgeAndSwitch
                                           isOn={isBranchOn}
                                           onToggle={() => handleToggleBranchActive(res)}
-                                          title="Prender o apagar servicio general de esta sucursal"
+                                          title="Prender o apagar servicio general de esta unidad"
                                         />
                                       </td>
 
-                                      {/* Col 4: Botón Desplegable del Panel de Control de Sucursal */}
+                                      {/* Col 4: Botón Desplegable del Panel de Control / Locales Federados */}
                                       <td className="py-3 px-4">
-                                        <button
-                                          onClick={() => toggleBranchPanel(res.id)}
-                                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                                            isPanelExpanded
-                                              ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                                              : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
-                                          }`}
-                                          title="Abrir Panel de Control por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS y Meseros)"
-                                        >
-                                          <Sliders className="w-3.5 h-3.5" />
-                                          <span>Panel de Control</span>
-                                          <span
-                                            className={`px-1.5 py-0.2 rounded text-[10px] ${
-                                              isPanelExpanded
-                                                ? 'bg-white/20 text-white'
-                                                : 'bg-white text-slate-600 border border-slate-200'
-                                            }`}
-                                          >
-                                            {branchTags.length} Tags
-                                            {branchNode.capabilities.supportsKds ? ' • KDS' : ''}
-                                          </span>
-                                          {isPanelExpanded ? (
-                                            <ChevronDown className="w-3.5 h-3.5" />
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {isFoodCourt ? (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={() => toggleFoodCourtTenantsSublist(res.id)}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                                  isFcSublistOpen
+                                                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                                    : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100'
+                                                }`}
+                                                title="Desplegar u ocultar la sub-lista de sucursales de otras organizaciones federadas en esta Plaza Comercial"
+                                              >
+                                                <Building2 className="w-3.5 h-3.5" />
+                                                <span>{fcTenants.length} Locales Federados</span>
+                                                <span
+                                                  className={`px-1.5 py-0.2 rounded text-[10px] ${
+                                                    isFcSublistOpen
+                                                      ? 'bg-white/20 text-white'
+                                                      : 'bg-white text-blue-700 border border-blue-200'
+                                                  }`}
+                                                >
+                                                  Turnero 4K
+                                                </span>
+                                                {isFcSublistOpen ? (
+                                                  <ChevronDown className="w-3.5 h-3.5" />
+                                                ) : (
+                                                  <ChevronRight className="w-3.5 h-3.5" />
+                                                )}
+                                              </button>
+
+                                              <button
+                                                onClick={() => toggleBranchPanel(res.id)}
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
+                                                  isPanelExpanded
+                                                    ? 'bg-slate-900 text-white border-slate-900'
+                                                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200/80'
+                                                }`}
+                                                title="Abrir Panel de Control de la Plaza Comercial"
+                                              >
+                                                <Sliders className="w-3 h-3" />
+                                                <span>Panel</span>
+                                              </button>
+                                            </>
                                           ) : (
-                                            <ChevronRight className="w-3.5 h-3.5" />
-                                          )}
-                                        </button>
-                                      </td>
-
-                                      {/* Col 5: Botonera de Sucursal + Botón Directo a Solicitudes de Quejas */}
-                                      <td className="py-3 px-4 text-right">
-                                        <div className="flex items-center justify-end gap-1.5">
-                                          <Link
-                                            to={`/admin/feedback?restaurant=${res.id}`}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
-                                              branchNode.pendingFeedbacksCount > 0
-                                                ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                            }`}
-                                            title="Ver solicitudes de quejas retenidas (1 a 3 estrellas) de esta sucursal"
-                                          >
-                                            <MessageSquareWarning className="w-3 h-3" />
-                                            <span>Quejas ({branchNode.feedbacksCount})</span>
-                                          </Link>
-
-                                          <a
-                                            href={res.google_review_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 text-[11px] font-semibold transition-colors"
-                                            title="Abrir ficha en Google Maps"
-                                          >
-                                            <span>Google</span>
-                                            <ExternalLink className="w-3 h-3" />
-                                          </a>
-
-                                          <button
-                                            onClick={() => handleOpenTrialModalForBranch(res)}
-                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold transition-colors shadow-2xs"
-                                            title="Otorgar o modificar periodo de prueba para esta sucursal"
-                                          >
-                                            <Sparkles className="w-3 h-3 text-purple-600" />
-                                            <span>Prueba</span>
-                                          </button>
-
-                                          {branchNode.capabilities.supportsKds && ((res.tier || 1) >= 2) && (
                                             <button
-                                              type="button"
-                                              onClick={() => {
-                                                setSelectedMenuRestaurant(res);
-                                                setIsMenuModalOpen(true);
-                                              }}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
-                                              title="Gestionar carta, categorías y platillos del menú digital"
+                                              onClick={() => toggleBranchPanel(res.id)}
+                                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                                isPanelExpanded
+                                                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                                                  : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200/80'
+                                              }`}
+                                              title="Abrir Panel de Control por Categorías (Funcionalidades Tier, Placas NFC, Pantallas KDS y Meseros)"
                                             >
-                                              <UtensilsCrossed className="w-3 h-3 text-orange-600" />
-                                              <span>Menú</span>
+                                              <Sliders className="w-3.5 h-3.5" />
+                                              <span>Panel de Control</span>
+                                              <span
+                                                className={`px-1.5 py-0.2 rounded text-[10px] ${
+                                                  isPanelExpanded
+                                                    ? 'bg-white/20 text-white'
+                                                    : 'bg-white text-slate-600 border border-slate-200'
+                                                }`}
+                                              >
+                                                {branchTags.length} Tags
+                                                {branchNode.capabilities.supportsKds ? ' • KDS' : ''}
+                                              </span>
+                                              {isPanelExpanded ? (
+                                                <ChevronDown className="w-3.5 h-3.5" />
+                                              ) : (
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                              )}
                                             </button>
                                           )}
+                                        </div>
+                                      </td>
 
-                                          <Link
-                                            to={`/portal?restaurantId=${res.id}`}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
-                                            title="Abrir portal del cliente para este local"
-                                          >
-                                            <Store className="w-3 h-3" />
-                                            <span>Portal</span>
-                                          </Link>
+                                      {/* Col 5: Botonera de Sucursal / Plaza Comercial + Botón Directo a Solicitudes de Quejas */}
+                                      <td className="py-3 px-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                          {isFoodCourt ? (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenFoodCourtModal(res, 'tenants')}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                                                title="Federar sucursales de otras organizaciones en el Food Court y asignar número de local"
+                                              >
+                                                <Plus className="w-3 h-3" />
+                                                <span>+ Federar Local</span>
+                                              </button>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenFoodCourtModal(res, 'turnero')}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                                                title="Configurar Turnero 4K (Audio TTS, Buzzer y Pauta 70/30)"
+                                              >
+                                                <Sliders className="w-3 h-3 text-amber-700" />
+                                                <span>Configurar 4K</span>
+                                              </button>
+
+                                              <a
+                                                href={`#/turnero-plaza/${fcEntity?.slug || res.slug || 'galerias-reforma'}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold transition-colors shadow-2xs"
+                                                title="Abrir Pantalla Pública del Turnero 4K (Split 70% Turnos / 30% Red Ads)"
+                                              >
+                                                <Tv className="w-3 h-3 text-rose-600" />
+                                                <span>Turnero 4K</span>
+                                                <ExternalLink className="w-2.5 h-2.5" />
+                                              </a>
+
+                                              <Link
+                                                to={`/food-court?fc=${fcEntity?.id || 'fc-galerias-1'}`}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
+                                                title="Abrir Consola Ejecutiva de Administración de la Plaza Comercial"
+                                              >
+                                                <Building2 className="w-3 h-3" />
+                                                <span>Consola Plaza</span>
+                                              </Link>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Link
+                                                to={`/admin/feedback?restaurant=${res.id}`}
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                                                  branchNode.pendingFeedbacksCount > 0
+                                                    ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                }`}
+                                                title="Ver solicitudes de quejas retenidas (1 a 3 estrellas) de esta sucursal"
+                                              >
+                                                <MessageSquareWarning className="w-3 h-3" />
+                                                <span>Quejas ({branchNode.feedbacksCount})</span>
+                                              </Link>
+
+                                              <a
+                                                href={res.google_review_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 text-[11px] font-semibold transition-colors"
+                                                title="Abrir ficha en Google Maps"
+                                              >
+                                                <span>Google</span>
+                                                <ExternalLink className="w-3 h-3" />
+                                              </a>
+
+                                              <button
+                                                onClick={() => handleOpenTrialModalForBranch(res)}
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold transition-colors shadow-2xs"
+                                                title="Otorgar o modificar periodo de prueba para esta sucursal"
+                                              >
+                                                <Sparkles className="w-3 h-3 text-purple-600" />
+                                                <span>Prueba</span>
+                                              </button>
+
+                                              {branchNode.capabilities.supportsKds && ((res.tier || 1) >= 2) && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setSelectedMenuRestaurant(res);
+                                                    setIsMenuModalOpen(true);
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                                                  title="Gestionar carta, categorías y platillos del menú digital"
+                                                >
+                                                  <UtensilsCrossed className="w-3 h-3 text-orange-600" />
+                                                  <span>Menú</span>
+                                                </button>
+                                              )}
+
+                                              <Link
+                                                to={`/portal?restaurantId=${res.id}`}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition-all shadow-2xs"
+                                                title="Abrir portal del cliente para este local"
+                                              >
+                                                <Store className="w-3 h-3" />
+                                                <span>Portal</span>
+                                              </Link>
+                                            </>
+                                          )}
 
                                           <button
                                             onClick={() => handleEdit(res)}
                                             className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                                            title="Editar Sucursal"
+                                            title="Editar Sucursal / Unidad"
                                           >
                                             <Edit2 className="w-3.5 h-3.5" />
                                           </button>
@@ -5540,6 +5742,131 @@ export const AdminRestaurantsPage: React.FC = () => {
                                         </div>
                                       </td>
                                     </tr>
+
+                                    {/* Sub-Lista Desplegable Cross-Org exclusiva para Unidades de Giro Plaza Comercial / Food Court */}
+                                    {isFoodCourt && isFcSublistOpen && (
+                                      <tr className="bg-blue-50/20 border-b border-blue-100">
+                                        <td colSpan={5} className="py-3.5 px-6 pl-14 sm:pl-20">
+                                          <div className="bg-white rounded-2xl border border-blue-200/90 shadow-2xs overflow-hidden">
+                                            <div className="px-4 py-2.5 bg-blue-50/70 border-b border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2">
+                                                <Building2 className="w-4 h-4 text-blue-600" />
+                                                <span className="text-xs font-extrabold text-blue-950">
+                                                  Sucursales de Otras Organizaciones Federadas en{' '}
+                                                  {res.branch_name || res.name} ({fcTenants.length})
+                                                </span>
+                                                <span className="px-2 py-0.5 rounded-md bg-white text-blue-800 border border-blue-200 text-[10px] font-bold">
+                                                  Aislamiento Cross-Org Activo
+                                                </span>
+                                              </div>
+
+                                              <div className="flex items-center gap-2">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenFoodCourtModal(res, 'tenants')}
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold cursor-pointer"
+                                                >
+                                                  <Plus className="w-3 h-3" />
+                                                  <span>Vincular o Pre-Registrar Local</span>
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenFoodCourtModal(res, 'turnero')}
+                                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[10px] font-bold cursor-pointer"
+                                                >
+                                                  <Tv className="w-3 h-3 text-rose-600" />
+                                                  <span>Ajustes Turnero 4K 70/30</span>
+                                                </button>
+                                              </div>
+                                            </div>
+
+                                            <div className="overflow-x-auto">
+                                              <table className="w-full text-left text-xs divide-y divide-slate-100">
+                                                <thead className="bg-slate-50/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                                                  <tr>
+                                                    <th className="py-2 px-3">Local / Isla</th>
+                                                    <th className="py-2 px-3">Barra Despacho</th>
+                                                    <th className="py-2 px-3">Sucursal Huésped</th>
+                                                    <th className="py-2 px-3">Organización Matriz Dueña</th>
+                                                    <th className="py-2 px-3">Estado Turnero 4K</th>
+                                                    <th className="py-2 px-3 text-right">Acciones</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                  {fcTenants.length === 0 ? (
+                                                    <tr>
+                                                      <td colSpan={6} className="py-4 text-center text-slate-400">
+                                                        No hay sucursales federadas en este comedor. Usa el botón [+ Federar Local] para vincular sucursales.
+                                                      </td>
+                                                    </tr>
+                                                  ) : (
+                                                    fcTenants.map((tLink) => {
+                                                      const guestBranch = restaurants.find(
+                                                        (r) => r.id === tLink.restaurant_id
+                                                      );
+                                                      const guestOrg = organizations.find(
+                                                        (o) => o.id === guestBranch?.organization_id
+                                                      );
+
+                                                      return (
+                                                        <tr key={tLink.id} className="hover:bg-slate-50/70">
+                                                          <td className="py-2 px-3">
+                                                            <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-extrabold">
+                                                              {tLink.commercial_space_number}
+                                                            </span>
+                                                          </td>
+                                                          <td className="py-2 px-3 font-semibold text-slate-700">
+                                                            {tLink.pickup_counter_label}
+                                                          </td>
+                                                          <td className="py-2 px-3 font-extrabold text-slate-900">
+                                                            {guestBranch
+                                                              ? guestBranch.name
+                                                              : tLink.tenant_brand_name}
+                                                          </td>
+                                                          <td className="py-2 px-3">
+                                                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold">
+                                                              {guestOrg
+                                                                ? guestOrg.name
+                                                                : guestBranch
+                                                                ? 'Local Independiente'
+                                                                : 'Invitación Pendiente'}
+                                                            </span>
+                                                          </td>
+                                                          <td className="py-2 px-3">
+                                                            <span
+                                                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                                                tLink.status === 'active'
+                                                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                              }`}
+                                                            >
+                                                              {tLink.status === 'active'
+                                                                ? 'Transmitiendo al Turnero 4K'
+                                                                : 'Pendiente Activación'}
+                                                            </span>
+                                                          </td>
+                                                          <td className="py-2 px-3 text-right">
+                                                            <button
+                                                              type="button"
+                                                              onClick={() =>
+                                                                handleOpenFoodCourtModal(res, 'tenants')
+                                                              }
+                                                              className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 text-[10px] font-bold cursor-pointer"
+                                                            >
+                                                              Gestionar
+                                                            </button>
+                                                          </td>
+                                                        </tr>
+                                                      );
+                                                    })
+                                                  )}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
 
                                     {/* Fila Panel de Control de la Sucursal por Categorías */}
                                     {isPanelExpanded && renderBranchControlPanel(branchNode)}
@@ -5860,6 +6187,20 @@ export const AdminRestaurantsPage: React.FC = () => {
         branchName={staffModalBranchName}
         initialRole={staffModalInitialRole}
         onSaved={handleStaffSaved}
+      />
+
+      {/* Modal de Configuración de Plaza Comercial & Federación Cross-Org */}
+      <FoodCourtConfigModal
+        isOpen={isFoodCourtModalOpen}
+        onClose={() => {
+          setIsFoodCourtModalOpen(false);
+          setSelectedFoodCourtBranch(null);
+        }}
+        foodCourtBranch={selectedFoodCourtBranch}
+        allRestaurants={restaurants}
+        organizations={organizations}
+        initialTab={foodCourtModalTab}
+        onUpdated={loadData}
       />
     </div>
   );

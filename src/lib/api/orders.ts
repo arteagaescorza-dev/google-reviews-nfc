@@ -377,7 +377,8 @@ export const ordersApi = {
   },
 
 async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
       try {
         let query = supabase.from('table_orders').select('*').order('created_at', { ascending: false });
         if (restaurantId && restaurantId !== 'res-1') {
@@ -597,7 +598,8 @@ async getTableOrders(restaurantId?: string): Promise<TableOrder[]> {
   },
 
 async createTableOrder(order: Partial<TableOrder>): Promise<{ success: boolean; data?: TableOrder; error?: string }> {
-    if (isSupabaseConfigured) {
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
       try {
         const payload = {
           restaurant_id: order.restaurant_id || 'res-1',

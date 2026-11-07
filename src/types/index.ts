@@ -15,6 +15,7 @@ export type BusinessType =
   | 'gym'
   | 'spa'
   | 'cafeteria'
+  | 'food_court'
   | 'general'
   | (string & {});
 
@@ -152,6 +153,17 @@ export const VERTICAL_CONFIG: Record<string, BusinessVerticalConfig> = {
     showKds: false,
     showFloorStaff: false,
     feedbackQuestion: '¿Cómo calificarías nuestro servicio hoy?',
+  },
+  food_court: {
+    unitLabel: 'Local Federado',
+    unitPlural: 'Locales Federados',
+    catalogTitle: 'Directorio del Comedor & Turnero 4K',
+    catalogSubtitle: 'Consulta locales gastronómicos y turnos de entrega en pantalla',
+    actionPrimary: 'Ver Turnero 4K en Vivo',
+    actionSecondary: 'Asistencia de la Plaza',
+    showKds: false,
+    showFloorStaff: false,
+    feedbackQuestion: '¿Cómo estuvo tu visita a nuestro comedor hoy?',
   },
 };
 
@@ -832,3 +844,71 @@ export interface ManagerShiftReport {
   created_at: string;
 }
 
+
+// ==========================================
+// Módulos Food Court: Plazas Comerciales, Federación Cross-Org y Turnero Maestro 4K (POL-008)
+// ==========================================
+
+export interface FoodCourtTurneroConfig {
+  enableVoiceTts: boolean;
+  enableBuzzerChime: boolean;
+  autoHideReadyMinutes: number;
+  adRotationSeconds: number;
+  primaryColor: string;
+  splitRatio: '70_30';
+}
+
+export interface FoodCourt {
+  id: string;
+  name: string;
+  slug: string;
+  mall_name: string;
+  logo_url?: string | null;
+  admin_email?: string | null;
+  admin_user_id?: string | null;
+  turnero_config: FoodCourtTurneroConfig;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type FoodCourtBranchStatus = 'active' | 'pending_activation' | 'suspended';
+
+export interface FoodCourtBranchLink {
+  id: string;
+  food_court_id: string;
+  restaurant_id?: string | null;
+  commercial_space_number: string; // Ej: "Local FC-04"
+  pickup_counter_label: string; // Ej: "Barra 1"
+  tenant_brand_name?: string | null;
+  tenant_contact_email?: string | null;
+  tenant_contact_phone?: string | null;
+  invitation_token?: string | null;
+  status: FoodCourtBranchStatus;
+  joined_at: string;
+}
+
+export interface FoodCourtTenantMetric {
+  branch_link_id: string;
+  restaurant_id?: string | null;
+  commercial_space_number: string;
+  pickup_counter_label: string;
+  brand_name: string;
+  organization_id?: string | null;
+  status: FoodCourtBranchStatus;
+  orders_count: number;
+  avg_prep_minutes: number;
+  average_ticket: number;
+  gross_revenue_estimated: number;
+}
+
+export interface FoodCourtAggregatedMetrics {
+  food_court_id: string;
+  total_orders_count: number;
+  avg_wait_minutes: number;
+  global_average_ticket: number;
+  total_gross_revenue_estimated: number;
+  active_tenants_count: number;
+  peak_hours_distribution: { hour: string; orders: number }[];
+  tenants: FoodCourtTenantMetric[];
+}

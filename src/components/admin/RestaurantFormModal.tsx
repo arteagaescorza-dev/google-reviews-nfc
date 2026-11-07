@@ -430,6 +430,9 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
     setIsSaving(false);
     if (res.success) {
+      if (res.data && res.data.business_type === 'food_court') {
+        await api.ensureFoodCourtForBranch(res.data);
+      }
       onSaved();
       onClose();
     } else {

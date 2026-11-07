@@ -64,6 +64,7 @@ export interface BranchControlCapabilities {
   unitPlural: string;
   supportsKds: boolean;
   supportsFloorStaff: boolean;
+  isFoodCourtUnit?: boolean;
 }
 
 export interface BranchNode {
@@ -119,8 +120,12 @@ export function getBranchCapabilities(
     gym: 'Gimnasio / Fitness',
     dental: 'Clínica Dental',
     spa: 'Spa & Bienestar',
+    food_court: 'Plaza Comercial / Food Court',
     general: 'Comercio General',
   };
+
+  const isFoodCourtUnit =
+    businessType === 'food_court' || businessType === 'plaza_comercial';
 
   const matchedCustom = customVerticals.find(
     (v) => v.slug === businessType || v.id === businessType
@@ -133,6 +138,10 @@ export function getBranchCapabilities(
       unitPlural: matchedCustom.unit_plural,
       supportsKds: matchedCustom.show_kds,
       supportsFloorStaff: matchedCustom.show_floor_staff,
+      isFoodCourtUnit:
+        isFoodCourtUnit ||
+        matchedCustom.slug === 'food_court' ||
+        matchedCustom.slug === 'plaza_comercial',
     };
   }
 
@@ -145,6 +154,7 @@ export function getBranchCapabilities(
     unitPlural: cfg.unitPlural,
     supportsKds: cfg.showKds,
     supportsFloorStaff: cfg.showFloorStaff,
+    isFoodCourtUnit,
   };
 }
 

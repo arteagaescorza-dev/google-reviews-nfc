@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   Users,
   Plus,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { filterBranchesBySameOrganization } from '../../lib/api/orders';
+import { subscribeToRestaurantCalls, type RealtimeConnectionStatus } from '../../lib/realtimeSubscriptions';
 import type {
   Restaurant,
   RestaurantTable,
@@ -30,6 +31,7 @@ import type {
 } from '../../types';
 
 export const PortalHostessPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const branchParam = searchParams.get('branch') || '';
 
@@ -39,6 +41,7 @@ export const PortalHostessPage: React.FC = () => {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [activeCalls, setActiveCalls] = useState<TableCall[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connStatus, setConnStatus] = useState<RealtimeConnectionStatus>('connected');
 
   const sameOrgBranches = React.useMemo(
     () => filterBranchesBySameOrganization(restaurants, selectedBranchId),
@@ -46,7 +49,20 @@ export const PortalHostessPage: React.FC = () => {
   );
 
   // Estado de sesión por PIN (Hostess / Capitán de Piso / Gerente)
-  const [loggedInStaff, setLoggedInStaff] = useState<StaffMember | null>(null);
+  const [loggedInStaff, setLoggedInStaff] = useState<StaffMember | null>(() => {
+    const saved = localStorage.getItem('nfc_active_staff_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (['hostess', 'manager', 'waiter'].includes(parsed.role)) {
+          return parsed;
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
 
@@ -104,8 +120,23 @@ export const PortalHostessPage: React.FC = () => {
 
   useEffect(() => {
     loadOperationalData();
-    const interval = setInterval(loadOperationalData, 4000);
-    return () => clearInterval(interval);
+
+    // Suscripción en Tiempo Real vía WebSockets (POL-008)
+    const unsubCalls = subscribeToRestaurantCalls(
+      selectedBranchId,
+      () => {
+        loadOperationalData();
+      },
+      (st) => setConnStatus(st)
+    );
+
+    // Latido pasivo cada 45 segundos para contingencias de red
+    const passiveHeartbeat = setInterval(loadOperationalData, 45000);
+
+    return () => {
+      unsubCalls();
+      clearInterval(passiveHeartbeat);
+    };
   }, [selectedBranchId]);
 
   const handleBranchChange = (newBranchId: string) => {
@@ -364,6 +395,43 @@ export const PortalHostessPage: React.FC = () => {
                 <h1 className="text-lg font-black text-slate-900 tracking-tight">
                   Hostess & Recepción — Control de Mesas
                 </h1>
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span
+                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        connStatus === 'connected'
+                          ? 'bg-emerald-400'
+                          : connStatus === 'reconnecting'
+                          ? 'bg-amber-400'
+                          : 'bg-slate-400'
+                      }`}
+                    />
+                    <span
+                      className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                        connStatus === 'connected'
+                          ? 'bg-emerald-500'
+                          : connStatus === 'reconnecting'
+                          ? 'bg-amber-500'
+                          : 'bg-slate-500'
+                      }`}
+                    />
+                  </span>
+                  <span
+                    className={`text-[9px] font-bold uppercase tracking-wider ${
+                      connStatus === 'connected'
+                        ? 'text-emerald-700'
+                        : connStatus === 'reconnecting'
+                        ? 'text-amber-700'
+                        : 'text-slate-600'
+                    }`}
+                  >
+                    {connStatus === 'connected'
+                      ? 'En Vivo'
+                      : connStatus === 'reconnecting'
+                      ? 'Reconectando...'
+                      : 'Offline'}
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-slate-500">
                 Operador activo: <strong className="text-slate-800">{loggedInStaff.name}</strong> •{' '}
@@ -413,10 +481,14 @@ export const PortalHostessPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setLoggedInStaff(null)}
+              onClick={() => {
+                localStorage.removeItem('nfc_active_staff_session');
+                setLoggedInStaff(null);
+                navigate(`/login?type=staff&branch=${selectedBranchId}`);
+              }}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 font-bold text-xs transition-colors cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" /> Salir
+              <LogOut className="w-3.5 h-3.5" /> Cambiar Turno
             </button>
           </div>
         </div>

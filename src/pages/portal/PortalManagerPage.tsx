@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
   Users,
@@ -44,6 +44,7 @@ import type {
 } from '../../types';
 
 export const PortalManagerPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const branchParam = searchParams.get('branch') || '';
 
@@ -52,7 +53,20 @@ export const PortalManagerPage: React.FC = () => {
   const [orgManagers, setOrgManagers] = useState<OrganizationManager[]>([]);
 
   // Sesión de Gerente de Tienda
-  const [loggedInManagerName, setLoggedInManagerName] = useState<string | null>(null);
+  const [loggedInManagerName, setLoggedInManagerName] = useState<string | null>(() => {
+    const saved = localStorage.getItem('nfc_active_staff_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'manager') {
+          return parsed.name;
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loggedInManagerRole, setLoggedInManagerRole] = useState<'gerente_tienda' | 'capitan_piso'>('gerente_tienda');
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -631,9 +645,13 @@ export const PortalManagerPage: React.FC = () => {
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => setLoggedInManagerName(null)}
+                onClick={() => {
+                  localStorage.removeItem('nfc_active_staff_session');
+                  setLoggedInManagerName(null);
+                  navigate(`/login?type=staff&branch=${selectedBranchId}`);
+                }}
                 className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700"
-                title="Salir"
+                title="Cambiar turno y salir al login con PIN"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>

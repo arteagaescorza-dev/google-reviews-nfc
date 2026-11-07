@@ -1,7 +1,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ResolverPage } from './pages/ResolverPage';
-import { AdminLoginPage } from './pages/AdminLoginPage';
+import { UniversalLoginPage } from './pages/UniversalLoginPage';
 import { AdminAuthGuard } from './components/admin/AdminAuthGuard';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
@@ -20,12 +20,12 @@ import { PortalStaffPage } from './pages/portal/PortalStaffPage';
 import { PortalHostessPage } from './pages/portal/PortalHostessPage';
 import { PortalManagerPage } from './pages/portal/PortalManagerPage';
 import { PortalPickupPage } from './pages/portal/PortalPickupPage';
-import { PortalLoginPage } from './pages/portal/PortalLoginPage';
 import { PortalAuthGuard } from './components/portal/PortalAuthGuard';
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage';
 import { WebPassportPage } from './pages/WebPassportPage';
 import { RedeemCouponPage } from './pages/RedeemCouponPage';
 import { TurneroPlazaPage } from './pages/TurneroPlazaPage';
+import { FoodCourtDashboardPage } from './pages/portal/FoodCourtDashboardPage';
 import { ClientHubPage } from './pages/ClientHubPage';
 
 export const App: React.FC = () => {
@@ -42,6 +42,8 @@ export const App: React.FC = () => {
 
         {/* Turnero Maestro de Plaza Publica / Food Court 4K (DT-15) */}
         <Route path="/turnero-plaza" element={<TurneroPlazaPage />} />
+        <Route path="/food-court" element={<FoodCourtDashboardPage />} />
+        <Route path="/portal/food-court" element={<FoodCourtDashboardPage />} />
 
         {/* Pasaporte Web PWA para Comensales (SPEC-006) */}
         <Route path="/pasaporte" element={<WebPassportPage />} />
@@ -49,8 +51,12 @@ export const App: React.FC = () => {
         {/* Validador de Cupones en Recepción / Mostrador (SPEC-006) */}
         <Route path="/canjear" element={<RedeemCouponPage />} />
 
+        {/* Acceso Universal Inteligente al Sistema (POL-008) */}
+        <Route path="/login" element={<UniversalLoginPage />} />
+        <Route path="/acceso" element={<Navigate to="/login" replace />} />
+
         {/* Portal Móvil del Suscriptor / Dueño del Local */}
-        <Route path="/portal/login" element={<PortalLoginPage />} />
+        <Route path="/portal/login" element={<Navigate to="/login?type=portal" replace />} />
         <Route path="/portal" element={<PortalAuthGuard />}>
           <Route index element={<PortalDashboardPage />} />
         </Route>
@@ -62,8 +68,8 @@ export const App: React.FC = () => {
         <Route path="/portal/gerente" element={<PortalManagerPage />} />
         <Route path="/portal/pickup" element={<PortalPickupPage />} />
 
-        {/* Autenticación Administrativa */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+        {/* Autenticación Administrativa Retrocompatible */}
+        <Route path="/admin/login" element={<Navigate to="/login?type=admin" replace />} />
 
         {/* Panel Administrativo Protegido */}
         <Route path="/admin" element={<AdminAuthGuard />}>

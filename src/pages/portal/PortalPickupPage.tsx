@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { subscribeToRestaurantOrders, type RealtimeConnectionStatus } from '../../lib/realtimeSubscriptions';
 import type { TableOrder, StaffMember, Restaurant } from '../../types';
 import {
   ShoppingBag,
@@ -16,18 +18,31 @@ import {
   X,
   Volume2,
   VolumeX,
+  LogOut,
 } from 'lucide-react';
 
 export const PortalPickupPage: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterChannel, setFilterChannel] = useState<'all' | 'takeout' | 'delivery'>('all');
   const [selectedOrder, setSelectedOrder] = useState<TableOrder | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [connStatus, setConnStatus] = useState<RealtimeConnectionStatus>('connected');
 
   // Sesión de Cajero / Despachador en Mostrador
-  const [activeCashier, setActiveCashier] = useState<StaffMember | null>(null);
+  const [activeCashier, setActiveCashier] = useState<StaffMember | null>(() => {
+    const saved = localStorage.getItem('nfc_active_staff_session');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -68,8 +83,25 @@ export const PortalPickupPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 15000);
-    return () => clearInterval(interval);
+
+    const branchId = getBranchId() || 'res-1';
+
+    // Suscripción Realtime por WebSockets (POL-008)
+    const unsubOrders = subscribeToRestaurantOrders(
+      branchId,
+      () => {
+        loadData();
+      },
+      (st) => setConnStatus(st)
+    );
+
+    // Latido pasivo cada 45 segundos para contingencias de red
+    const passiveHeartbeat = setInterval(loadData, 45000);
+
+    return () => {
+      unsubOrders();
+      clearInterval(passiveHeartbeat);
+    };
   }, []);
 
   const handleDeliverOrder = async (orderId: string) => {
@@ -137,6 +169,43 @@ export const PortalPickupPage: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-800 border border-teal-200">
                   Despacho & Delivery
                 </span>
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 border border-slate-200">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span
+                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        connStatus === 'connected'
+                          ? 'bg-emerald-400'
+                          : connStatus === 'reconnecting'
+                          ? 'bg-amber-400'
+                          : 'bg-slate-400'
+                      }`}
+                    />
+                    <span
+                      className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                        connStatus === 'connected'
+                          ? 'bg-emerald-500'
+                          : connStatus === 'reconnecting'
+                          ? 'bg-amber-500'
+                          : 'bg-slate-500'
+                      }`}
+                    />
+                  </span>
+                  <span
+                    className={`text-[9px] font-bold uppercase tracking-wider ${
+                      connStatus === 'connected'
+                        ? 'text-emerald-700'
+                        : connStatus === 'reconnecting'
+                        ? 'text-amber-700'
+                        : 'text-slate-600'
+                    }`}
+                  >
+                    {connStatus === 'connected'
+                      ? 'En Vivo'
+                      : connStatus === 'reconnecting'
+                      ? 'Reconectando...'
+                      : 'Offline'}
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-slate-500">
                 {branchInfo ? `${branchInfo.name} · Mostrador de Entrega Rápida` : 'Mostrador de Entrega'}
@@ -171,6 +240,21 @@ export const PortalPickupPage: React.FC = () => {
               title="Actualizar pedidos"
             >
               <RefreshCw className="w-4 h-4" />
+            </button>
+
+            {/* Cerrar Turno */}
+            <button
+              onClick={() => {
+                localStorage.removeItem('nfc_active_staff_session');
+                setActiveCashier(null);
+                const branchId = getBranchId() || branchInfo?.id || 'res-1';
+                navigate(`/login?type=staff&branch=${branchId}`);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+              title="Cambiar turno de caja y salir al login con PIN"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Cerrar Turno</span>
             </button>
           </div>
         </div>
