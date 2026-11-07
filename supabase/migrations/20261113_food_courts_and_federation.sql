@@ -52,33 +52,33 @@ CREATE INDEX IF NOT EXISTS idx_fc_branches_rest ON food_court_branches(restauran
 ALTER TABLE food_courts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE food_court_branches ENABLE ROW LEVEL SECURITY;
 
--- Lectura pública de Food Courts activos para las pantallas 4K
+DROP POLICY IF EXISTS "Public read active food_courts" ON food_courts;
 CREATE POLICY "Public read active food_courts"
 ON food_courts FOR SELECT
 TO anon, authenticated
 USING (is_active = true);
 
--- Superadmin control total en food_courts
+DROP POLICY IF EXISTS "Superadmin full access to food_courts" ON food_courts;
 CREATE POLICY "Superadmin full access to food_courts"
 ON food_courts FOR ALL
 TO authenticated
 USING (is_superadmin())
 WITH CHECK (is_superadmin());
 
--- Administradores de la plaza actualizan su configuración de turnero
+DROP POLICY IF EXISTS "Mall admin update their food_court" ON food_courts;
 CREATE POLICY "Mall admin update their food_court"
 ON food_courts FOR UPDATE
 TO authenticated
 USING (admin_user_id = auth.uid())
 WITH CHECK (admin_user_id = auth.uid());
 
--- Lectura pública de locales federados en el turnero
+DROP POLICY IF EXISTS "Public read food_court_branches" ON food_court_branches;
 CREATE POLICY "Public read food_court_branches"
 ON food_court_branches FOR SELECT
 TO anon, authenticated
 USING (true);
 
--- Superadmin y Admin de Plaza gestionan las vinculaciones de su Food Court
+DROP POLICY IF EXISTS "Superadmin and Mall Admin manage food_court_branches" ON food_court_branches;
 CREATE POLICY "Superadmin and Mall Admin manage food_court_branches"
 ON food_court_branches FOR ALL
 TO authenticated
@@ -147,3 +147,48 @@ BEGIN
   EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL;
   END;
 END $$;
+
+-- 6. INSERTAR GIRO OFICIAL "PLAZA COMERCIAL / FOOD COURT" EN BUSINESS_VERTICALS
+INSERT INTO public.business_verticals (
+  slug,
+  name,
+  unit_label,
+  unit_plural,
+  show_kds,
+  show_floor_staff,
+  show_hostess,
+  catalog_title,
+  catalog_subtitle,
+  action_primary,
+  action_secondary,
+  feedback_question,
+  available_features,
+  available_stations
+) VALUES (
+  'food_court',
+  'Plaza Comercial / Food Court',
+  'Local Federado',
+  'Locales Federados',
+  false,
+  false,
+  false,
+  'Directorio del Comedor & Turnero 4K',
+  'Consulta locales gastronómicos y turnos de entrega en pantalla',
+  'Ver Turnero 4K en Vivo',
+  'Asistencia de la Plaza',
+  '¿Cómo estuvo tu visita a nuestro comedor hoy?',
+  '[
+    {"id": "turnero_4k_plaza", "name": "Turnero 4K Multi-Locatario (70% Turnos / 30% Red Ads)", "description": "Pantalla gigante para área de comidas que concentra turnos de múltiples organizaciones con voz TTS."},
+    {"id": "cross_org_federation", "name": "Federación de Sucursales de Otras Organizaciones", "description": "Capacidad de adherir sucursales gastronómicas de distintas empresas matrices bajo un mismo comedor."},
+    {"id": "plaza_metrics", "name": "Analítica de Renta Variable & Tiempos de Entrega SLA", "description": "Auditoría ejecutiva de volumen de comandas, ventas y tiempos de despacho por locatario."}
+  ]'::jsonb,
+  '[
+    {"id": "station-turnero-plaza", "name": "Pantalla Turnero 4K del Comedor (Split 70/30)", "roleName": "Pantalla Pública de Plaza", "description": "Visualización consolidada de órdenes en preparación y listas para recoger con pauta publicitaria."}
+  ]'::jsonb
+)
+ON CONFLICT (slug) DO UPDATE SET
+  name = EXCLUDED.name,
+  unit_label = EXCLUDED.unit_label,
+  unit_plural = EXCLUDED.unit_plural,
+  available_features = EXCLUDED.available_features,
+  available_stations = EXCLUDED.available_stations;
