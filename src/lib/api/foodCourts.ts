@@ -10,6 +10,8 @@ import type {
 } from '../../types';
 import { STORAGE_KEYS, INITIAL_DEMO_DATA, getLocalItem, setLocalItem } from './core';
 import { ordersApi } from './orders';
+import { restaurantsApi } from './restaurants';
+import { organizationsApi } from './organizations';
 
 const FC_STORAGE_KEYS = {
   FOOD_COURTS: 'nfc_demo_food_courts',
@@ -485,14 +487,14 @@ export const foodCourtsApi = {
       (fc) =>
         fc.slug.toLowerCase() === (restaurant.slug || '').toLowerCase() ||
         fc.id === restaurant.id ||
+        fc.id === `fc-${restaurant.id}` ||
         fc.name.toLowerCase() === (restaurant.branch_name || restaurant.name).toLowerCase()
     );
     if (matched) {
       return matched;
     }
 
-    const newFc: FoodCourt = {
-      id: `fc-${restaurant.id}`,
+    const newFcPayload = {
       name: restaurant.branch_name || restaurant.name,
       slug: restaurant.slug || `plaza-${Date.now()}`,
       mall_name: restaurant.brand_name || restaurant.name,
@@ -504,15 +506,152 @@ export const foodCourtsApi = {
         autoHideReadyMinutes: 3,
         adRotationSeconds: 20,
         primaryColor: restaurant.brand_color || '#2563eb',
-        splitRatio: '70_30',
+        splitRatio: '70_30' as const,
       },
       is_active: restaurant.is_active !== false,
+    };
+
+    const isDemo = typeof window !== 'undefined' && localStorage.getItem('nfc_demo_auth') === 'true';
+    if (!isDemo && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('food_courts')
+          .insert([newFcPayload])
+          .select()
+          .single();
+        if (!error && data) {
+          const remoteFc = data as FoodCourt;
+          setLocalItem(FC_STORAGE_KEYS.FOOD_COURTS, [...all, remoteFc]);
+          return remoteFc;
+        }
+      } catch (e) {
+        console.warn('Fallback local para ensureFoodCourtForBranch:', e);
+      }
+    }
+
+    const newFc: FoodCourt = {
+      id: `fc-${restaurant.id}`,
+      ...newFcPayload,
       created_at: new Date().toISOString(),
     };
 
     const updated = [...all, newFc];
     setLocalItem(FC_STORAGE_KEYS.FOOD_COURTS, updated);
     return newFc;
+  },
+
+  /**
+   * Crea una nueva sucursal gastronómica (y su organización/marca si aplica) y la federa en el Food Court en un solo paso
+   */
+  async createAndFederateTenantBranch(
+    foodCourtId: string,
+    payload: {
+      organizationId?: string | null;
+      newOrganizationName?: string;
+      ownerName?: string;
+      ownerEmail?: string;
+      brandName: string;
+      branchName: string;
+      businessType?: string;
+      spaceNumber: string;
+      pickupCounter?: string;
+      googleReviewUrl?: string;
+    }
+  ): Promise<{
+    success: boolean;
+    restaurant?: Restaurant;
+    link?: FoodCourtBranchLink;
+    error?: string;
+  }> {
+    if (!foodCourtId || !payload.brandName.trim() || !payload.branchName.trim() || !payload.spaceNumber.trim()) {
+      return {
+        success: false,
+        error: 'Marca comercial, nombre de sucursal y número de local son obligatorios.',
+      };
+    }
+
+    let targetOrgId = payload.organizationId || null;
+
+    if (!targetOrgId && payload.newOrganizationName?.trim()) {
+      const orgRes = await organizationsApi.createOrganization({
+        name: payload.newOrganizationName.trim(),
+        owner_name: payload.ownerName?.trim() || 'Titular Locatario',
+        notify_negative_feedback: true,
+      });
+      if (orgRes.success && orgRes.data) {
+        targetOrgId = orgRes.data.id;
+      }
+    }
+
+    let targetBrandId: string | null = null;
+    if (targetOrgId) {
+      const brandRes = await organizationsApi.createOrganizationBrand({
+        organization_id: targetOrgId,
+        name: payload.brandName.trim(),
+        vertical_slug: 'restaurant',
+        brand_color: '#ea580c',
+      });
+      if (brandRes.success && brandRes.data) {
+        targetBrandId = brandRes.data.id;
+      }
+    }
+
+    const fullName = `${payload.brandName.trim()} - ${payload.branchName.trim()}`;
+    const generatedSlug =
+      fullName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') +
+      '-' +
+      Math.floor(100 + Math.random() * 900);
+
+    const restRes = await restaurantsApi.saveRestaurant({
+      organization_id: targetOrgId,
+      brand_id: targetBrandId,
+      brand_name: payload.brandName.trim(),
+      branch_name: payload.branchName.trim(),
+      business_type: 'restaurant',
+      name: fullName,
+      slug: generatedSlug,
+      google_review_url:
+        payload.googleReviewUrl?.trim() ||
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullName)}`,
+      tier: 3,
+      is_ad_free: false,
+      brand_color: '#ea580c',
+      links: [],
+      is_active: true,
+    });
+
+    if (!restRes.success || !restRes.data) {
+      return {
+        success: false,
+        error: restRes.error || 'No se pudo dar de alta la sucursal del locatario.',
+      };
+    }
+
+    const linkRes = await foodCourtsApi.linkBranchToFoodCourt(
+      foodCourtId,
+      restRes.data.id,
+      payload.spaceNumber.trim(),
+      (payload.pickupCounter || 'Barra 1').trim()
+    );
+
+    if (!linkRes.success) {
+      return {
+        success: false,
+        restaurant: restRes.data,
+        error: linkRes.error || 'Se creó la sucursal pero no se pudo vincular al Food Court.',
+      };
+    }
+
+    return {
+      success: true,
+      restaurant: restRes.data,
+      link: linkRes.data,
+    };
   },
 
   /**

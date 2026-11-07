@@ -5,6 +5,7 @@ import type {
   BusinessVertical,
   Restaurant,
   TierType,
+  FoodCourt,
 } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
@@ -150,15 +151,55 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
   const [address, setAddress] = useState('');
   const [branchBrandColor, setBranchBrandColor] = useState('#2563eb');
 
+  // Estados para integración con Food Courts en Paso 3 (Doble Vía)
+  const [availableFoodCourts, setAvailableFoodCourts] = useState<FoodCourt[]>([]);
+  const [allRestaurantsList, setAllRestaurantsList] = useState<Restaurant[]>([]);
+  // Vía B: Cuando se crea una sucursal normal y opera dentro de un Food Court
+  const [operatesInFoodCourt, setOperatesInFoodCourt] = useState(false);
+  const [selectedFoodCourtId, setSelectedFoodCourtId] = useState('');
+  const [fcSpaceNumber, setFcSpaceNumber] = useState('Local FC-01');
+  const [fcPickupCounter, setFcPickupCounter] = useState('Barra 1');
+  // Vía A: Cuando se crea un Comedor (giro food_court) y se adhieren locales iniciales en el mismo Paso 3
+  const [initialTenantBranchId, setInitialTenantBranchId] = useState('');
+  const [initialTenantSpace, setInitialTenantSpace] = useState('Local FC-01');
+  const [initialTenantCounter, setInitialTenantCounter] = useState('Barra 1');
+  const [enableVoiceTts, setEnableVoiceTts] = useState(true);
+  const [enableBuzzerChime, setEnableBuzzerChime] = useState(true);
+
+  const isMallOrPlazaName = (nameStr?: string | null): boolean => {
+    if (!nameStr) return false;
+    return /plaza|mall|forum|f[oó]rum|centro comercial|food court|galer[ií]as|paseo|parque| explanada/i.test(
+      nameStr
+    );
+  };
+
   // Cargar catálogo universal de giros y configurar paso inicial
   useEffect(() => {
     if (!isOpen) return;
 
     setErrorMsg('');
-    api.getBusinessVerticals().then((list) => {
+    setOperatesInFoodCourt(false);
+    setInitialTenantBranchId('');
+
+    Promise.all([
+      api.getBusinessVerticals(),
+      api.getFoodCourts().catch(() => []),
+      api.getRestaurants().catch(() => []),
+    ]).then(([list, fcList, rList]) => {
       setVerticals(list);
-      const defaultVert = list.find((v) => v.slug === 'restaurant') || list[0] || null;
-      setSelectedVertical(defaultVert);
+      setAvailableFoodCourts(fcList);
+      setAllRestaurantsList(rList);
+      if (fcList.length > 0) {
+        setSelectedFoodCourtId(fcList[0].id);
+      }
+
+      const orgContextName = initialOrganization?.name || '';
+      const preferFoodCourt =
+        initialBrand?.vertical_slug === 'food_court' || isMallOrPlazaName(orgContextName);
+      const matchedVert = preferFoodCourt
+        ? list.find((v) => v.slug === 'food_court')
+        : list.find((v) => v.slug === 'restaurant');
+      setSelectedVertical(matchedVert || list[0] || null);
     });
 
     if (initialOrganization && initialBrand) {
@@ -166,6 +207,13 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       setActiveBrand(initialBrand);
       setSelectedBrandId(initialBrand.id);
       setBranchBrandColor(initialBrand.brand_color || '#2563eb');
+      if (initialBrand.vertical_slug === 'food_court') {
+        setBranchName('Food Court Principal');
+        setTier(4);
+        setIsAdFree(false);
+      } else {
+        setBranchName('Sucursal Principal');
+      }
       api.getOrganizationBrands(initialOrganization.id).then((bList) => {
         setOrgBrands(bList.length > 0 ? bList : [initialBrand]);
       });
@@ -175,7 +223,7 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       api.getOrganizationBrands(initialOrganization.id).then((bList) => {
         setOrgBrands(bList);
       });
-      setBrandName('');
+      setBrandName(initialOrganization.name || '');
       setBrandLogoUrl('');
       setBrandColor('#2563eb');
       setStep(2);
@@ -332,6 +380,12 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       if (!managerPhone && ownerPhone.trim()) {
         setManagerPhone(ownerPhone.trim());
       }
+      if (isMallOrPlazaName(orgName.trim())) {
+        const fcVert = verticals.find((v) => v.slug === 'food_court');
+        if (fcVert) {
+          setSelectedVertical(fcVert);
+        }
+      }
       setStep(2);
     } else {
       setErrorMsg(res.error || 'Error al dar de alta la organización.');
@@ -379,6 +433,13 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       setActiveBrand(createdBrand);
       setSelectedBrandId(createdBrand.id);
       setBranchBrandColor(createdBrand.brand_color || '#2563eb');
+      if (createdBrand.vertical_slug === 'food_court') {
+        if (!branchName.trim() || branchName === 'Sucursal Principal') {
+          setBranchName('Food Court Principal');
+        }
+        setTier(4);
+        setIsAdFree(false);
+      }
       if (onBrandCreated) {
         onBrandCreated(createdBrand);
       }
@@ -410,11 +471,17 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       setErrorMsg('Toda sucursal debe estar supeditada a una marca comercial.');
       return;
     }
+    const isFoodCourtBrand = targetBrand.vertical_slug === 'food_court';
+
     if (!branchName.trim()) {
-      setErrorMsg('El nombre de la sucursal es obligatorio.');
+      setErrorMsg(
+        isFoodCourtBrand
+          ? 'El nombre del comedor o Food Court es obligatorio.'
+          : 'El nombre de la sucursal es obligatorio.'
+      );
       return;
     }
-    if (!googleReviewUrl.trim()) {
+    if (!isFoodCourtBrand && !googleReviewUrl.trim()) {
       setErrorMsg('El enlace de Google Reseñas de la sucursal es obligatorio.');
       return;
     }
@@ -433,6 +500,10 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       '-' +
       Math.floor(100 + Math.random() * 900);
 
+    const effectiveReviewUrl =
+      googleReviewUrl.trim() ||
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullName)}`;
+
     const payload: Partial<Restaurant> = {
       organization_id: activeOrg.id,
       brand_id: targetBrand.id,
@@ -441,10 +512,10 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
       business_type: targetBrand.vertical_slug || 'restaurant',
       name: fullName,
       slug: generatedSlug,
-      google_review_url: googleReviewUrl.trim(),
+      google_review_url: effectiveReviewUrl,
       logo_url: targetBrand.logo_url || null,
-      tier,
-      is_ad_free: isAdFree,
+      tier: isFoodCourtBrand ? 4 : tier,
+      is_ad_free: isFoodCourtBrand ? false : isAdFree,
       brand_color: branchBrandColor || targetBrand.brand_color || '#2563eb',
       address: address.trim() || null,
       manager_phone: managerPhone.trim() || activeOrg.owner_phone || null,
@@ -456,23 +527,59 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
     };
 
     const res = await api.saveRestaurant(payload);
-    setIsSaving(false);
 
     if (res.success && res.data) {
+      try {
+        if (isFoodCourtBrand) {
+          const fc = await api.ensureFoodCourtForBranch(res.data);
+          await api.updateFoodCourtConfig(fc.id, {
+            enableVoiceTts,
+            enableBuzzerChime,
+          });
+          if (initialTenantBranchId) {
+            await api.linkBranchToFoodCourt(
+              fc.id,
+              initialTenantBranchId,
+              initialTenantSpace.trim() || 'Local FC-01',
+              initialTenantCounter.trim() || 'Barra 1'
+            );
+          }
+          const updatedFcs = await api.getFoodCourts();
+          setAvailableFoodCourts(updatedFcs);
+        } else if (operatesInFoodCourt && selectedFoodCourtId) {
+          await api.linkBranchToFoodCourt(
+            selectedFoodCourtId,
+            res.data.id,
+            fcSpaceNumber.trim() || 'Local FC-01',
+            fcPickupCounter.trim() || 'Barra 1'
+          );
+        }
+      } catch (err) {
+        console.error('Error al configurar Food Court / Federación:', err);
+      }
+
+      setIsSaving(false);
+
       if (onBranchCreated) {
         onBranchCreated(res.data);
       }
       if (addAnotherBranch) {
-        setBranchName('');
+        setBranchName(isFoodCourtBrand ? 'Food Court Zona Norte' : '');
         setGoogleReviewUrl('');
         setAddress('');
+        setInitialTenantBranchId('');
       } else {
         onClose();
       }
     } else {
+      setIsSaving(false);
       setErrorMsg(res.error || 'Error al registrar la sucursal.');
     }
   };
+
+  const currentStep3Brand =
+    orgBrands.find((b) => b.id === selectedBrandId) || activeBrand;
+  const isStep3FoodCourt = currentStep3Brand?.vertical_slug === 'food_court';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
@@ -490,7 +597,10 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                 <h2 className="text-lg font-extrabold text-slate-900">
                   {step === 1 && 'Paso 1: Dar de Alta Organización'}
                   {step === 2 && 'Paso 2: Añadir Marca Comercial'}
-                  {step === 3 && 'Paso 3: Añadir Sucursal a la Marca'}
+                  {step === 3 &&
+                    (isStep3FoodCourt
+                      ? 'Paso 3: Dar de Alta Comedor (Food Court 4K)'
+                      : 'Paso 3: Añadir Sucursal a la Marca')}
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-extrabold uppercase tracking-wide border border-blue-200">
                   Paso {step} de 3
@@ -502,7 +612,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                 {step === 2 &&
                   `Configura las marcas de ${activeOrg?.name || 'la organización'}, su logo cuadrado y su giro comercial.`}
                 {step === 3 &&
-                  'Vincula la sucursal física supeditada a la marca, su link de Google Reseñas, paquete y publicidad.'}
+                  (isStep3FoodCourt
+                    ? 'Configura el comedor central de la plaza comercial, su pantalla Turnero 4K (Split 70/30) y los locales adheridos.'
+                    : 'Vincula la sucursal física supeditada a la marca, su link de Google Reseñas, paquete y publicidad.')}
               </p>
             </div>
           </div>
@@ -1026,7 +1138,11 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <span>Guardar Marca y Añadir Sucursal</span>
+                      <span>
+                        {selectedVertical?.slug === 'food_court'
+                          ? 'Guardar Marca y Dar de Alta Comedor'
+                          : 'Guardar Marca y Añadir Sucursal'}
+                      </span>
                       <ChevronRight className="w-4 h-4" />
                     </>
                   )}
@@ -1046,7 +1162,7 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Marca Comercial Matriz *
+                    {isStep3FoodCourt ? 'Plaza Comercial Matriz *' : 'Marca Comercial Matriz *'}
                   </label>
                   <select
                     value={selectedBrandId}
@@ -1057,6 +1173,11 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                       if (found) {
                         setActiveBrand(found);
                         setBranchBrandColor(found.brand_color || '#2563eb');
+                        if (found.vertical_slug === 'food_court') {
+                          setBranchName('Food Court Principal');
+                          setTier(4);
+                          setIsAdFree(false);
+                        }
                       }
                     }}
                     className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-extrabold text-slate-900"
@@ -1071,14 +1192,20 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Nombre de la Sucursal *
+                    {isStep3FoodCourt
+                      ? 'Nombre del Comedor / Food Court *'
+                      : 'Nombre de la Sucursal *'}
                   </label>
                   <input
                     type="text"
                     required
                     value={branchName}
                     onChange={(e) => setBranchName(e.target.value)}
-                    placeholder="Ej. Sucursal Centro, Polanco, Norte"
+                    placeholder={
+                      isStep3FoodCourt
+                        ? 'Ej. Food Court Principal, Comedor Nivel 2'
+                        : 'Ej. Sucursal Centro, Polanco, Norte'
+                    }
                     className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
                   />
                 </div>
@@ -1088,7 +1215,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Enlace de Reseñas de Google de la Sucursal *
+                    {isStep3FoodCourt
+                      ? 'Enlace de Google Maps de la Plaza Comercial (Opcional)'
+                      : 'Enlace de Reseñas de Google de la Sucursal *'}
                   </label>
                   {googleReviewUrl && (
                     <a
@@ -1104,83 +1233,288 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                 </div>
                 <input
                   type="text"
-                  required
+                  required={!isStep3FoodCourt}
                   value={googleReviewUrl}
                   onChange={(e) => handleReviewUrlChange(e.target.value)}
-                  placeholder="https://g.page/r/.../review o Place ID (ChIJ...)"
+                  placeholder={
+                    isStep3FoodCourt
+                      ? 'Opcional — si lo dejas vacío se autogenera la ubicación del centro comercial'
+                      : 'https://g.page/r/.../review o Place ID (ChIJ...)'
+                  }
                   className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-medium"
                 />
               </div>
 
-              {/* Paquete Contratado (Tier 1 a 4) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Paquete Contratado por la Sucursal
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {([1, 2, 3, 4] as TierType[]).map((tNum) => (
-                    <button
-                      key={tNum}
-                      type="button"
-                      onClick={() => setTier(tNum)}
-                      className={`p-3 rounded-2xl border text-left transition-all ${
-                        tier === tNum
-                          ? 'border-blue-600 bg-blue-50/70 shadow-2xs'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs font-extrabold text-slate-900">
-                          {TIERS[tNum].name}
+              {/* Vista Especializada para Plaza Comercial (Food Court) vs Sucursal Estándar */}
+              {isStep3FoodCourt ? (
+                <div className="space-y-3">
+                  {/* Banner de Modalidad Fija: Turnero Maestro 4K + Red Publicitaria */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-blue-200 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                        Configuración del Turnero Maestro 4K (Inmobiliario)
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-extrabold uppercase">
+                        Split 70% Turnos / 30% Red Publicitaria
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      El comedor de la plaza comercial opera con la pantalla maestra 4K conectada a todos los locales adheridos y subsidiada por la red de anuncios en el bloque lateral del 30%.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                      <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+                        <div>
+                          <span className="block text-xs font-bold text-slate-800">
+                            Voz TTS en Comedor
+                          </span>
+                          <span className="block text-[10px] text-slate-500">
+                            Vocea turno y nombre del local
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={enableVoiceTts}
+                          onChange={(e) => setEnableVoiceTts(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+                        <div>
+                          <span className="block text-xs font-bold text-slate-800">
+                            Campana / Buzzer Acústico
+                          </span>
+                          <span className="block text-[10px] text-slate-500">
+                            Tono previo al llamado en TV
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={enableBuzzerChime}
+                          onChange={(e) => setEnableBuzzerChime(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Adherir Primer Local Existente (Opcional) */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        Adherir Primer Local al Comedor (Opcional)
+                      </label>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        También podrás añadir o crear más locales después
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="sm:col-span-1">
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                          Sucursal Locataria Existente
                         </span>
-                        {tier === tNum && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                        <select
+                          value={initialTenantBranchId}
+                          onChange={(e) => setInitialTenantBranchId(e.target.value)}
+                          className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-900"
+                        >
+                          <option value="">-- Vincular después --</option>
+                          {allRestaurantsList
+                            .filter((r) => r.business_type !== 'food_court')
+                            .map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                        </select>
                       </div>
-                      <p className="text-[10px] text-slate-500 leading-snug">
-                        {TIERS[tNum].description}
-                      </p>
-                    </button>
-                  ))}
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                          Número de Local / Isla
+                        </span>
+                        <input
+                          type="text"
+                          value={initialTenantSpace}
+                          onChange={(e) => setInitialTenantSpace(e.target.value)}
+                          placeholder="Local FC-01"
+                          className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-800"
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                          Barra de Entrega
+                        </span>
+                        <input
+                          type="text"
+                          value={initialTenantCounter}
+                          onChange={(e) => setInitialTenantCounter(e.target.value)}
+                          placeholder="Barra 1"
+                          className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Paquete Contratado (Tier 1 a 4) */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Paquete Contratado por la Sucursal
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {([1, 2, 3, 4] as TierType[]).map((tNum) => (
+                        <button
+                          key={tNum}
+                          type="button"
+                          onClick={() => setTier(tNum)}
+                          className={`p-3 rounded-2xl border text-left transition-all ${
+                            tier === tNum
+                              ? 'border-blue-600 bg-blue-50/70 shadow-2xs'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-xs font-extrabold text-slate-900">
+                              {TIERS[tNum].name}
+                            </span>
+                            {tier === tNum && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-snug">
+                            {TIERS[tNum].description}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Vinculación Opcional a una Plaza Comercial / Food Court */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                          ¿Esta sucursal opera dentro de una Plaza Comercial / Food Court?
+                        </span>
+                        <span className="block text-[10px] text-slate-500">
+                          Conecta los llamados de cocina de esta sucursal al Turnero Maestro 4K del comedor
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={operatesInFoodCourt}
+                        onClick={() => {
+                          const next = !operatesInFoodCourt;
+                          setOperatesInFoodCourt(next);
+                          if (next && !selectedFoodCourtId && availableFoodCourts.length > 0) {
+                            setSelectedFoodCourtId(availableFoodCourts[0].id);
+                          }
+                        }}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                          operatesInFoodCourt ? 'bg-blue-600' : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                            operatesInFoodCourt ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {operatesInFoodCourt && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                            Comedor / Plaza Comercial *
+                          </label>
+                          <select
+                            value={selectedFoodCourtId}
+                            onChange={(e) => setSelectedFoodCourtId(e.target.value)}
+                            className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-900"
+                          >
+                            <option value="">-- Seleccionar Comedor --</option>
+                            {availableFoodCourts.map((fc) => (
+                              <option key={fc.id} value={fc.id}>
+                                {fc.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                            Número de Local / Isla *
+                          </label>
+                          <input
+                            type="text"
+                            value={fcSpaceNumber}
+                            onChange={(e) => setFcSpaceNumber(e.target.value)}
+                            placeholder="Local FC-01"
+                            className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                            Barra de Entrega *
+                          </label>
+                          <input
+                            type="text"
+                            value={fcPickupCounter}
+                            onChange={(e) => setFcPickupCounter(e.target.value)}
+                            placeholder="Barra 1"
+                            className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-800"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Switch de Modalidad de Anuncios, Teléfono, Dirección Física y Color */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200/70">
-                {/* Switch de Modalidad de Anuncios */}
-                <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col justify-between">
-                  <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                    Modalidad de Anuncios
-                  </span>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs font-bold text-slate-900">
-                      {isAdFree ? 'Marca Blanca (Ad-Free)' : 'Red de Anuncios Activa'}
+              <div
+                className={`grid grid-cols-1 ${
+                  isStep3FoodCourt ? 'sm:grid-cols-2' : 'sm:grid-cols-3'
+                } gap-3 pt-2 border-t border-slate-200/70`}
+              >
+                {/* Switch de Modalidad de Anuncios (Solo para sucursales no-inmobiliarias) */}
+                {!isStep3FoodCourt && (
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col justify-between">
+                    <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                      Modalidad de Anuncios
                     </span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isAdFree}
-                      onClick={() => setIsAdFree((prev) => !prev)}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        isAdFree ? 'bg-emerald-600' : 'bg-blue-600'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
-                          isAdFree ? 'translate-x-4' : 'translate-x-0'
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs font-bold text-slate-900">
+                        {isAdFree ? 'Marca Blanca (Ad-Free)' : 'Red de Anuncios Activa'}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isAdFree}
+                        onClick={() => setIsAdFree((prev) => !prev)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                          isAdFree ? 'bg-emerald-600' : 'bg-blue-600'
                         }`}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                            isAdFree ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1">
+                      {isAdFree
+                        ? '0% anuncios de terceros en mesa'
+                        : 'Monetiza con cupones cruzados'}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1">
-                    {isAdFree
-                      ? '0% anuncios de terceros en mesa'
-                      : 'Monetiza con cupones cruzados'}
-                  </span>
-                </div>
+                )}
 
                 {/* Teléfono de la Sucursal */}
                 <div className="p-3 rounded-xl bg-white border border-slate-200">
                   <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Teléfono de la Sucursal
+                    {isStep3FoodCourt ? 'Teléfono de Administración' : 'Teléfono de la Sucursal'}
                   </label>
                   <PhoneInputWithCountry
                     value={managerPhone}
@@ -1192,7 +1526,7 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                 {/* Color de Marca de la Sucursal */}
                 <div className="p-3 rounded-xl bg-white border border-slate-200">
                   <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Color de Marca
+                    Color de Identidad
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -1211,7 +1545,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
               {/* Dirección Física de la Sucursal */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Dirección Física de la Sucursal
+                  {isStep3FoodCourt
+                    ? 'Ubicación / Dirección de la Plaza Comercial'
+                    : 'Dirección Física de la Sucursal'}
                 </label>
                 <div className="relative">
                   <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -1228,7 +1564,9 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
               {/* Horario Operativo para Planeación de Turnos */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                 <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                  Horario Operativo de la Sucursal (Base para Turnos)
+                  {isStep3FoodCourt
+                    ? 'Horario Operativo del Comedor / Food Court'
+                    : 'Horario Operativo de la Sucursal (Base para Turnos)'}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
@@ -1281,7 +1619,11 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Guardar y Añadir Otra Sucursal</span>
+                  <span>
+                    {isStep3FoodCourt
+                      ? 'Guardar y Añadir Otro Comedor'
+                      : 'Guardar y Añadir Otra Sucursal'}
+                  </span>
                 </button>
 
                 <button
@@ -1293,12 +1635,18 @@ export const NewOrganizationModal: React.FC<NewOrganizationModalProps> = ({
                   {isSaving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Guardando Sucursal...</span>
+                      <span>
+                        {isStep3FoodCourt ? 'Activando Comedor...' : 'Guardando Sucursal...'}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Guardar Sucursal y Finalizar</span>
+                      <span>
+                        {isStep3FoodCourt
+                          ? 'Activar Comedor 4K y Finalizar'
+                          : 'Guardar Sucursal y Finalizar'}
+                      </span>
                     </>
                   )}
                 </button>

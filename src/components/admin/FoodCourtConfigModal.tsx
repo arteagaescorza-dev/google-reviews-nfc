@@ -47,13 +47,18 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
   const [links, setLinks] = useState<FoodCourtBranchLink[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Estado para vincular sucursal existente (Cross-Org)
-  const [onboardingMode, setOnboardingMode] = useState<'existing' | 'preregister'>('existing');
+  // Estado para vincular sucursal existente (Cross-Org) o crear nueva sucursal en 1 paso
+  const [onboardingMode, setOnboardingMode] = useState<'existing' | 'create_new' | 'preregister'>('existing');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
   const [spaceNumber, setSpaceNumber] = useState('Local FC-04');
   const [pickupCounter, setPickupCounter] = useState('Barra 1');
   const [newBrandName, setNewBrandName] = useState('');
   const [newContactEmail, setNewContactEmail] = useState('');
+  const [createOrgId, setCreateOrgId] = useState('');
+  const [createNewOrgName, setCreateNewOrgName] = useState('');
+  const [createBranchName, setCreateBranchName] = useState('');
+  const [createGoogleUrl, setCreateGoogleUrl] = useState('');
+  const [creatingTenantBranch, setCreatingTenantBranch] = useState(false);
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -90,6 +95,9 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
       setLinks(branchLinks);
       setFcName(fc.name);
       setMallName(fc.mall_name);
+      if (!createBranchName) {
+        setCreateBranchName(fc.mall_name || foodCourtBranch.brand_name || 'Plaza Comercial');
+      }
       setPrimaryColor(fc.turnero_config?.primaryColor || '#2563eb');
       setEnableVoiceTts(fc.turnero_config?.enableVoiceTts !== false);
       setEnableBuzzerChime(fc.turnero_config?.enableBuzzerChime !== false);
@@ -177,6 +185,46 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
       setStatusMsg({
         type: 'err',
         text: res.error || 'Error al pre-registrar el locatario.',
+      });
+    }
+  };
+
+  const handleCreateAndFederateBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!foodCourt || !newBrandName.trim()) return;
+    setCreatingTenantBranch(true);
+    setStatusMsg(null);
+
+    const res = await api.createAndFederateTenantBranch(foodCourt.id, {
+      organizationId: createOrgId || null,
+      newOrganizationName: !createOrgId ? createNewOrgName.trim() || newBrandName.trim() : undefined,
+      ownerEmail: newContactEmail.trim() || undefined,
+      brandName: newBrandName.trim(),
+      branchName: createBranchName.trim() || foodCourt.mall_name || 'Plaza Comercial',
+      businessType: 'restaurant',
+      spaceNumber: spaceNumber.trim() || 'Local FC-01',
+      pickupCounter: pickupCounter.trim() || 'Barra 1',
+      googleReviewUrl: createGoogleUrl.trim() || undefined,
+    });
+
+    setCreatingTenantBranch(false);
+
+    if (res.success && res.link) {
+      const refreshed = await api.getFoodCourtBranches(foodCourt.id);
+      setLinks(refreshed);
+      setNewBrandName('');
+      setCreateNewOrgName('');
+      setCreateGoogleUrl('');
+      setSpaceNumber(`Local FC-0${refreshed.length + 1}`);
+      setStatusMsg({
+        type: 'ok',
+        text: `Sucursal "${res.restaurant?.name || newBrandName}" dada de alta y federada al Turnero 4K en un solo paso.`,
+      });
+      await onUpdated();
+    } else {
+      setStatusMsg({
+        type: 'err',
+        text: res.error || 'No se pudo crear y federar la nueva sucursal.',
       });
     }
   };
@@ -367,7 +415,7 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="inline-flex rounded-xl bg-white p-0.5 border border-slate-200 self-start">
+                  <div className="inline-flex flex-wrap rounded-xl bg-white p-0.5 border border-slate-200 self-start gap-0.5">
                     <button
                       type="button"
                       onClick={() => setOnboardingMode('existing')}
@@ -381,6 +429,17 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => setOnboardingMode('create_new')}
+                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        onboardingMode === 'create_new'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Crear Nueva Sucursal en Plaza
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setOnboardingMode('preregister')}
                       className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
                         onboardingMode === 'preregister'
@@ -388,7 +447,7 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      Pre-Registrar Nuevo Local
+                      Invitación por Link
                     </button>
                   </div>
                 </div>
@@ -451,6 +510,121 @@ export const FoodCourtConfigModal: React.FC<FoodCourtConfigModalProps> = ({
                         <Plus className="w-3.5 h-3.5" />
                         <span>Federar</span>
                       </button>
+                    </div>
+                  </form>
+                ) : onboardingMode === 'create_new' ? (
+                  <form onSubmit={handleCreateAndFederateBranch} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      <div className="sm:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Organización Dueña del Local
+                        </label>
+                        <select
+                          value={createOrgId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCreateOrgId(val);
+                            const foundOrg = organizations.find((o) => o.id === val);
+                            if (foundOrg && !newBrandName) {
+                              setNewBrandName(foundOrg.name);
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900"
+                        >
+                          <option value="">+ Crear Nueva Organización...</option>
+                          {organizations
+                            .filter((o) => o.id !== foodCourtBranch.organization_id)
+                            .map((org) => (
+                              <option key={org.id} value={org.id}>
+                                {org.name} ({org.owner_name})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Marca Comercial del Locatario *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newBrandName}
+                          onChange={(e) => setNewBrandName(e.target.value)}
+                          placeholder="Ej. Lorde Lunch, Tacos El Pastor"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Nombre de la Sucursal en Plaza *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={createBranchName}
+                          onChange={(e) => setCreateBranchName(e.target.value)}
+                          placeholder={`Ej. ${foodCourt?.mall_name || 'Plaza Oriente'}`}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                      <div className="sm:col-span-3">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Número de Local / Isla *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={spaceNumber}
+                          onChange={(e) => setSpaceNumber(e.target.value)}
+                          placeholder="Local FC-01"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Barra de Entrega *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={pickupCounter}
+                          onChange={(e) => setPickupCounter(e.target.value)}
+                          placeholder="Barra 1"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-900"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Link Google Reseñas (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={createGoogleUrl}
+                          onChange={(e) => setCreateGoogleUrl(e.target.value)}
+                          placeholder="https://g.page/r/... (o se autogenera)"
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <button
+                          type="submit"
+                          disabled={creatingTenantBranch || !newBrandName.trim()}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>
+                            {creatingTenantBranch ? 'Creando...' : 'Crear y Federar Local'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </form>
                 ) : (

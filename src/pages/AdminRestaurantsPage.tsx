@@ -5322,10 +5322,14 @@ export const AdminRestaurantsPage: React.FC = () => {
                                     <button
                                       onClick={() => handleOpenAddBranchForBrand(org, brand)}
                                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold shadow-2xs transition-colors"
-                                      title={`Añadir nueva sucursal supeditada a la marca ${brand.name}`}
+                                      title={`Añadir nueva unidad operativa supeditada a la marca ${brand.name}`}
                                     >
                                       <Plus className="w-3 h-3" />
-                                      <span>+ Añadir Sucursal a {brand.name}</span>
+                                      <span>
+                                        {brand.vertical_slug === 'food_court'
+                                          ? `+ Añadir Comedor / Food Court a ${brand.name}`
+                                          : `+ Añadir Sucursal a ${brand.name}`}
+                                      </span>
                                     </button>
                                     {brandNode.branches.length === 0 && (
                                       <button

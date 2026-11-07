@@ -211,4 +211,23 @@ describe('Federación de Food Courts en Plazas Comerciales y Turnero 4K (POL-008
     expect(updatedLink.data?.commercial_space_number).toBe('Local FC-01A');
     expect(updatedLink.data?.pickup_counter_label).toBe('Barra Central 1');
   });
+
+  it('6. permite crear y federar una nueva sucursal locataria en un solo paso (createAndFederateTenantBranch)', async () => {
+    const res = await foodCourtsApi.createAndFederateTenantBranch('fc-galerias-1', {
+      newOrganizationName: 'Lorde Lunch Corp',
+      ownerEmail: 'lorde@glord.com',
+      brandName: 'Lorde Lunch',
+      branchName: 'Plaza Oriente',
+      spaceNumber: 'Local FC-15',
+      pickupCounter: 'Barra 15',
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.restaurant).toBeDefined();
+    expect(res.restaurant?.name).toBe('Lorde Lunch - Plaza Oriente');
+    expect(res.link).toBeDefined();
+    expect(res.link?.commercial_space_number).toBe('Local FC-15');
+    expect(res.link?.pickup_counter_label).toBe('Barra 15');
+    expect(res.link?.status).toBe('active');
+  });
 });

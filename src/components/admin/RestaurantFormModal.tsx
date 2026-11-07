@@ -7,6 +7,8 @@ import type {
   OrganizationBrand,
   BusinessVertical,
   TierType,
+  FoodCourt,
+  FoodCourtBranchLink,
 } from '../../types';
 import { api } from '../../lib/api';
 import { TIERS } from '../../lib/constants';
@@ -126,6 +128,13 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Federación con Plaza Comercial / Food Court
+  const [availableFoodCourts, setAvailableFoodCourts] = useState<FoodCourt[]>([]);
+  const [existingFcLink, setExistingFcLink] = useState<FoodCourtBranchLink | null>(null);
+  const [selectedFoodCourtId, setSelectedFoodCourtId] = useState<string>('');
+  const [fcSpaceNumber, setFcSpaceNumber] = useState<string>('Local FC-01');
+  const [fcPickupCounter, setFcPickupCounter] = useState<string>('Barra 1');
+
   const handleReviewUrlChange = (val: string) => {
     const trimmed = val.trim();
     if (/^ChIJ[a-zA-Z0-9_-]+$/i.test(trimmed)) {
@@ -148,13 +157,30 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    Promise.all([api.getOrganizationBrands(), api.getBusinessVerticals()]).then(
-      ([bList, vList]) => {
-        setAllBrands(bList);
-        setVerticals(vList);
+    Promise.all([
+      api.getOrganizationBrands(),
+      api.getBusinessVerticals(),
+      api.getFoodCourts(),
+      api.getAllFoodCourtBranchLinks(),
+    ]).then(([bList, vList, fcList, fcLinks]) => {
+      setAllBrands(bList);
+      setVerticals(vList);
+      setAvailableFoodCourts(fcList);
+      if (restaurant?.id) {
+        const foundLink =
+          fcLinks.find((l) => l.restaurant_id === restaurant.id && l.status === 'active') || null;
+        setExistingFcLink(foundLink);
+        setSelectedFoodCourtId(foundLink ? foundLink.food_court_id : '');
+        setFcSpaceNumber(foundLink?.commercial_space_number || 'Local FC-01');
+        setFcPickupCounter(foundLink?.pickup_counter_label || 'Barra 1');
+      } else {
+        setExistingFcLink(null);
+        setSelectedFoodCourtId('');
+        setFcSpaceNumber('Local FC-01');
+        setFcPickupCounter('Barra 1');
       }
-    );
-  }, [isOpen]);
+    });
+  }, [isOpen, restaurant]);
 
   useEffect(() => {
     if (restaurant) {
@@ -355,8 +381,13 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brandName.trim() || !googleReviewUrl.trim()) {
-      setErrorMsg('Nombre de marca y enlace de Google Reseñas son obligatorios.');
+    const isFoodCourtBranch = businessType === 'food_court';
+    if (!brandName.trim() || (!isFoodCourtBranch && !googleReviewUrl.trim())) {
+      setErrorMsg(
+        isFoodCourtBranch
+          ? 'El nombre de la plaza comercial es obligatorio.'
+          : 'Nombre de marca y enlace de Google Reseñas son obligatorios.'
+      );
       return;
     }
 
@@ -392,17 +423,21 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
       }
     }
 
+    const effectiveReviewUrl =
+      googleReviewUrl.trim() ||
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullName)}`;
+
     const payload: Partial<Restaurant> = {
       brand_id: resolvedBrandId,
       brand_name: brandName.trim(),
-      branch_name: branchName.trim() || 'Principal',
+      branch_name: branchName.trim() || (isFoodCourtBranch ? 'Food Court Principal' : 'Principal'),
       business_type: businessType || 'restaurant',
       name: fullName,
       slug: slug.trim() || `sucursal-${Date.now()}`,
-      google_review_url: googleReviewUrl.trim(),
+      google_review_url: effectiveReviewUrl,
       logo_url: cleanLogo || null,
-      tier,
-      is_ad_free: isAdFree,
+      tier: isFoodCourtBranch ? 4 : tier,
+      is_ad_free: isFoodCourtBranch ? false : isAdFree,
       brand_color: brandColor,
       address: address.trim() || null,
       manager_phone: managerPhone.trim() || null,
@@ -428,14 +463,41 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
     const res = await api.saveRestaurant(payload);
 
-    setIsSaving(false);
     if (res.success) {
-      if (res.data && res.data.business_type === 'food_court') {
-        await api.ensureFoodCourtForBranch(res.data);
+      const savedBranchId = res.data?.id || restaurant?.id;
+      try {
+        if (res.data && res.data.business_type === 'food_court') {
+          await api.ensureFoodCourtForBranch(res.data);
+        } else if (savedBranchId) {
+          if (selectedFoodCourtId) {
+            if (existingFcLink && existingFcLink.food_court_id === selectedFoodCourtId) {
+              await api.updateFoodCourtBranchLink(existingFcLink.id, {
+                commercial_space_number: fcSpaceNumber.trim() || 'Local FC-01',
+                pickup_counter_label: fcPickupCounter.trim() || 'Barra 1',
+              });
+            } else {
+              if (existingFcLink) {
+                await api.removeBranchFromFoodCourt(existingFcLink.id);
+              }
+              await api.linkBranchToFoodCourt(
+                selectedFoodCourtId,
+                savedBranchId,
+                fcSpaceNumber.trim() || 'Local FC-01',
+                fcPickupCounter.trim() || 'Barra 1'
+              );
+            }
+          } else if (existingFcLink) {
+            await api.removeBranchFromFoodCourt(existingFcLink.id);
+          }
+        }
+      } catch (err) {
+        console.error('Error al actualizar federación de Food Court:', err);
       }
+      setIsSaving(false);
       onSaved();
       onClose();
     } else {
+      setIsSaving(false);
       setErrorMsg(res.error || 'Error al guardar la sucursal.');
     }
   };
@@ -660,18 +722,94 @@ export const RestaurantFormModal: React.FC<RestaurantFormModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Enlace de Google Reseñas *
+                {businessType === 'food_court'
+                  ? 'Enlace de Google Maps (Opcional)'
+                  : 'Enlace de Google Reseñas *'}
               </label>
               <input
                 type="text"
-                required
+                required={businessType !== 'food_court'}
                 value={googleReviewUrl}
                 onChange={(e) => handleReviewUrlChange(e.target.value)}
-                placeholder="https://g.page/r/.../review o link de Google Maps"
+                placeholder={
+                  businessType === 'food_court'
+                    ? 'Opcional — autogenerado si se deja vacío'
+                    : 'https://g.page/r/.../review o link de Google Maps'
+                }
                 className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
               />
             </div>
           </div>
+
+          {/* Vinculación Opcional a una Plaza Comercial / Food Court (Solo giros locatarios) */}
+          {businessType !== 'food_court' && (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    Ubicación en Plaza Comercial / Food Court (Opcional)
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Si esta sucursal opera dentro del comedor de una plaza comercial, vincúlala para transmitir sus turnos al Turnero Maestro 4K.
+                  </p>
+                </div>
+                {selectedFoodCourtId && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-extrabold uppercase">
+                    Federada en Food Court
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Plaza Comercial / Comedor
+                  </label>
+                  <select
+                    value={selectedFoodCourtId}
+                    onChange={(e) => setSelectedFoodCourtId(e.target.value)}
+                    className="w-full p-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-900"
+                  >
+                    <option value="">-- Independiente (Fuera de Food Court) --</option>
+                    {availableFoodCourts.map((fc) => (
+                      <option key={fc.id} value={fc.id}>
+                        {fc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedFoodCourtId && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Número de Local / Isla *
+                      </label>
+                      <input
+                        type="text"
+                        value={fcSpaceNumber}
+                        onChange={(e) => setFcSpaceNumber(e.target.value)}
+                        placeholder="Local FC-01"
+                        className="w-full p-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Barra de Entrega *
+                      </label>
+                      <input
+                        type="text"
+                        value={fcPickupCounter}
+                        onChange={(e) => setFcPickupCounter(e.target.value)}
+                        placeholder="Barra 1"
+                        className="w-full p-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Selección de Paquete (Tier 1 a 4) */}
           <div>
